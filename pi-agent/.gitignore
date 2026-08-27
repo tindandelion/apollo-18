@@ -1,3 +1,6 @@
+# Pi local config (sessions, auth, settings, etc.)
+.pi/
+
 # Dependencies
 node_modules/
 
