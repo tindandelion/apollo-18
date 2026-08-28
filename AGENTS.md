@@ -21,6 +21,10 @@ trunk build --release crates/web/index.html
 
 Also run every ticket-specific golden, native-output, browser, asset-provenance, and deterministic-animation check required by its acceptance criteria.
 
+## Commits
+
+Before creating a Git commit, propose the exact commit message and wait for the user's confirmation.
+
 ## Agent skills
 
 ### Issue tracker
