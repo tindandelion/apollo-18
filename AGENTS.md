@@ -1,3 +1,13 @@
+# Apollo 18 agent guidance
+
+## Project context
+
+Apollo 18 is a learning-first Rust software renderer for presenting the Moon with NASA lunar surface data. Use the canonical project language in `CONTEXT.md`; read relevant decisions under `docs/adr/` before changing renderer conventions.
+
+## Planned implementation
+
+When implementing the renderer, native binaries, web showcase, lunar assets, or rendering tests, read `.scratch/apollo-18/spec.md` and the ticket being worked under `.scratch/apollo-18/issues/`. Work one frontier ticket at a time; completion requires every acceptance criterion and the ticket's quality gate to pass.
+
 ## Agent skills
 
 ### Issue tracker
