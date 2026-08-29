@@ -8,6 +8,10 @@ Apollo 18 is a learning-first Rust software renderer for presenting the Moon wit
 
 When implementing the renderer, native binaries, web showcase, lunar assets, or rendering tests, read `.scratch/apollo-18/spec.md` and the ticket being worked under `.scratch/apollo-18/issues/`. Work one frontier ticket at a time; completion requires every acceptance criterion and the ticket's quality gate to pass.
 
+## Learning documentation
+
+For every graphics stage, add or update a concise guide under `docs/learning/` that explains the stage's reasoning and equations. Keep tutorial material in these guides and reserve code comments for local implementation reasoning.
+
 ## Quality gate
 
 Run these checks before completing every implementation ticket:
@@ -16,10 +20,14 @@ Run these checks before completing every implementation ticket:
 cargo fmt --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-trunk build --release crates/web/index.html
+cd crates/web && trunk build index.html --release
 ```
 
 Also run every ticket-specific golden, native-output, browser, asset-provenance, and deterministic-animation check required by its acceptance criteria.
+
+## Review conventions
+
+Native artifact encoding and golden-fixture encoding are separate responsibilities that may diverge. Similar PNG-writing code across those boundaries is intentional, not duplicated code to extract.
 
 ## Commits
 

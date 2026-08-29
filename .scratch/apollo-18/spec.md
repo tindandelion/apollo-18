@@ -155,6 +155,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - The local quality gate consists of formatting checks, Clippy with warnings denied, all workspace tests, and a release Trunk build.
 - Performance exploration is a follow-up task after functional completion. Its baseline is the canonical 800×800, level-5 lunar scene in a release desktop-browser build.
 - Satisfactory follow-up performance is sustained 30 FPS on a documented reference machine and browser; 60 FPS is a stretch goal.
+- Performance profiling should measure the cost of the opaque RGBA framebuffer. RGB would save 640,000 bytes at 800×800, but Canvas 2D `ImageData` requires RGBA, so a compact framebuffer would add a conversion buffer and could separate native and web representations. Keep RGBA unless measurements show its memory use or bandwidth to be a bottleneck.
 - A GPU renderer will be considered only after profiling and reasonable CPU/Wasm algorithm, memory-access, SIMD, and threading investigations fail to meet the target. No generalized rendering-backend seam will be created in this spec.
 
 ## Testing Decisions
@@ -203,7 +204,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 
 ## Further Notes
 
-- Milestone order is: workspace and framebuffer; flat 2D triangle; barycentric vertex-color triangle; orthographic rotating cube with depth and culling; six-plane clipping; smooth level-5 octasphere; per-fragment lunar color-map lookup; public static deployment; linear-light gibbous lighting and ten-second globe rotation; terrain normals from lunar elevation; twenty-second lunar-phase animation; realistic canonical goldens; then separate performance exploration.
+- Milestone order is: workspace and framebuffer; flat 2D triangle; barycentric vertex-color triangle; orthographic rotating cube with depth and culling; native and browser smoke coverage; six-plane clipping; smooth level-5 octasphere; per-fragment lunar color-map lookup; public static deployment; linear-light gibbous lighting and ten-second globe rotation; terrain normals from lunar elevation; twenty-second lunar-phase animation; realistic canonical goldens; then separate performance exploration.
 - Golden tests should be introduced alongside the milestone they protect rather than postponed until the final lunar render.
 - The NASA CGI Moon Kit describes the selected color data as optimized for aesthetics rather than science. This matches Apollo 18's visually compelling but data-grounded goal.
 - Elevation exaggeration is not part of the physical baseline in this spec. Any future artistic exaggeration must be explicit and documented.

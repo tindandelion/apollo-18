@@ -1,8 +1,8 @@
-# 09: Derive terrain normals from lunar elevation
+# 10: Derive terrain normals from lunar elevation
 
 **What to build:** Reveal crater and terrain relief by deriving per-fragment terrain normals from NASA's physical lunar elevation data while leaving the octasphere geometry and silhouette spherical.
 
-**Blocked by:** 08: Light and rotate the lunar globe
+**Blocked by:** 09: Light and rotate the lunar globe
 
 **Status:** ready-for-agent
 

@@ -8,6 +8,10 @@ Apollo 18 explores 3D graphics by building a renderer that presents the Moon usi
 A renderer whose graphics pipeline runs on the CPU and produces a framebuffer without using GPU rasterization.
 _Avoid_: CPU renderer, software rasterizer
 
+**Framebuffer**:
+A tightly packed, top-to-bottom array of RGBA pixels produced by the software renderer for image or browser presentation.
+_Avoid_: Image buffer, canvas buffer
+
 **Lunar globe**:
 A global, three-dimensional depiction of the Moon whose surface appearance is derived from lunar map data.
 _Avoid_: Moon model, lunar model

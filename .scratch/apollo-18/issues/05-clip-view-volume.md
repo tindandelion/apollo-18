@@ -1,8 +1,8 @@
-# 04: Clip the rotating cube against the view volume
+# 05: Clip the rotating cube against the view volume
 
 **What to build:** Make partially visible geometry render robustly by clipping the cube's triangles against every view-volume plane before rasterization, with a native and web demonstration that crosses those planes safely.
 
-**Blocked by:** 03: Render a rotating orthographic cube
+**Blocked by:** 04: Add native and browser smoke tests
 
 **Status:** ready-for-agent
 

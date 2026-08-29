@@ -7,8 +7,14 @@ Issues and specs for this repo live as markdown files in `.scratch/`.
 - One feature per directory: `.scratch/<feature-slug>/`
 - The spec is `.scratch/<feature-slug>/spec.md`
 - Implementation issues are one file per ticket at `.scratch/<feature-slug>/issues/<NN>-<slug>.md`, numbered from `01`, never a single combined tickets file
-- Triage state is recorded as a `Status:` line near the top of each issue file (see `triage-labels.md` for the role strings)
+- A `Status:` line appears near the top of each issue file. Open implementation tickets use the roles in `triage-labels.md`; completed implementation tickets use `done`.
 - Comments and conversation history append to the bottom of the file under a `## Comments` heading
+
+## Completing implementation tickets
+
+Set an implementation ticket to `Status: done` only when every acceptance criterion is checked, every required quality gate passes, the implementation has been reviewed, and the work has been committed. A `done` ticket is closed and no longer belongs to the implementation frontier.
+
+The `resolved` status remains specific to Wayfinder decision tickets: it means the ticket's question is answered and its result has been recorded in the map. It does not mean a feature was implemented.
 
 ## When a skill says "publish to the issue tracker"
 
