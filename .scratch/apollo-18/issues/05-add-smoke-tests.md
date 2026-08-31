@@ -1,8 +1,8 @@
-# 04: Add native and browser smoke tests
+# 05: Add native and browser smoke tests
 
 **What to build:** Add the end-to-end smoke coverage identified by the ticket-01 code review after the rotating cube is available: verify that retained native milestone binaries produce valid PNG artifacts and that the release Wasm host initializes and presents the shared framebuffer through Canvas 2D in a real browser.
 
-**Blocked by:** 03: Render a rotating orthographic cube
+**Blocked by:** 04: Animate the orthographic cube natively and on the web
 
 **Status:** ready-for-agent
 

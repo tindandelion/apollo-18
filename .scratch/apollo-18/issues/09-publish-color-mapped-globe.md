@@ -1,8 +1,8 @@
-# 08: Publish the color-mapped lunar globe
+# 09: Publish the color-mapped lunar globe
 
 **What to build:** Publish the color-mapped lunar globe as a one-page static showcase using the hosting provider appropriate to the repository's remote environment when this ticket begins.
 
-**Blocked by:** 07: Apply the NASA lunar color map
+**Blocked by:** 08: Apply the NASA lunar color map
 
 **Status:** ready-for-agent
 
