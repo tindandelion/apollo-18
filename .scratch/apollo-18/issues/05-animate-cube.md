@@ -1,8 +1,8 @@
-# 04: Animate the orthographic cube natively and on the web
+# 05: Animate the orthographic cube natively and on the web
 
 **What to build:** Turn the deterministic cube still into a time-driven tracer bullet: derive cube rotation from explicit scene time, render reproducible poses through the native host, and animate the same shared-renderer scene in the Wasm webpage.
 
-**Blocked by:** 03: Render a deterministic orthographic cube
+**Blocked by:** 04: Render a deterministic orthographic cube
 
 **Status:** ready-for-agent
 

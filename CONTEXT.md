@@ -12,6 +12,14 @@ _Avoid_: CPU renderer, software rasterizer
 A tightly packed, top-to-bottom array of RGBA pixels produced by the software renderer for image or browser presentation.
 _Avoid_: Image buffer, canvas buffer
 
+**Normalized device coordinates (NDC)**:
+The post-projection coordinate space where the visible horizontal and vertical ranges are `[-1, 1]`, `+Y` points up, and normalized depth ranges from near `0` to far `1`.
+_Avoid_: Normalized framebuffer coordinates, screen coordinates
+
+**Depth buffer**:
+A per-pixel record of the nearest accepted normalized depth, used to prevent farther fragments from replacing nearer ones and kept distinct from the presentation framebuffer.
+_Avoid_: Z-buffer, depth framebuffer
+
 **Lunar globe**:
 A global, three-dimensional depiction of the Moon whose surface appearance is derived from lunar map data.
 _Avoid_: Moon model, lunar model

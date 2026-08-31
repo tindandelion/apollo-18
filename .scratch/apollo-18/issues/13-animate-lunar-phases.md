@@ -1,8 +1,8 @@
-# 12: Animate the lunar phases
+# 13: Animate the lunar phases
 
 **What to build:** Add a deterministic lunar-phase showcase in which the camera and terrain-shaded lunar globe remain fixed while the directional Sun completes a full illumination cycle every twenty seconds.
 
-**Blocked by:** 11: Derive terrain normals from lunar elevation
+**Blocked by:** 12: Derive terrain normals from lunar elevation
 
 **Status:** ready-for-agent
 

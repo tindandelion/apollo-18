@@ -1,8 +1,8 @@
-# 10: Light and rotate the lunar globe
+# 11: Light and rotate the lunar globe
 
 **What to build:** Turn the color-mapped lunar globe into an animated showcase with smooth linear-light Lambertian shading, a gibbous directional Sun, and a ten-second rotation in native frame output and the webpage.
 
-**Blocked by:** 08: Apply the NASA lunar color map
+**Blocked by:** 09: Apply the NASA lunar color map
 
 **Status:** ready-for-agent
 
