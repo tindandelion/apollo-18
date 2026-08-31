@@ -34,7 +34,7 @@ impl NdcVertex {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub(crate) struct ScreenVertex {
+struct ScreenVertex {
     position: Vec2,
     depth: f32,
     color: LinearRgb,
@@ -71,19 +71,18 @@ impl Rasterizer {
     }
 
     pub(crate) fn draw_triangle(&mut self, vertices: [NdcVertex; 3]) {
-        let mut screen_vertices = vertices
+        let screen_vertices = vertices
             .map(|vertex| vertex.to_screen(self.framebuffer.width(), self.framebuffer.height()));
         let screen_area = edge(
             screen_vertices[0].position,
             screen_vertices[1].position,
             screen_vertices[2].position,
         );
-        if screen_area >= 0.0 {
+        if screen_area <= 0.0 {
             return;
         }
 
-        screen_vertices.swap(1, 2);
-        self.fill_triangle(screen_vertices, -screen_area);
+        self.fill_triangle(screen_vertices, screen_area);
     }
 
     pub(crate) fn into_framebuffer(self) -> Framebuffer {
@@ -247,12 +246,12 @@ mod tests {
     #[test]
     fn screen_space_area_culls_back_faces_and_degenerate_triangles() {
         let front_facing = ndc_triangle(0.5, Srgb8::RED);
-        let clockwise = [front_facing[0], front_facing[2], front_facing[1]];
+        let counter_clockwise = [front_facing[0], front_facing[2], front_facing[1]];
         let degenerate = [front_facing[0], front_facing[0], front_facing[1]];
         let precision_collapsed = [
             ndc_vertex(0.0, -0.8, 0.5, Srgb8::RED),
-            ndc_vertex(f32::from_bits(1), -0.8, 0.5, Srgb8::RED),
             ndc_vertex(0.0, 0.8, 0.5, Srgb8::RED),
+            ndc_vertex(f32::from_bits(1), -0.8, 0.5, Srgb8::RED),
         ];
 
         let mut visible = Rasterizer::new(6, 6, BACKGROUND).expect("valid rasterizer");
@@ -260,7 +259,7 @@ mod tests {
         assert_ne!(visible.into_framebuffer(), frame());
 
         let mut culled = Rasterizer::new(6, 6, BACKGROUND).expect("valid rasterizer");
-        culled.draw_triangle(clockwise);
+        culled.draw_triangle(counter_clockwise);
         culled.draw_triangle(degenerate);
         culled.draw_triangle(precision_collapsed);
         assert_eq!(culled.into_framebuffer(), frame());
@@ -404,8 +403,8 @@ mod tests {
     fn ndc_triangle(depth: f32, color: Srgb8) -> [NdcVertex; 3] {
         [
             ndc_vertex(-0.8, -0.8, depth, color),
-            ndc_vertex(0.8, -0.8, depth, color),
             ndc_vertex(0.0, 0.8, depth, color),
+            ndc_vertex(0.8, -0.8, depth, color),
         ]
     }
 
@@ -438,7 +437,7 @@ mod tests {
         );
         assert!(
             area > 0.0,
-            "screen-space test triangle should be counter-clockwise"
+            "screen-space test triangle should have positive signed area"
         );
         rasterizer.fill_triangle(vertices, area);
     }

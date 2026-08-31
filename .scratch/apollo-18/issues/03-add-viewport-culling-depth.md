@@ -9,7 +9,7 @@
 - [x] `NdcVertex` stores its position as a private `Vec3` and has a checked constructor that rejects non-finite values, `x` or `y` outside `[-1, 1]`, and depth outside `[0, 1]` without clamping or panicking.
 - [x] Explicit `NdcVertex` and `ScreenVertex` types identify the coordinate space on each side of viewport conversion; no unqualified vertex type crosses that boundary.
 - [x] Viewport conversion maps NDC with `+Y` up into continuous top-left framebuffer coordinates using `screen_x = (ndc_x + 1) * width / 2` and `screen_y = (1 - ndc_y) * height / 2`.
-- [x] Counter-clockwise NDC triangles are front-facing; after viewport Y inversion, negative screen-space area identifies those front faces while non-negative area culls clockwise, degenerate, and precision-collapsed triangles.
+- [x] Clockwise NDC triangles are front-facing; after viewport Y inversion, positive screen-space area identifies those front faces while non-positive area culls counter-clockwise, degenerate, and precision-collapsed triangles without reordering accepted vertices.
 - [x] An internal rasterizer owns the output framebuffer and a same-sized depth buffer, while the returned framebuffer remains tightly packed RGBA with no depth storage in its presentation seam.
 - [x] The depth buffer starts at positive infinity, accepts a fragment only when its normalized depth is strictly smaller than the stored depth, and therefore permits the complete near-`0` through far-`1` range with deterministic first-fragment ownership on exact ties.
 - [x] Normalized depth is interpolated affinely from screen-space barycentric weights and rejected fragments change neither color nor stored depth.

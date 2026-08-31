@@ -37,7 +37,7 @@ pub(crate) struct LinearRgb {
 }
 
 impl LinearRgb {
-    pub(crate) const fn new(red: f32, green: f32, blue: f32) -> Self {
+    const fn new(red: f32, green: f32, blue: f32) -> Self {
         Self {
             channels: [red, green, blue],
         }

@@ -15,18 +15,18 @@ pub fn render_triangles(width: u32, height: u32) -> Result<Framebuffer, RenderEr
 
     let near = [
         scene_vertex(-0.8, -0.3, 0.2, TRIANGLE_COLORS[0]),
-        scene_vertex(0.3, -0.55, 0.2, TRIANGLE_COLORS[1]),
         scene_vertex(-0.25, 0.7, 0.2, TRIANGLE_COLORS[2]),
+        scene_vertex(0.3, -0.55, 0.2, TRIANGLE_COLORS[1]),
     ];
     let far = [
         scene_vertex(-0.75, -0.65, 0.75, TRIANGLE_COLORS[2]),
-        scene_vertex(0.75, -0.65, 0.75, TRIANGLE_COLORS[0]),
         scene_vertex(0.0, 0.75, 0.75, TRIANGLE_COLORS[1]),
+        scene_vertex(0.75, -0.65, 0.75, TRIANGLE_COLORS[0]),
     ];
     let back_facing = [
         scene_vertex(0.45, 0.25, 0.1, TRIANGLE_COLORS[0]),
-        scene_vertex(0.65, 0.8, 0.1, TRIANGLE_COLORS[1]),
         scene_vertex(0.9, 0.25, 0.1, TRIANGLE_COLORS[2]),
+        scene_vertex(0.65, 0.8, 0.1, TRIANGLE_COLORS[1]),
     ];
 
     rasterizer.draw_triangle(near);

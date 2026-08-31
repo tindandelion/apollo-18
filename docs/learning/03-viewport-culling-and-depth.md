@@ -29,15 +29,15 @@ The left and right NDC boundaries map to `0` and `width`. The top and bottom bou
 
 ## From NDC winding to screen-space culling
 
-Counter-clockwise winding in NDC defines a front-facing triangle. Viewport conversion inverts `Y`, so that front face becomes clockwise in top-left framebuffer coordinates. The rasterizer uses this known reversal to classify the converted triangle with one screen-space signed-area calculation:
+Clockwise winding in NDC defines a front-facing triangle. Viewport conversion inverts `Y`, so the converted front face has positive signed area in top-left framebuffer coordinates. The rasterizer uses this known reversal to classify the converted triangle with one screen-space signed-area calculation:
 
 ```text
 screen_area = edge(screen_v0, screen_v1, screen_v2)
 ```
 
-A negative screen-space area corresponds to a counter-clockwise, front-facing NDC triangle. A positive area corresponds to a clockwise, back-facing NDC triangle. Zero is degenerate, including a very small NDC triangle whose vertices collapse together because of floating-point rounding during viewport conversion. Non-negative areas are discarded before any pixels are visited.
+A positive screen-space area corresponds to a clockwise, front-facing NDC triangle. A negative area corresponds to a counter-clockwise, back-facing NDC triangle. Zero is degenerate, including a very small NDC triangle whose vertices collapse together because of floating-point rounding during viewport conversion. Non-positive areas are discarded before any pixels are visited.
 
-The accepted screen-space triangle is still clockwise, while the edge-function rasterizer uses positive inside values. Swapping two complete vertices makes its area positive without detaching colors or depths from their positions. The positive area is then passed into rasterization rather than calculated and checked a second time.
+The accepted triangle already has the orientation expected by the edge-function rasterizer: its area and its interior edge values are positive. The same positive area is passed directly into rasterization for barycentric normalization. No vertex reordering or sign adjustment is needed between culling and coverage.
 
 ## Affine orthographic depth
 
@@ -61,4 +61,4 @@ The depth buffer belongs to the internal rasterizer. It is visibility state, not
 
 ## The evolved triangle scene
 
-The retained triangle showcase now draws partially overlapping near and far triangles. The near triangle is submitted first, so the later far triangle would incorrectly overwrite it without depth testing. A separate clockwise triangle is also submitted and culled. This makes culling and depth behavior visible while retaining linear-light barycentric vertex-color interpolation.
+The retained triangle showcase now draws partially overlapping near and far triangles. The near triangle is submitted first, so the later far triangle would incorrectly overwrite it without depth testing. A separate counter-clockwise triangle is also submitted and culled. This makes culling and depth behavior visible while retaining linear-light barycentric vertex-color interpolation.

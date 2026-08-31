@@ -45,8 +45,6 @@ C = w0 * C0 + w1 * C1 + w2 * C2
 
 This is affine interpolation in screen space. Orthographic rendering can use it directly. A later perspective renderer would need perspective-correct interpolation for attributes whose screen-space variation is not affine.
 
-The complete vertex, including its color, moves when the rasterizer normalizes triangle winding. Swapping only positions would detach colors from their vertices and change the image.
-
 ## Why interpolate in linear RGB?
 
 sRGB values are encoded for storage and display; their numeric values are not proportional to light intensity. Averaging encoded bytes therefore produces a result that is too dark. For example:
@@ -112,6 +110,6 @@ The term “top-left” names the convention, not a test that an entire edge lit
 
 ## Degenerate and off-screen triangles
 
-At the screen-space rasterization step, a triangle with exactly zero signed area has no interior and performs no writes. The coverage calculation can normalize either screen-space winding without detaching colors from their vertices. In the complete pipeline, however, clockwise and degenerate triangles are deliberately culled in NDC before viewport `Y` inversion; accepting either winding was behavior of the earlier 2D-only milestone.
+At the screen-space rasterization step, a triangle with exactly zero signed area has no interior and performs no writes. The coverage calculation can support either screen-space winding as long as its edge comparisons use the same sign consistently. In the complete pipeline, however, counter-clockwise and degenerate triangles are deliberately culled after viewport conversion; accepting either winding was behavior of the earlier 2D-only milestone.
 
 The rasterizer clamps the triangle's traversal bounds to the framebuffer. A fully off-screen triangle visits no pixels, while a partially visible triangle visits only in-bounds candidates. This bounds work and prevents invalid framebuffer writes without adding geometric clipping to this stage.

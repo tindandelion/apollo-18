@@ -8,7 +8,7 @@
 
 - [ ] Object and view transformations use left-handed coordinates with `+Y` up and `+Z` forward.
 - [ ] Orthographic projection maps the visible cube into the validated NDC position range with the expected orientation and framing.
-- [ ] Cube geometry is counter-clockwise when front-facing before viewport conversion and integrates with the established back-face culling and depth testing behavior.
+- [ ] Cube geometry is clockwise when front-facing before viewport conversion and integrates with the established back-face culling and depth testing behavior.
 - [ ] Back-face culling and depth testing produce correct hidden-surface behavior from multiple fixed cube views.
 - [ ] A fixed cube pose renders through the existing deterministic frame-rendering seam.
 - [ ] A separate native cube binary writes the deterministic cube frame as a valid 800×800 PNG.
