@@ -1,4 +1,4 @@
-use apollo18_renderer::{Framebuffer, render_triangle};
+use apollo18_renderer::{Framebuffer, render_triangles};
 use std::error::Error;
 use std::fs::{self, File};
 use std::io::BufWriter;
@@ -14,7 +14,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         .map(PathBuf::from)
         .unwrap_or_else(|| PathBuf::from(DEFAULT_OUTPUT_PATH));
 
-    let frame = render_triangle(CANONICAL_WIDTH, CANONICAL_HEIGHT)?;
+    let frame = render_triangles(CANONICAL_WIDTH, CANONICAL_HEIGHT)?;
     write_png(&output_path, &frame)?;
     println!("wrote {}", output_path.display());
     Ok(())

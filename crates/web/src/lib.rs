@@ -1,4 +1,4 @@
-use apollo18_renderer::render_triangle;
+use apollo18_renderer::render_triangles;
 use wasm_bindgen::Clamped;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
@@ -29,7 +29,7 @@ pub fn start() -> Result<(), JsValue> {
         .ok_or_else(|| JsValue::from_str("Canvas 2D context is unavailable"))?
         .dyn_into::<CanvasRenderingContext2d>()?;
 
-    let frame = render_triangle(CANONICAL_WIDTH, CANONICAL_HEIGHT)
+    let frame = render_triangles(CANONICAL_WIDTH, CANONICAL_HEIGHT)
         .map_err(|error| JsValue::from_str(&error.to_string()))?;
     let image = ImageData::new_with_u8_clamped_array_and_sh(
         Clamped(frame.pixels()),

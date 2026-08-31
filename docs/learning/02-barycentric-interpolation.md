@@ -1,6 +1,6 @@
 # Barycentric color interpolation
 
-The second triangle stage uses the values that decide pixel coverage to interpolate a color at every covered pixel. Its vertices keep the first stage's normalized positions and carry sRGB red, green, and blue. The software renderer converts those inputs to linear RGB before interpolation and encodes the result back to sRGB when writing the framebuffer.
+The second triangle stage uses the values that decide pixel coverage to interpolate a color at every covered pixel. Its vertices carry sRGB red, green, and blue. The software renderer converts those inputs to linear RGB before interpolation and encodes the result back to sRGB when writing the framebuffer. The evolved showcase supplies positions in normalized device coordinates, then performs [viewport conversion, culling, and depth testing](03-viewport-culling-and-depth.md) before applying the same coverage and color-interpolation rules.
 
 ## One edge calculation, two jobs
 
@@ -112,6 +112,6 @@ The term “top-left” names the convention, not a test that an entire edge lit
 
 ## Degenerate and off-screen triangles
 
-A triangle with exactly zero signed area has no interior, so it performs no writes. Clockwise and counter-clockwise triangles are both accepted at this 2D stage; negative-area input is reoriented before coverage and interpolation.
+At the screen-space rasterization step, a triangle with exactly zero signed area has no interior and performs no writes. The coverage calculation can normalize either screen-space winding without detaching colors from their vertices. In the complete pipeline, however, clockwise and degenerate triangles are deliberately culled in NDC before viewport `Y` inversion; accepting either winding was behavior of the earlier 2D-only milestone.
 
 The rasterizer clamps the triangle's traversal bounds to the framebuffer. A fully off-screen triangle visits no pixels, while a partially visible triangle visits only in-bounds candidates. This bounds work and prevents invalid framebuffer writes without adding geometric clipping to this stage.

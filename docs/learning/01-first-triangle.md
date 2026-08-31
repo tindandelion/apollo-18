@@ -2,7 +2,7 @@
 
 Apollo 18 begins with a software renderer that produces a framebuffer: tightly packed RGBA bytes ordered left-to-right within each row, with rows stored top-to-bottom. Each pixel is opaque in this first milestone. The clear color is the fixed sRGB background `#181818`.
 
-The first scene defines a triangle in normalized framebuffer coordinates. The renderer converts those coordinates into continuous pixel space with:
+The first milestone defined a triangle with `0..1` positions relative to the framebuffer. At that stage, the renderer converted those positions directly into continuous pixel space with:
 
 ```text
 x = normalized_x * framebuffer_width
@@ -28,7 +28,7 @@ edge(A, B, P) = (B.x - A.x) * (P.y - A.y)
               - (B.y - A.y) * (P.x - A.x)
 ```
 
-After orienting the triangle consistently, a pixel belongs to the triangle when its center is inside all three directed edges.
+After orienting the triangle consistently, a pixel belongs to the triangle when its center is inside all three directed edges. The evolved showcase instead receives validated normalized device coordinates and performs viewport conversion and culling before this rasterization step; see [Viewport conversion, culling, and depth](03-viewport-culling-and-depth.md).
 
 Samples that land exactly on an edge need a deterministic ownership rule. Apollo 18 uses a top-left rule: an on-edge sample is included only for edges that go upward in framebuffer coordinates, or for horizontal edges that go left-to-right. This keeps later adjacent triangles from both filling the same pixel or leaving a crack along their shared edge. [Barycentric color interpolation](02-barycentric-interpolation.md) develops the normalized edge values and illustrates this ownership rule with adjacent triangles.
 
