@@ -113,9 +113,9 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - The canonical public render size will be 800×800. Smaller dimensions may be supplied to focused tests.
 - The framebuffer will be tightly packed, row-major, top-to-bottom, 8-bit RGBA. Alpha is `255` in phase one.
 - The fixed background will be sRGB `#181818` with alpha `255`.
-- Triangle rasterization will begin in 2D screen space using bounding-box traversal and pixel-center edge-function tests. Normalized edge values will become barycentric weights for affine interpolation.
-- The first triangle will use a flat color. Vertex-color interpolation will follow as a separate visible stage.
-- Shared-edge coverage must use one documented ownership rule so that adjacent triangles do not crack or double-fill unpredictably.
+- Triangle rasterization will begin in 2D screen space using bounded traversal and direct pixel-center edge-function tests. The same three edge values used for coverage will be normalized by the triangle area to become barycentric weights for affine interpolation.
+- The first triangle will use a flat color. The next visible stage will assign sRGB red, green, and blue to its vertices, convert those colors to linear RGB, and interpolate them affinely.
+- Shared-edge coverage will use the top-left ownership rule: an on-edge sample is included only for an edge that goes upward in top-left framebuffer coordinates or for a horizontal edge that goes left-to-right. Adjacent triangles must neither crack nor double-fill unpredictably, and shared-edge output must be independent of draw order.
 - Apollo 18 will use the left-handed coordinate convention recorded in ADR-0001: `+Y` is up and `+Z` points forward.
 - The camera will initially use orthographic projection. Perspective projection and perspective-correct interpolation are deferred.
 - Normalized depth will map the near plane to `0` and the far plane to `1`; smaller values win.
@@ -131,7 +131,8 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - The initial lunar color map is NASA's 2025 2048×1024 JPEG map centered on zero-degree longitude.
 - The initial lunar elevation map is NASA's 1440×720, 4-pixels-per-degree floating-point TIFF. Values are kilometers relative to the 1,737.4 km lunar reference radius.
 - Both lunar maps use nearest-neighbor access in phase one. Terrain gradients use direct neighboring elevation texels.
-- Lunar color values are decoded from sRGB into linear RGB before lighting. Final linear output is encoded to sRGB for the 8-bit framebuffer.
+- Colors outside the shared renderer are represented as sRGB values. The renderer converts color inputs to linear RGB for interpolation, filtering, and lighting, then encodes final linear colors to sRGB in the 8-bit framebuffer returned to native and web hosts. Framebuffer alpha remains `255` in phase one.
+- The fixed sRGB background is written directly to untouched framebuffer pixels. Any future color calculation involving the background must first decode it to linear RGB.
 - Lighting uses one neutral directional Sun light and Lambertian diffuse response. Ambient and specular contributions are zero.
 - The first lit showcase uses a gibbous configuration with the Sun direction approximately 30 degrees from the viewing direction.
 - The smooth lunar globe rotates once every ten seconds. Rendering is a pure function of explicit elapsed scene time rather than accumulated frame steps.
@@ -168,6 +169,8 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - A failed realistic comparison will emit an amplified visual diff artifact and useful numerical difference statistics.
 - Golden images can only be replaced through an explicit update command. Expected-image changes must be reviewed as behavior changes.
 - Focused internal tests are justified for edge functions, barycentric weights, shared-edge ownership, clipping, depth comparison, longitude wrapping, latitude clamping, nearest-neighbor sampling, sRGB/linear conversion, image decoding, radial-direction mapping, and terrain-normal derivation.
+- Triangle tests will cover both input windings, zero-area triangles, fully and partially off-screen triangles, and extreme finite coordinates. Shared-edge tests will render differently colored adjacent triangles in both draw orders and assert identical output with no background cracks.
+- Color tests will cover the piecewise sRGB transfer function and prove linear-light interpolation with a half-intensity channel that encodes near sRGB byte `188` rather than `128`. Interpolated linear channels are clamped only at the framebuffer encoding boundary and quantized by rounding to the nearest 8-bit value.
 - Focused tests should validate behavior and invariants, not private call structure or algorithm decomposition.
 - Native host smoke tests will verify that milestone binaries can produce valid PNG output without duplicating renderer golden suites.
 - One browser smoke test will verify that the Wasm host initializes and presents a framebuffer through Canvas 2D. Browser tests will not duplicate all visual assertions.

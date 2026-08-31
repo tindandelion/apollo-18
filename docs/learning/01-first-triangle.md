@@ -30,7 +30,7 @@ edge(A, B, P) = (B.x - A.x) * (P.y - A.y)
 
 After orienting the triangle consistently, a pixel belongs to the triangle when its center is inside all three directed edges.
 
-Samples that land exactly on an edge need a deterministic ownership rule. Apollo 18 uses a top-left rule: an on-edge sample is included only for edges that go upward in framebuffer coordinates, or for horizontal edges that go left-to-right. This keeps later adjacent triangles from both filling the same pixel or leaving a crack along their shared edge.
+Samples that land exactly on an edge need a deterministic ownership rule. Apollo 18 uses a top-left rule: an on-edge sample is included only for edges that go upward in framebuffer coordinates, or for horizontal edges that go left-to-right. This keeps later adjacent triangles from both filling the same pixel or leaving a crack along their shared edge. [Barycentric color interpolation](02-barycentric-interpolation.md) develops the normalized edge values and illustrates this ownership rule with adjacent triangles.
 
 ## Presenting the framebuffer on the web
 

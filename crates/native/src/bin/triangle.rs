@@ -1,4 +1,4 @@
-use apollo18_renderer::{RgbaFrame, render_triangle};
+use apollo18_renderer::{Framebuffer, render_triangle};
 use std::error::Error;
 use std::fs::{self, File};
 use std::io::BufWriter;
@@ -20,7 +20,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     Ok(())
 }
 
-fn write_png(path: &Path, frame: &RgbaFrame) -> Result<(), Box<dyn Error>> {
+fn write_png(path: &Path, frame: &Framebuffer) -> Result<(), Box<dyn Error>> {
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
