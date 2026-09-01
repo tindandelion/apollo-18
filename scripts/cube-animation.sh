@@ -16,14 +16,16 @@ fi
 rm -rf -- "${FRAMES_DIRECTORY}"
 (
     cd -- "${REPOSITORY_ROOT}"
-    cargo run --release -p apollo18-native --bin cube
+    cargo run --release -p apollo18-native --bin cube -- \
+        --fps "${FRAMES_PER_SECOND}" \
+        --num-frames "${FRAME_COUNT}"
 )
 
 for ((frame_index = 0; frame_index < FRAME_COUNT; frame_index++)); do
     printf -v frame_name 'frame-%04d.png' "${frame_index}"
     if [[ ! -f "${FRAMES_DIRECTORY}/${frame_name}" ]]; then
         echo "error: missing cube frame ${FRAMES_DIRECTORY}/${frame_name}" >&2
-        echo "run: cargo run --release -p apollo18-native --bin cube" >&2
+        echo "rerun: scripts/cube-animation.sh" >&2
         exit 1
     fi
 done

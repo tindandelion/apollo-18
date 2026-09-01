@@ -33,15 +33,15 @@ Instead, Apollo 18 renders the pose directly from explicit scene time. Equal sce
 
 ## Sampling a native frame sequence
 
-The native cube sequence contains 300 frames at 30 frames per second. Each timestamp is derived independently from its zero-based frame index `n`:
+The native cube binary accepts a frame rate `f` and frame count `N`. Each timestamp is derived independently from its zero-based frame index `n`:
 
 ```text
-t(n) = n / 30 s, for n = 0, 1, ..., 299
+t(n) = n / f s, for n = 0, 1, ..., N - 1
 ```
 
-The samples cover `0` through `299/30` seconds. The sequence deliberately omits a sample at exactly 10 seconds because it would duplicate the initial pose and introduce a repeated frame at the loop boundary.
+The cube animation script requests the canonical 300 frames at 30 frames per second. Those samples cover `0` through `299/30` seconds and deliberately omit a sample at exactly 10 seconds because it would duplicate the initial pose and introduce a repeated frame at the loop boundary.
 
-Deriving `t(n)` from the index, rather than repeatedly adding `1/30`, avoids cumulative timing drift and makes every numbered frame reproducible in isolation.
+Deriving `t(n)` from the index, rather than repeatedly adding `1/f`, avoids cumulative timing drift and makes every numbered frame reproducible in isolation.
 
 ## Driving the browser animation
 
