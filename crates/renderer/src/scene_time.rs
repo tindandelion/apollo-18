@@ -2,8 +2,6 @@ use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use std::num::NonZeroU32;
 
-const MILLIS_PER_SECOND: f64 = 1_000.0;
-
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SceneTime(f64);
 
@@ -24,7 +22,7 @@ impl SceneTime {
         start_millis: f64,
         current_millis: f64,
     ) -> Result<Self, InvalidSceneTime> {
-        Self::from_seconds((current_millis - start_millis) / MILLIS_PER_SECOND)
+        Self::from_seconds((current_millis - start_millis) / 1000.0)
     }
 
     pub fn as_seconds(self) -> f64 {
