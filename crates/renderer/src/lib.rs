@@ -2,17 +2,25 @@ mod color;
 mod cube;
 mod framebuffer;
 mod rasterizer;
+mod scene_time;
 
 use color::Srgb8;
 pub use framebuffer::{Framebuffer, RenderError};
 use glam::Vec3;
 use rasterizer::{NdcVertex, Rasterizer};
+pub use scene_time::{InvalidSceneTime, SceneTime};
+
+pub const CUBE_ROTATION_PERIOD_SECONDS: f64 = 10.0;
 
 const BACKGROUND: Srgb8 = Srgb8::from_hex(0x18_18_18);
 const TRIANGLE_COLORS: [Srgb8; 3] = [Srgb8::RED, Srgb8::GREEN, Srgb8::BLUE];
 
-pub fn render_cube(width: u32, height: u32) -> Result<Framebuffer, RenderError> {
-    cube::render(width, height, BACKGROUND)
+pub fn render_cube(
+    width: u32,
+    height: u32,
+    scene_time: SceneTime,
+) -> Result<Framebuffer, RenderError> {
+    cube::render(width, height, BACKGROUND, scene_time)
 }
 
 pub fn render_triangles(width: u32, height: u32) -> Result<Framebuffer, RenderError> {
@@ -55,7 +63,7 @@ mod tests {
     use std::path::Path;
 
     const TRIANGLE_GOLDEN_PATH: &str = "tests/goldens/first_triangle.png";
-    const CUBE_GOLDEN_PATH: &str = "tests/goldens/static_cube.png";
+    const CUBE_GOLDEN_PATH: &str = "tests/goldens/cube_at_zero_seconds.png";
 
     #[test]
     fn triangle_frame_has_expected_layout() {
@@ -66,14 +74,14 @@ mod tests {
 
     #[test]
     fn cube_frame_has_expected_layout() {
-        let frame = render_cube(800, 800).expect("cube should render");
+        let frame = render_cube(800, 800, scene_time(0.0)).expect("cube should render");
 
         assert_frame_layout(&frame, 800, 800);
     }
 
     #[test]
     fn cube_frame_contains_rendered_geometry() {
-        let frame = render_cube(64, 64).expect("cube should render");
+        let frame = render_cube(64, 64, scene_time(0.0)).expect("cube should render");
         let background = [0x18, 0x18, 0x18, 0xff];
 
         assert!(
@@ -81,6 +89,31 @@ mod tests {
                 .pixels()
                 .chunks_exact(4)
                 .any(|pixel| pixel != background)
+        );
+    }
+
+    #[test]
+    fn cube_pose_is_deterministic_periodic_and_time_driven() {
+        let zero = render_cube(96, 96, scene_time(0.0)).expect("initial cube should render");
+        let one_period = render_cube(96, 96, scene_time(CUBE_ROTATION_PERIOD_SECONDS))
+            .expect("looped cube should render");
+        let quarter_turn =
+            render_cube(96, 96, scene_time(2.5)).expect("quarter-turn cube should render");
+        let repeated_quarter_turn =
+            render_cube(96, 96, scene_time(2.5)).expect("repeated quarter-turn cube should render");
+
+        assert_eq!(zero, one_period);
+        assert_eq!(quarter_turn, repeated_quarter_turn);
+        assert_ne!(zero, quarter_turn);
+        assert_face_visibility(
+            &zero,
+            [0xff_00_00, 0x00_ff_00, 0x00_00_ff],
+            [0x00_ff_ff, 0xff_00_ff, 0xff_ff_00],
+        );
+        assert_face_visibility(
+            &quarter_turn,
+            [0x00_ff_ff, 0x00_ff_00, 0x00_00_ff],
+            [0xff_00_00, 0xff_00_ff, 0xff_ff_00],
         );
     }
 
@@ -101,14 +134,14 @@ mod tests {
             })
         );
         assert_eq!(
-            render_cube(0, 800),
+            render_cube(0, 800, scene_time(0.0)),
             Err(RenderError::EmptyFrame {
                 width: 0,
                 height: 800
             })
         );
         assert_eq!(
-            render_cube(800, 0),
+            render_cube(800, 0, scene_time(0.0)),
             Err(RenderError::EmptyFrame {
                 width: 800,
                 height: 0
@@ -125,9 +158,39 @@ mod tests {
 
     #[test]
     fn cube_matches_golden_pixels() {
-        let frame = render_cube(800, 800).expect("cube should render");
+        let frame =
+            render_cube(800, 800, scene_time(0.0)).expect("cube at zero seconds should render");
 
         assert_matches_golden(&frame, Path::new(CUBE_GOLDEN_PATH));
+    }
+
+    fn scene_time(seconds: f64) -> SceneTime {
+        SceneTime::from_seconds(seconds).expect("test scene time should be valid")
+    }
+
+    fn assert_face_visibility(frame: &Framebuffer, visible: [u32; 3], hidden: [u32; 3]) {
+        for color in visible {
+            assert!(
+                frame_contains_color(frame, color),
+                "frame should contain #{color:06x}"
+            );
+        }
+        for color in hidden {
+            assert!(
+                !frame_contains_color(frame, color),
+                "frame should not contain #{color:06x}"
+            );
+        }
+    }
+
+    fn frame_contains_color(frame: &Framebuffer, color: u32) -> bool {
+        let red = (color >> 16) as u8;
+        let green = (color >> 8) as u8;
+        let blue = color as u8;
+        frame
+            .pixels()
+            .chunks_exact(4)
+            .any(|pixel| pixel == [red, green, blue, 0xff])
     }
 
     fn assert_frame_layout(frame: &Framebuffer, width: u32, height: u32) {

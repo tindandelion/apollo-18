@@ -1,6 +1,7 @@
 use crate::color::Srgb8;
 use crate::framebuffer::{Framebuffer, RenderError};
 use crate::rasterizer::{NdcVertex, Rasterizer};
+use crate::{CUBE_ROTATION_PERIOD_SECONDS, SceneTime};
 use glam::{Mat4, Vec3};
 
 const HALF_EXTENT: f32 = 0.5;
@@ -12,8 +13,15 @@ pub(crate) fn render(
     width: u32,
     height: u32,
     background: Srgb8,
+    scene_time: SceneTime,
 ) -> Result<Framebuffer, RenderError> {
-    render_at_yaw(width, height, background, CANONICAL_YAW)
+    let loop_time = scene_time
+        .as_seconds()
+        .rem_euclid(CUBE_ROTATION_PERIOD_SECONDS);
+    let loop_fraction = (loop_time / CUBE_ROTATION_PERIOD_SECONDS) as f32;
+    let yaw = CANONICAL_YAW + std::f32::consts::TAU * loop_fraction;
+
+    render_at_yaw(width, height, background, yaw)
 }
 
 fn render_at_yaw(

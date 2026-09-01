@@ -12,6 +12,10 @@ _Avoid_: CPU renderer, software rasterizer
 A tightly packed, top-to-bottom array of RGBA pixels produced by the software renderer for image or browser presentation.
 _Avoid_: Image buffer, canvas buffer
 
+**Scene time**:
+Non-negative finite elapsed seconds supplied explicitly to a scene render, used to derive deterministic animation state independently of frame rate or host clock.
+_Avoid_: Current time, frame time
+
 **Normalized device coordinates (NDC)**:
 The post-projection coordinate space where the visible horizontal and vertical ranges are `[-1, 1]`, `+Y` points up, and normalized depth ranges from near `0` to far `1`.
 _Avoid_: Normalized framebuffer coordinates, screen coordinates
