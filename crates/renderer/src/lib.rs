@@ -17,7 +17,13 @@ pub fn render_cube(
     height: u32,
     scene_time: SceneTime,
 ) -> Result<Framebuffer, RenderError> {
-    cube::render(width, height, BACKGROUND, scene_time)
+    let loop_time = scene_time
+        .as_seconds()
+        .rem_euclid(CUBE_ROTATION_PERIOD_SECONDS);
+    let loop_fraction = (loop_time / CUBE_ROTATION_PERIOD_SECONDS) as f32;
+    let yaw = 30.0_f32.to_radians() + std::f32::consts::TAU * loop_fraction;
+
+    cube::render_at_yaw(width, height, BACKGROUND, yaw)
 }
 
 #[cfg(test)]
