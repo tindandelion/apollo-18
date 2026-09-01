@@ -1,8 +1,12 @@
+mod sequence;
+
 use apollo18_renderer::Framebuffer;
 use std::error::Error;
 use std::fs::{self, File};
 use std::io::BufWriter;
 use std::path::Path;
+
+pub use sequence::run_frame_sequence;
 
 pub fn write_png(path: &Path, frame: &Framebuffer) -> Result<(), Box<dyn Error>> {
     if let Some(parent) = path.parent() {

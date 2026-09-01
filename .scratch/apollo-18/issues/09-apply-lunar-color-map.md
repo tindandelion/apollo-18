@@ -2,7 +2,7 @@
 
 **What to build:** Turn the octasphere into a recognizable lunar globe by applying NASA's 2025 2048×1024 lunar color map through per-fragment radial-direction lookup in both native and web output.
 
-**Blocked by:** 08: Render a solid-color octasphere
+**Blocked by:** 08: Animate a vertex-colored octasphere
 
 **Status:** ready-for-agent
 

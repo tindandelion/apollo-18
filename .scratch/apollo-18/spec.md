@@ -62,7 +62,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 42. As a viewer, I want a lunar-phase animation after terrain-normal shading is complete, so that the elevation detail can be observed under changing illumination.
 43. As a viewer, I want a complete lunar-phase cycle to last twenty seconds, so that lighting transitions are easy to inspect.
 44. As a viewer, I want the phase animation to keep the camera and globe fixed while changing Sun direction, so that the animation demonstrates illumination rather than object motion.
-45. As a native user, I want each retained milestone to be a separate binary, so that triangle, cube, and lunar behavior remain independently runnable.
+45. As a native user, I want each retained milestone to be a separate binary, so that triangle, cube, and lunar-globe behavior remain independently runnable.
 46. As a native user, I want every animation frame's scene time derived from its sequence index and requested frame rate, so that native animation output is deterministic without a separate single-frame CLI mode.
 47. As a native user, I want a binary to render a numbered PNG sequence at a requested frame rate and frame count, so that external tools can encode an animation.
 48. As a project maintainer, I want a shell script to produce WebM animation through `ffmpeg`, so that the workflow is convenient while codec complexity stays outside Apollo 18's Rust code.
@@ -139,7 +139,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - Terrain-normal shading leaves octasphere geometry spherical. Per-fragment terrain normals are derived from lunar elevation gradients using the source's physical units and lunar reference radius.
 - Geometry displacement is deferred. The silhouette remains spherical in this spec.
 - The lunar-phase animation follows terrain-normal shading. The camera and globe remain fixed while Sun direction completes one cycle every twenty seconds.
-- The native package will retain separate binaries for the triangle, cube, and lunar milestones. Shared native-host behavior may live behind the package's library interface.
+- The native package will retain separate binaries for the triangle, cube, and lunar-globe milestones. Shared native-host behavior may live behind the package's library interface.
 - Native animation binaries produce numbered PNG sequences rather than exposing a separate single-frame CLI mode. Each frame is deterministic from its sequence index and requested frame rate. A project shell script may invoke `ffmpeg` to turn a sequence into WebM; Rust code does not perform video encoding.
 - The WebAssembly host will be one evolving webpage rather than a demo selector. Earlier visual milestones remain available through native binaries and tests.
 - The web host will use `requestAnimationFrame` for elapsed time and Canvas 2D `ImageData` for display. It will not use WebGL or WebGPU.

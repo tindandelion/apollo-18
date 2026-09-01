@@ -1,4 +1,4 @@
-use apollo18_renderer::{SceneTime, render_cube};
+use apollo18_renderer::{SceneTime, render_lunar_globe};
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::Clamped;
@@ -35,7 +35,7 @@ pub fn start() -> Result<(), JsValue> {
 }
 
 fn start_animation(window: Window, context: CanvasRenderingContext2d) -> Result<(), JsValue> {
-    let animation = Rc::new(RefCell::new(CubeAnimation::new(context)));
+    let animation = Rc::new(RefCell::new(LunarAnimation::new(context)));
     let callback_slot = Rc::new(RefCell::new(None));
     let callback_slot_for_frame = Rc::clone(&callback_slot);
     let window_for_frame = window.clone();
@@ -68,12 +68,12 @@ fn request_animation_frame(
         .map(|_| ())
 }
 
-struct CubeAnimation {
+struct LunarAnimation {
     context: CanvasRenderingContext2d,
     started_at_milliseconds: Option<f64>,
 }
 
-impl CubeAnimation {
+impl LunarAnimation {
     fn new(context: CanvasRenderingContext2d) -> Self {
         Self {
             context,
@@ -88,7 +88,7 @@ impl CubeAnimation {
         let scene_time =
             SceneTime::from_elapsed_millis(started_at_milliseconds, timestamp_milliseconds)
                 .map_err(|error| JsValue::from_str(&error.to_string()))?;
-        let frame = render_cube(CANONICAL_WIDTH, CANONICAL_HEIGHT, scene_time)
+        let frame = render_lunar_globe(CANONICAL_WIDTH, CANONICAL_HEIGHT, scene_time)
             .map_err(|error| JsValue::from_str(&error.to_string()))?;
         let image = ImageData::new_with_u8_clamped_array_and_sh(
             Clamped(frame.pixels()),

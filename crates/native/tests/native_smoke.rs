@@ -7,6 +7,25 @@ const CANONICAL_WIDTH: u32 = 800;
 const CANONICAL_HEIGHT: u32 = 800;
 
 #[test]
+fn lunar_globe_binary_writes_a_decodable_canonical_png_sequence() {
+    let temporary_directory = tempfile::tempdir().expect("temporary directory should be created");
+    let output_directory = temporary_directory.path().join("lunar");
+
+    run_binary(
+        env!("CARGO_BIN_EXE_lunar-globe"),
+        [
+            OsStr::new("--fps"),
+            OsStr::new("1"),
+            OsStr::new("--num-frames"),
+            OsStr::new("1"),
+            output_directory.as_os_str(),
+        ],
+    );
+
+    assert_canonical_rgba_png(&output_directory.join("frame-0000.png"));
+}
+
+#[test]
 fn cube_binary_writes_a_decodable_canonical_png_sequence() {
     let temporary_directory = tempfile::tempdir().expect("temporary directory should be created");
     let output_directory = temporary_directory.path().join("cube");

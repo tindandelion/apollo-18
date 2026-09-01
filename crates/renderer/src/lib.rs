@@ -1,6 +1,7 @@
 mod color;
 mod cube;
 mod framebuffer;
+mod octasphere;
 mod rasterizer;
 mod scene_time;
 
@@ -8,22 +9,34 @@ use color::Srgb8;
 pub use framebuffer::{Framebuffer, RenderError};
 pub use scene_time::{InvalidSceneTime, SceneTime};
 
-pub const CUBE_ROTATION_PERIOD_SECONDS: f64 = 10.0;
+pub const ROTATION_PERIOD_SECONDS: f64 = 10.0;
 
 const BACKGROUND: Srgb8 = Srgb8::from_hex(0x18_18_18);
+
+pub fn render_lunar_globe(
+    width: u32,
+    height: u32,
+    scene_time: SceneTime,
+) -> Result<Framebuffer, RenderError> {
+    let yaw = periodic_angle_radians(scene_time, ROTATION_PERIOD_SECONDS);
+
+    octasphere::render(width, height, BACKGROUND, yaw)
+}
 
 pub fn render_cube(
     width: u32,
     height: u32,
     scene_time: SceneTime,
 ) -> Result<Framebuffer, RenderError> {
-    let loop_time = scene_time
-        .as_seconds()
-        .rem_euclid(CUBE_ROTATION_PERIOD_SECONDS);
-    let loop_fraction = (loop_time / CUBE_ROTATION_PERIOD_SECONDS) as f32;
-    let yaw = 30.0_f32.to_radians() + std::f32::consts::TAU * loop_fraction;
+    let yaw = 30.0_f32.to_radians() + periodic_angle_radians(scene_time, ROTATION_PERIOD_SECONDS);
 
     cube::render_at_yaw(width, height, BACKGROUND, yaw)
+}
+
+fn periodic_angle_radians(scene_time: SceneTime, period_seconds: f64) -> f32 {
+    let loop_time = scene_time.as_seconds().rem_euclid(period_seconds);
+    let loop_fraction = (loop_time / period_seconds) as f32;
+    std::f32::consts::TAU * loop_fraction
 }
 
 #[cfg(test)]
@@ -31,6 +44,7 @@ mod tests {
     use super::*;
     use crate::rasterizer::{NdcVertex, Rasterizer};
     use glam::Vec3;
+    use std::collections::HashSet;
     use std::error::Error;
     use std::fs::{self, File};
     use std::io::BufWriter;
@@ -38,6 +52,7 @@ mod tests {
 
     const TRIANGLE_GOLDEN_PATH: &str = "tests/goldens/first_triangle.png";
     const CUBE_GOLDEN_PATH: &str = "tests/goldens/cube_at_zero_seconds.png";
+    const LUNAR_GOLDEN_PATH: &str = "tests/goldens/vertex_colored_octasphere.png";
     const TRIANGLE_COLORS: [Srgb8; 3] = [Srgb8::RED, Srgb8::GREEN, Srgb8::BLUE];
 
     fn render_triangles(width: u32, height: u32) -> Result<Framebuffer, RenderError> {
@@ -86,6 +101,42 @@ mod tests {
     }
 
     #[test]
+    fn lunar_frame_has_expected_layout() {
+        let frame =
+            render_lunar_globe(800, 800, scene_time(0.0)).expect("lunar globe should render");
+
+        assert_frame_layout(&frame, 800, 800);
+    }
+
+    #[test]
+    fn lunar_frame_contains_programmatically_colored_geometry() {
+        let frame = render_lunar_globe(64, 64, scene_time(0.0)).expect("lunar globe should render");
+        let colors = frame
+            .pixels()
+            .chunks_exact(4)
+            .map(|pixel| [pixel[0], pixel[1], pixel[2]])
+            .collect::<HashSet<_>>();
+
+        assert!(colors.len() > 16);
+    }
+
+    #[test]
+    fn lunar_pose_is_deterministic_periodic_and_time_driven() {
+        let zero =
+            render_lunar_globe(96, 96, scene_time(0.0)).expect("initial lunar globe should render");
+        let one_period = render_lunar_globe(96, 96, scene_time(ROTATION_PERIOD_SECONDS))
+            .expect("looped lunar globe should render");
+        let quarter_turn = render_lunar_globe(96, 96, scene_time(2.5))
+            .expect("quarter-turn lunar globe should render");
+        let repeated_quarter_turn = render_lunar_globe(96, 96, scene_time(2.5))
+            .expect("repeated quarter-turn lunar globe should render");
+
+        assert_eq!(zero, one_period);
+        assert_eq!(quarter_turn, repeated_quarter_turn);
+        assert_ne!(zero, quarter_turn);
+    }
+
+    #[test]
     fn cube_frame_contains_rendered_geometry() {
         let frame = render_cube(64, 64, scene_time(0.0)).expect("cube should render");
         let background = [0x18, 0x18, 0x18, 0xff];
@@ -101,7 +152,7 @@ mod tests {
     #[test]
     fn cube_pose_is_deterministic_periodic_and_time_driven() {
         let zero = render_cube(96, 96, scene_time(0.0)).expect("initial cube should render");
-        let one_period = render_cube(96, 96, scene_time(CUBE_ROTATION_PERIOD_SECONDS))
+        let one_period = render_cube(96, 96, scene_time(ROTATION_PERIOD_SECONDS))
             .expect("looped cube should render");
         let quarter_turn =
             render_cube(96, 96, scene_time(2.5)).expect("quarter-turn cube should render");
@@ -140,6 +191,20 @@ mod tests {
             })
         );
         assert_eq!(
+            render_lunar_globe(0, 800, scene_time(0.0)),
+            Err(RenderError::EmptyFrame {
+                width: 0,
+                height: 800
+            })
+        );
+        assert_eq!(
+            render_lunar_globe(800, 0, scene_time(0.0)),
+            Err(RenderError::EmptyFrame {
+                width: 800,
+                height: 0
+            })
+        );
+        assert_eq!(
             render_cube(0, 800, scene_time(0.0)),
             Err(RenderError::EmptyFrame {
                 width: 0,
@@ -160,6 +225,14 @@ mod tests {
         let frame = render_triangles(800, 800).expect("triangles should render");
 
         assert_matches_golden(&frame, Path::new(TRIANGLE_GOLDEN_PATH));
+    }
+
+    #[test]
+    fn lunar_globe_matches_golden_pixels() {
+        let frame =
+            render_lunar_globe(800, 800, scene_time(0.0)).expect("lunar globe should render");
+
+        assert_matches_golden(&frame, Path::new(LUNAR_GOLDEN_PATH));
     }
 
     #[test]

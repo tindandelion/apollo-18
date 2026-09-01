@@ -9,13 +9,15 @@ impl Srgb8 {
     pub(crate) const BLUE: Self = Self::from_hex(0x00_00_ff);
 
     pub(crate) const fn from_hex(value: u32) -> Self {
-        Self {
-            channels: [
-                ((value >> 16) & 0xff) as u8,
-                ((value >> 8) & 0xff) as u8,
-                (value & 0xff) as u8,
-            ],
-        }
+        Self::from_channels([
+            ((value >> 16) & 0xff) as u8,
+            ((value >> 8) & 0xff) as u8,
+            (value & 0xff) as u8,
+        ])
+    }
+
+    pub(crate) const fn from_channels(channels: [u8; 3]) -> Self {
+        Self { channels }
     }
 
     pub(crate) const fn channels(self) -> [u8; 3] {
