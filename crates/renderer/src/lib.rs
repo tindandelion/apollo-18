@@ -1,4 +1,5 @@
 mod color;
+mod cube;
 mod framebuffer;
 mod rasterizer;
 
@@ -9,6 +10,10 @@ use rasterizer::{NdcVertex, Rasterizer};
 
 const BACKGROUND: Srgb8 = Srgb8::from_hex(0x18_18_18);
 const TRIANGLE_COLORS: [Srgb8; 3] = [Srgb8::RED, Srgb8::GREEN, Srgb8::BLUE];
+
+pub fn render_cube(width: u32, height: u32) -> Result<Framebuffer, RenderError> {
+    cube::render(width, height, BACKGROUND)
+}
 
 pub fn render_triangles(width: u32, height: u32) -> Result<Framebuffer, RenderError> {
     let mut rasterizer = Rasterizer::new(width, height, BACKGROUND)?;
@@ -49,16 +54,34 @@ mod tests {
     use std::io::BufWriter;
     use std::path::Path;
 
-    const GOLDEN_PATH: &str = "tests/goldens/first_triangle.png";
+    const TRIANGLE_GOLDEN_PATH: &str = "tests/goldens/first_triangle.png";
+    const CUBE_GOLDEN_PATH: &str = "tests/goldens/static_cube.png";
 
     #[test]
     fn triangle_frame_has_expected_layout() {
         let frame = render_triangles(800, 800).expect("triangles should render");
 
-        assert_eq!(frame.width(), 800);
-        assert_eq!(frame.height(), 800);
-        assert_eq!(frame.pixels().len(), 800 * 800 * 4);
-        assert!(frame.pixels().chunks_exact(4).all(|pixel| pixel[3] == 0xff));
+        assert_frame_layout(&frame, 800, 800);
+    }
+
+    #[test]
+    fn cube_frame_has_expected_layout() {
+        let frame = render_cube(800, 800).expect("cube should render");
+
+        assert_frame_layout(&frame, 800, 800);
+    }
+
+    #[test]
+    fn cube_frame_contains_rendered_geometry() {
+        let frame = render_cube(64, 64).expect("cube should render");
+        let background = [0x18, 0x18, 0x18, 0xff];
+
+        assert!(
+            frame
+                .pixels()
+                .chunks_exact(4)
+                .any(|pixel| pixel != background)
+        );
     }
 
     #[test]
@@ -77,15 +100,46 @@ mod tests {
                 height: 0
             })
         );
+        assert_eq!(
+            render_cube(0, 800),
+            Err(RenderError::EmptyFrame {
+                width: 0,
+                height: 800
+            })
+        );
+        assert_eq!(
+            render_cube(800, 0),
+            Err(RenderError::EmptyFrame {
+                width: 800,
+                height: 0
+            })
+        );
     }
 
     #[test]
     fn triangle_matches_golden_pixels() {
         let frame = render_triangles(800, 800).expect("triangles should render");
-        let golden_path = Path::new(GOLDEN_PATH);
 
+        assert_matches_golden(&frame, Path::new(TRIANGLE_GOLDEN_PATH));
+    }
+
+    #[test]
+    fn cube_matches_golden_pixels() {
+        let frame = render_cube(800, 800).expect("cube should render");
+
+        assert_matches_golden(&frame, Path::new(CUBE_GOLDEN_PATH));
+    }
+
+    fn assert_frame_layout(frame: &Framebuffer, width: u32, height: u32) {
+        assert_eq!(frame.width(), width);
+        assert_eq!(frame.height(), height);
+        assert_eq!(frame.pixels().len(), width as usize * height as usize * 4);
+        assert!(frame.pixels().chunks_exact(4).all(|pixel| pixel[3] == 0xff));
+    }
+
+    fn assert_matches_golden(frame: &Framebuffer, golden_path: &Path) {
         if std::env::var_os("APOLLO18_UPDATE_GOLDENS").is_some() {
-            write_png(golden_path, &frame).expect("golden should be written");
+            write_png(golden_path, frame).expect("golden should be written");
         }
 
         let (width, height, pixels) = read_png(golden_path).expect("golden should be readable");
