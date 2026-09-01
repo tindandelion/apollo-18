@@ -9,7 +9,6 @@ use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData, Window};
 const CANONICAL_WIDTH: u32 = 800;
 const CANONICAL_HEIGHT: u32 = 800;
 const CANVAS_ID: &str = "apollo18-canvas";
-const MILLISECONDS_PER_SECOND: f64 = 1_000.0;
 
 #[wasm_bindgen(start)]
 pub fn start() -> Result<(), JsValue> {
@@ -86,8 +85,7 @@ impl CubeAnimation {
         let started_at_milliseconds = *self
             .started_at_milliseconds
             .get_or_insert(timestamp_milliseconds);
-        let elapsed_seconds =
-            (timestamp_milliseconds - started_at_milliseconds) / MILLISECONDS_PER_SECOND;
+        let elapsed_seconds = (timestamp_milliseconds - started_at_milliseconds) / 1000.0;
         let scene_time = SceneTime::from_seconds(elapsed_seconds)
             .map_err(|error| JsValue::from_str(&error.to_string()))?;
         let frame = render_cube(CANONICAL_WIDTH, CANONICAL_HEIGHT, scene_time)
