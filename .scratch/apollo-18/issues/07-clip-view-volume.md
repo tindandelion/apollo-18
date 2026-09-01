@@ -2,9 +2,11 @@
 
 **What to build:** Make partially visible geometry render robustly by clipping the cube's triangles against every view-volume plane before rasterization, with a native and web demonstration that crosses those planes safely.
 
-**Blocked by:** 06: Add native and browser smoke tests
+**Blocked by:** 13: Animate the lunar phases
 
 **Status:** ready-for-agent
+
+**Scheduling note:** Clipping is deferred until after the complete lunar showcase because the canonical centered orthographic lunar globe remains entirely inside the view volume.
 
 - [ ] Triangles are clipped in homogeneous clip space against all six view-volume planes.
 - [ ] Intersections preserve the attributes needed by subsequent rasterization.
