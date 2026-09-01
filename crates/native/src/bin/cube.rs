@@ -3,6 +3,7 @@ use apollo18_renderer::{SceneTime, render_cube};
 use std::error::Error;
 use std::ffi::OsString;
 use std::fmt::{self, Display, Formatter};
+use std::num::NonZeroU32;
 use std::path::{Path, PathBuf};
 use std::time::{Duration, Instant};
 
@@ -15,7 +16,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut rendering_time = Duration::ZERO;
 
     for frame_index in 0..options.frame_count {
-        let scene_time = SceneTime::for_frame(frame_index, options.frames_per_second)?;
+        let scene_time = SceneTime::for_frame(frame_index, options.frames_per_second);
         let render_started = Instant::now();
         let frame = render_cube(CANONICAL_WIDTH, CANONICAL_HEIGHT, scene_time)?;
         rendering_time += render_started.elapsed();
@@ -23,7 +24,7 @@ fn main() -> Result<(), Box<dyn Error>> {
         write_png(&frame_path(&options.output_directory, frame_index), &frame)?;
 
         let completed_frames = frame_index + 1;
-        if completed_frames % options.frames_per_second == 0 {
+        if completed_frames % options.frames_per_second.get() == 0 {
             println!("rendered {completed_frames}/{} frames", options.frame_count);
         }
     }
@@ -40,7 +41,7 @@ fn main() -> Result<(), Box<dyn Error>> {
 
 #[derive(Debug, PartialEq, Eq)]
 struct Options {
-    frames_per_second: u32,
+    frames_per_second: NonZeroU32,
     frame_count: u32,
     output_directory: PathBuf,
 }
@@ -60,12 +61,12 @@ where
             if frames_per_second.is_some() {
                 return Err(CliError::new("--fps may only be supplied once"));
             }
-            frames_per_second = Some(parse_positive_u32(arguments.next(), "--fps")?);
+            frames_per_second = Some(parse_nonzero_u32(arguments.next(), "--fps")?);
         } else if argument == "--num-frames" {
             if frame_count.is_some() {
                 return Err(CliError::new("--num-frames may only be supplied once"));
             }
-            frame_count = Some(parse_positive_u32(arguments.next(), "--num-frames")?);
+            frame_count = Some(parse_nonzero_u32(arguments.next(), "--num-frames")?.get());
         } else if argument.to_string_lossy().starts_with('-') {
             return Err(CliError::new(format!(
                 "unknown option: {}",
@@ -88,7 +89,7 @@ where
     })
 }
 
-fn parse_positive_u32(value: Option<OsString>, option: &str) -> Result<u32, CliError> {
+fn parse_nonzero_u32(value: Option<OsString>, option: &str) -> Result<NonZeroU32, CliError> {
     let value = value.ok_or_else(|| CliError::new(format!("{option} requires a value")))?;
     let value = value
         .to_str()
@@ -97,13 +98,8 @@ fn parse_positive_u32(value: Option<OsString>, option: &str) -> Result<u32, CliE
         .parse::<u32>()
         .map_err(|_| CliError::new(format!("{option} must be a positive integer")))?;
 
-    if parsed == 0 {
-        Err(CliError::new(format!(
-            "{option} must be a positive integer"
-        )))
-    } else {
-        Ok(parsed)
-    }
+    NonZeroU32::new(parsed)
+        .ok_or_else(|| CliError::new(format!("{option} must be a positive integer")))
 }
 
 #[derive(Debug)]
@@ -140,7 +136,7 @@ mod tests {
         let options = parse_args(["--fps", "24", "--num-frames", "120", "custom-frames"])
             .expect("arguments should be valid");
 
-        assert_eq!(options.frames_per_second, 24);
+        assert_eq!(options.frames_per_second.get(), 24);
         assert_eq!(options.frame_count, 120);
         assert_eq!(options.output_directory, Path::new("custom-frames"));
     }

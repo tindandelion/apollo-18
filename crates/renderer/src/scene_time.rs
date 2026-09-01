@@ -1,5 +1,6 @@
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
+use std::num::NonZeroU32;
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SceneTime(f64);
@@ -13,8 +14,8 @@ impl SceneTime {
         }
     }
 
-    pub fn for_frame(frame_index: u32, frames_per_second: u32) -> Result<Self, InvalidSceneTime> {
-        Self::from_seconds(f64::from(frame_index) / f64::from(frames_per_second))
+    pub fn for_frame(frame_index: u32, frames_per_second: NonZeroU32) -> Self {
+        Self(f64::from(frame_index) / f64::from(frames_per_second.get()))
     }
 
     pub fn as_seconds(self) -> f64 {
@@ -48,10 +49,10 @@ mod tests {
 
     #[test]
     fn derives_scene_time_from_frame_index_and_rate() {
-        let scene_time = SceneTime::for_frame(60, 24).expect("positive frame rate should be valid");
+        let frames_per_second = NonZeroU32::new(24).expect("frame rate should be nonzero");
+        let scene_time = SceneTime::for_frame(60, frames_per_second);
 
         assert_eq!(scene_time.as_seconds(), 2.5);
-        assert!(SceneTime::for_frame(0, 0).is_err());
     }
 
     #[test]
