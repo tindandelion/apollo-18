@@ -4,4 +4,4 @@ set -euo pipefail
 script_directory="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 repository_root="$(cd -- "${script_directory}/.." && pwd)"
 cd "${repository_root}/crates/web"
-exec trunk serve index.html --open "$@"
+exec trunk serve index.html --release --open "$@"
