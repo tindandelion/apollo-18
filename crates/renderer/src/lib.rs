@@ -6,14 +6,11 @@ mod scene_time;
 
 use color::Srgb8;
 pub use framebuffer::{Framebuffer, RenderError};
-use glam::Vec3;
-use rasterizer::{NdcVertex, Rasterizer};
 pub use scene_time::{InvalidSceneTime, SceneTime};
 
 pub const CUBE_ROTATION_PERIOD_SECONDS: f64 = 10.0;
 
 const BACKGROUND: Srgb8 = Srgb8::from_hex(0x18_18_18);
-const TRIANGLE_COLORS: [Srgb8; 3] = [Srgb8::RED, Srgb8::GREEN, Srgb8::BLUE];
 
 pub fn render_cube(
     width: u32,
@@ -23,40 +20,11 @@ pub fn render_cube(
     cube::render(width, height, BACKGROUND, scene_time)
 }
 
-pub fn render_triangles(width: u32, height: u32) -> Result<Framebuffer, RenderError> {
-    let mut rasterizer = Rasterizer::new(width, height, BACKGROUND)?;
-
-    let near = [
-        scene_vertex(-0.8, -0.3, 0.2, TRIANGLE_COLORS[0]),
-        scene_vertex(-0.25, 0.7, 0.2, TRIANGLE_COLORS[2]),
-        scene_vertex(0.3, -0.55, 0.2, TRIANGLE_COLORS[1]),
-    ];
-    let far = [
-        scene_vertex(-0.75, -0.65, 0.75, TRIANGLE_COLORS[2]),
-        scene_vertex(0.0, 0.75, 0.75, TRIANGLE_COLORS[1]),
-        scene_vertex(0.75, -0.65, 0.75, TRIANGLE_COLORS[0]),
-    ];
-    let back_facing = [
-        scene_vertex(0.45, 0.25, 0.1, TRIANGLE_COLORS[0]),
-        scene_vertex(0.9, 0.25, 0.1, TRIANGLE_COLORS[2]),
-        scene_vertex(0.65, 0.8, 0.1, TRIANGLE_COLORS[1]),
-    ];
-
-    rasterizer.draw_triangle(near);
-    rasterizer.draw_triangle(far);
-    rasterizer.draw_triangle(back_facing);
-
-    Ok(rasterizer.into_framebuffer())
-}
-
-fn scene_vertex(x: f32, y: f32, depth: f32, color: Srgb8) -> NdcVertex {
-    NdcVertex::new(Vec3::new(x, y, depth), color.to_linear())
-        .expect("scene NDC vertex should be valid")
-}
-
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::rasterizer::{NdcVertex, Rasterizer};
+    use glam::Vec3;
     use std::error::Error;
     use std::fs::{self, File};
     use std::io::BufWriter;
@@ -64,6 +32,38 @@ mod tests {
 
     const TRIANGLE_GOLDEN_PATH: &str = "tests/goldens/first_triangle.png";
     const CUBE_GOLDEN_PATH: &str = "tests/goldens/cube_at_zero_seconds.png";
+    const TRIANGLE_COLORS: [Srgb8; 3] = [Srgb8::RED, Srgb8::GREEN, Srgb8::BLUE];
+
+    fn render_triangles(width: u32, height: u32) -> Result<Framebuffer, RenderError> {
+        let mut rasterizer = Rasterizer::new(width, height, BACKGROUND)?;
+
+        let near = [
+            scene_vertex(-0.8, -0.3, 0.2, TRIANGLE_COLORS[0]),
+            scene_vertex(-0.25, 0.7, 0.2, TRIANGLE_COLORS[2]),
+            scene_vertex(0.3, -0.55, 0.2, TRIANGLE_COLORS[1]),
+        ];
+        let far = [
+            scene_vertex(-0.75, -0.65, 0.75, TRIANGLE_COLORS[2]),
+            scene_vertex(0.0, 0.75, 0.75, TRIANGLE_COLORS[1]),
+            scene_vertex(0.75, -0.65, 0.75, TRIANGLE_COLORS[0]),
+        ];
+        let back_facing = [
+            scene_vertex(0.45, 0.25, 0.1, TRIANGLE_COLORS[0]),
+            scene_vertex(0.9, 0.25, 0.1, TRIANGLE_COLORS[2]),
+            scene_vertex(0.65, 0.8, 0.1, TRIANGLE_COLORS[1]),
+        ];
+
+        rasterizer.draw_triangle(near);
+        rasterizer.draw_triangle(far);
+        rasterizer.draw_triangle(back_facing);
+
+        Ok(rasterizer.into_framebuffer())
+    }
+
+    fn scene_vertex(x: f32, y: f32, depth: f32, color: Srgb8) -> NdcVertex {
+        NdcVertex::new(Vec3::new(x, y, depth), color.to_linear())
+            .expect("scene NDC vertex should be valid")
+    }
 
     #[test]
     fn triangle_frame_has_expected_layout() {

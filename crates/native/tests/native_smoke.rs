@@ -7,16 +7,6 @@ const CANONICAL_WIDTH: u32 = 800;
 const CANONICAL_HEIGHT: u32 = 800;
 
 #[test]
-fn triangle_binary_writes_a_decodable_canonical_png() {
-    let temporary_directory = tempfile::tempdir().expect("temporary directory should be created");
-    let output_path = temporary_directory.path().join("triangle.png");
-
-    run_binary(env!("CARGO_BIN_EXE_triangle"), [output_path.as_os_str()]);
-
-    assert_canonical_rgba_png(&output_path);
-}
-
-#[test]
 fn cube_binary_writes_a_decodable_canonical_png_sequence() {
     let temporary_directory = tempfile::tempdir().expect("temporary directory should be created");
     let output_directory = temporary_directory.path().join("cube");
