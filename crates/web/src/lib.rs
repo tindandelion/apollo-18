@@ -85,9 +85,9 @@ impl CubeAnimation {
         let started_at_milliseconds = *self
             .started_at_milliseconds
             .get_or_insert(timestamp_milliseconds);
-        let elapsed_seconds = (timestamp_milliseconds - started_at_milliseconds) / 1000.0;
-        let scene_time = SceneTime::from_seconds(elapsed_seconds)
-            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        let scene_time =
+            SceneTime::from_elapsed_millis(started_at_milliseconds, timestamp_milliseconds)
+                .map_err(|error| JsValue::from_str(&error.to_string()))?;
         let frame = render_cube(CANONICAL_WIDTH, CANONICAL_HEIGHT, scene_time)
             .map_err(|error| JsValue::from_str(&error.to_string()))?;
         let image = ImageData::new_with_u8_clamped_array_and_sh(

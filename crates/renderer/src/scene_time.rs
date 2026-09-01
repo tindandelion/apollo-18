@@ -2,6 +2,8 @@ use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 use std::num::NonZeroU32;
 
+const MILLIS_PER_SECOND: f64 = 1_000.0;
+
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct SceneTime(f64);
 
@@ -16,6 +18,13 @@ impl SceneTime {
 
     pub fn for_frame(frame_index: u32, frames_per_second: NonZeroU32) -> Self {
         Self(f64::from(frame_index) / f64::from(frames_per_second.get()))
+    }
+
+    pub fn from_elapsed_millis(
+        start_millis: f64,
+        current_millis: f64,
+    ) -> Result<Self, InvalidSceneTime> {
+        Self::from_seconds((current_millis - start_millis) / MILLIS_PER_SECOND)
     }
 
     pub fn as_seconds(self) -> f64 {
@@ -53,6 +62,16 @@ mod tests {
         let scene_time = SceneTime::for_frame(60, frames_per_second);
 
         assert_eq!(scene_time.as_seconds(), 2.5);
+    }
+
+    #[test]
+    fn derives_scene_time_from_elapsed_milliseconds() {
+        let scene_time = SceneTime::from_elapsed_millis(1_250.0, 3_750.0)
+            .expect("monotonic millisecond timestamps should be valid");
+
+        assert_eq!(scene_time.as_seconds(), 2.5);
+        assert!(SceneTime::from_elapsed_millis(2.0, 1.0).is_err());
+        assert!(SceneTime::from_elapsed_millis(f64::NAN, 1.0).is_err());
     }
 
     #[test]

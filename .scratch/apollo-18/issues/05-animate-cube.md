@@ -18,6 +18,7 @@
 - Existing expected frame paths are overwritten. Unrelated files are not removed, and completed frames remain if generation fails.
 - The binary reports progress after each requested second's worth of frames. Its final summary reports summed software-renderer time and average rendering FPS; PNG encoding and filesystem operations are excluded from those measurements.
 - Sequence iteration and naming remain in the cube binary. The native library retains responsibility for PNG encoding.
+- The web adapter converts monotonic callback timestamps into scene time through `SceneTime::from_elapsed_millis(start, current)`.
 - Exact golden coverage remains limited to the zero-second pose, with the fixture named `cube_at_zero_seconds.png`.
 
 ## Acceptance criteria
