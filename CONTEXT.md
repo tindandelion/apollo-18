@@ -41,7 +41,7 @@ A spherical triangular mesh formed by repeatedly subdividing an octahedron and p
 _Avoid_: Icosphere, sphere mesh
 
 **Radial direction**:
-The unit direction from the center of the lunar globe through a surface location, used to identify its longitude and latitude independently of elevation and lighting normals.
+The unit direction from the center of the lunar globe through a surface location, expressed in the globe's object space before rotation. It identifies longitude and latitude independently of elevation and lighting normals.
 _Avoid_: Surface direction, normal
 
 **Lunar phase**:
