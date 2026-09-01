@@ -4,7 +4,7 @@
 
 **Blocked by:** 04: Render a deterministic orthographic cube
 
-**Status:** ready-for-agent
+**Status:** done
 
 ## Settled native design
 
@@ -27,8 +27,8 @@
 - [x] Supplying the same scene time and inputs always produces the same cube framebuffer; zero and 10 seconds produce the same pose, while distinct canonical times produce the expected distinct poses and visible faces.
 - [x] The native cube binary generates the fixed 300-frame, 30 FPS, 10-second PNG sequence through the shared per-time renderer without exposing a separate single-frame CLI mode.
 - [x] Native sequence timestamps, numbering, output behavior, progress reporting, and renderer-only performance summary follow the settled design.
-- [ ] The webpage evolves from the triangle to the cube and animates it from the browser's monotonic clock through `requestAnimationFrame`.
-- [ ] Native and web adapters render the cube through the same shared frame-rendering seam.
+- [x] The webpage evolves from the triangle to the cube and animates it from the browser's monotonic clock through `requestAnimationFrame`.
+- [x] Native and web adapters render the cube through the same shared frame-rendering seam.
 - [x] The exact zero-second cube golden and focused deterministic time-based tests protect the animated scene; native unit tests protect sequence timestamps and filenames without generating the full canonical sequence.
 - [x] `docs/learning/05-time-derived-animation.md` explains time-derived rotation, loop wrapping, independent frame sampling, and why animation state is not accumulated frame by frame.
 - [x] The local quality gate passes.

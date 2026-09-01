@@ -42,3 +42,13 @@ t(n) = n / 30 s, for n = 0, 1, ..., 299
 The samples cover `0` through `299/30` seconds. The sequence deliberately omits a sample at exactly 10 seconds because it would duplicate the initial pose and introduce a repeated frame at the loop boundary.
 
 Deriving `t(n)` from the index, rather than repeatedly adding `1/30`, avoids cumulative timing drift and makes every numbered frame reproducible in isolation.
+
+## Driving the browser animation
+
+The browser calls `requestAnimationFrame` with a timestamp from its monotonic clock. Apollo 18 records the first callback timestamp as the animation origin, then converts each later callback timestamp from milliseconds to elapsed scene-time seconds:
+
+```text
+t = (callback_timestamp - first_callback_timestamp) / 1000
+```
+
+The callback timestamp selects the pose; it is not a frame delta to accumulate. If the browser delays or skips a callback, the next render still shows the pose belonging to the actual elapsed scene time. The browser host then presents the shared software renderer's framebuffer through Canvas 2D and requests the next callback.
