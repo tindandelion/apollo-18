@@ -38,3 +38,21 @@ scripts/web-smoke-test.sh
 ```
 
 The script forwards additional Playwright arguments, such as `--headed`, after `npm test`. Playwright starts and stops a release-mode Trunk server automatically. Trunk output, Playwright results, and installed Node packages are written only to ignored directories.
+
+## Golden images
+
+Triangle and cube goldens require exact decoded RGBA pixels. The realistic
+lunar golden permits a maximum absolute difference of one per RGB channel to
+allow for platform floating-point variation; alpha must match exactly. A
+failure writes an amplified PNG and numerical summary to
+`target/apollo18/golden-diffs/`.
+
+Golden replacement is intentionally separate from normal test runs:
+
+```bash
+APOLLO18_UPDATE_GOLDENS=1 cargo test -p apollo18-renderer --lib \
+  tests::lunar_globe_matches_golden_pixels
+```
+
+The replacement should be reviewed as a visible behavior change before it is
+committed.

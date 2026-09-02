@@ -1,8 +1,20 @@
-use crate::color::Srgb8;
+use crate::color::{LinearRgb, Srgb8};
 use crate::framebuffer::{Framebuffer, RenderError};
-use crate::rasterizer::{NdcVertex, Rasterizer};
+use crate::rasterizer::{FragmentShader, NdcVertex, Rasterizer};
 
 use glam::{Mat4, Vec3};
+
+type CubeNdcVertex = NdcVertex<LinearRgb>;
+
+struct VertexColorShader;
+
+impl FragmentShader for VertexColorShader {
+    type Attribute = LinearRgb;
+
+    fn shade(&self, colors: [Self::Attribute; 3], barycentric_weights: [f32; 3]) -> LinearRgb {
+        LinearRgb::interpolate(colors, barycentric_weights)
+    }
+}
 
 const HALF_EXTENT: f32 = 0.5;
 const CAMERA_POSITION: Vec3 = Vec3::new(0.0, 0.0, -3.0);
@@ -21,14 +33,14 @@ pub(crate) fn render_at_yaw(
 
     for face in cube_faces() {
         let vertices = face.corners.map(|position| {
-            NdcVertex::new(
+            CubeNdcVertex::new(
                 object_to_ndc.transform_point3(position),
                 face.color.to_linear(),
             )
             .expect("canonical cube vertex should be inside the view volume")
         });
-        rasterizer.draw_triangle([vertices[0], vertices[1], vertices[2]]);
-        rasterizer.draw_triangle([vertices[0], vertices[2], vertices[3]]);
+        rasterizer.draw_triangle([vertices[0], vertices[1], vertices[2]], &VertexColorShader);
+        rasterizer.draw_triangle([vertices[0], vertices[2], vertices[3]], &VertexColorShader);
     }
 
     Ok(rasterizer.into_framebuffer())

@@ -1,12 +1,15 @@
 mod color;
 mod cube;
 mod framebuffer;
+pub mod image;
+mod lunar_color_map;
 mod octasphere;
 mod rasterizer;
 mod scene_time;
 
 use color::Srgb8;
 pub use framebuffer::{Framebuffer, RenderError};
+pub use lunar_color_map::LunarColorMap;
 pub use scene_time::{InvalidSceneTime, SceneTime};
 
 pub const ROTATION_PERIOD_SECONDS: f64 = 10.0;
@@ -17,10 +20,11 @@ pub fn render_lunar_globe(
     width: u32,
     height: u32,
     scene_time: SceneTime,
+    color_map: &LunarColorMap,
 ) -> Result<Framebuffer, RenderError> {
     let yaw = periodic_angle_radians(scene_time, ROTATION_PERIOD_SECONDS);
 
-    octasphere::render(width, height, BACKGROUND, yaw)
+    octasphere::render(width, height, BACKGROUND, yaw, color_map)
 }
 
 pub fn render_cube(
@@ -42,18 +46,33 @@ fn periodic_angle_radians(scene_time: SceneTime, period_seconds: f64) -> f32 {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::rasterizer::{NdcVertex, Rasterizer};
+    use crate::color::LinearRgb;
+    use crate::rasterizer::{FragmentShader, NdcVertex, Rasterizer};
     use glam::Vec3;
     use std::collections::HashSet;
     use std::error::Error;
     use std::fs::{self, File};
     use std::io::BufWriter;
     use std::path::Path;
+    use std::sync::OnceLock;
 
+    const LUNAR_COLOR_MAP_JPEG: &[u8] = include_bytes!("../../../assets/nasa/lroc_color_2k.jpg");
     const TRIANGLE_GOLDEN_PATH: &str = "tests/goldens/first_triangle.png";
     const CUBE_GOLDEN_PATH: &str = "tests/goldens/cube_at_zero_seconds.png";
-    const LUNAR_GOLDEN_PATH: &str = "tests/goldens/vertex_colored_octasphere.png";
+    const LUNAR_GOLDEN_PATH: &str = "tests/goldens/color_mapped_lunar_globe_at_zero_seconds.png";
     const TRIANGLE_COLORS: [Srgb8; 3] = [Srgb8::RED, Srgb8::GREEN, Srgb8::BLUE];
+
+    type TriangleNdcVertex = NdcVertex<LinearRgb>;
+
+    struct TriangleColorShader;
+
+    impl FragmentShader for TriangleColorShader {
+        type Attribute = LinearRgb;
+
+        fn shade(&self, colors: [Self::Attribute; 3], weights: [f32; 3]) -> LinearRgb {
+            LinearRgb::interpolate(colors, weights)
+        }
+    }
 
     fn render_triangles(width: u32, height: u32) -> Result<Framebuffer, RenderError> {
         let mut rasterizer = Rasterizer::new(width, height, BACKGROUND)?;
@@ -74,15 +93,15 @@ mod tests {
             scene_vertex(0.65, 0.8, 0.1, TRIANGLE_COLORS[1]),
         ];
 
-        rasterizer.draw_triangle(near);
-        rasterizer.draw_triangle(far);
-        rasterizer.draw_triangle(back_facing);
+        rasterizer.draw_triangle(near, &TriangleColorShader);
+        rasterizer.draw_triangle(far, &TriangleColorShader);
+        rasterizer.draw_triangle(back_facing, &TriangleColorShader);
 
         Ok(rasterizer.into_framebuffer())
     }
 
-    fn scene_vertex(x: f32, y: f32, depth: f32, color: Srgb8) -> NdcVertex {
-        NdcVertex::new(Vec3::new(x, y, depth), color.to_linear())
+    fn scene_vertex(x: f32, y: f32, depth: f32, color: Srgb8) -> TriangleNdcVertex {
+        TriangleNdcVertex::new(Vec3::new(x, y, depth), color.to_linear())
             .expect("scene NDC vertex should be valid")
     }
 
@@ -102,15 +121,14 @@ mod tests {
 
     #[test]
     fn lunar_frame_has_expected_layout() {
-        let frame =
-            render_lunar_globe(800, 800, scene_time(0.0)).expect("lunar globe should render");
+        let frame = render_test_lunar_globe(800, 800, scene_time(0.0));
 
         assert_frame_layout(&frame, 800, 800);
     }
 
     #[test]
-    fn lunar_frame_contains_programmatically_colored_geometry() {
-        let frame = render_lunar_globe(64, 64, scene_time(0.0)).expect("lunar globe should render");
+    fn lunar_frame_contains_color_mapped_geometry() {
+        let frame = render_test_lunar_globe(64, 64, scene_time(0.0));
         let colors = frame
             .pixels()
             .chunks_exact(4)
@@ -122,14 +140,10 @@ mod tests {
 
     #[test]
     fn lunar_pose_is_deterministic_periodic_and_time_driven() {
-        let zero =
-            render_lunar_globe(96, 96, scene_time(0.0)).expect("initial lunar globe should render");
-        let one_period = render_lunar_globe(96, 96, scene_time(ROTATION_PERIOD_SECONDS))
-            .expect("looped lunar globe should render");
-        let quarter_turn = render_lunar_globe(96, 96, scene_time(2.5))
-            .expect("quarter-turn lunar globe should render");
-        let repeated_quarter_turn = render_lunar_globe(96, 96, scene_time(2.5))
-            .expect("repeated quarter-turn lunar globe should render");
+        let zero = render_test_lunar_globe(96, 96, scene_time(0.0));
+        let one_period = render_test_lunar_globe(96, 96, scene_time(ROTATION_PERIOD_SECONDS));
+        let quarter_turn = render_test_lunar_globe(96, 96, scene_time(2.5));
+        let repeated_quarter_turn = render_test_lunar_globe(96, 96, scene_time(2.5));
 
         assert_eq!(zero, one_period);
         assert_eq!(quarter_turn, repeated_quarter_turn);
@@ -191,14 +205,14 @@ mod tests {
             })
         );
         assert_eq!(
-            render_lunar_globe(0, 800, scene_time(0.0)),
+            render_lunar_globe(0, 800, scene_time(0.0), lunar_color_map()),
             Err(RenderError::EmptyFrame {
                 width: 0,
                 height: 800
             })
         );
         assert_eq!(
-            render_lunar_globe(800, 0, scene_time(0.0)),
+            render_lunar_globe(800, 0, scene_time(0.0), lunar_color_map()),
             Err(RenderError::EmptyFrame {
                 width: 800,
                 height: 0
@@ -229,10 +243,9 @@ mod tests {
 
     #[test]
     fn lunar_globe_matches_golden_pixels() {
-        let frame =
-            render_lunar_globe(800, 800, scene_time(0.0)).expect("lunar globe should render");
+        let frame = render_test_lunar_globe(800, 800, scene_time(0.0));
 
-        assert_matches_golden(&frame, Path::new(LUNAR_GOLDEN_PATH));
+        assert_matches_realistic_golden(&frame, Path::new(LUNAR_GOLDEN_PATH));
     }
 
     #[test]
@@ -241,6 +254,39 @@ mod tests {
             render_cube(800, 800, scene_time(0.0)).expect("cube at zero seconds should render");
 
         assert_matches_golden(&frame, Path::new(CUBE_GOLDEN_PATH));
+    }
+
+    #[test]
+    fn canonical_lunar_color_map_has_recorded_dimensions_and_checksum() {
+        use sha2::{Digest, Sha256};
+
+        let digest = Sha256::digest(LUNAR_COLOR_MAP_JPEG);
+
+        assert_eq!(
+            (lunar_color_map().width(), lunar_color_map().height()),
+            (2048, 1024)
+        );
+        assert_eq!(
+            digest
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>(),
+            "f7130a1822681fa7512d7dcfd40db8c10b9ba4f06777910348698260ed7a2170"
+        );
+    }
+
+    fn lunar_color_map() -> &'static LunarColorMap {
+        static COLOR_MAP: OnceLock<LunarColorMap> = OnceLock::new();
+        COLOR_MAP.get_or_init(|| {
+            let image = image::decode_jpeg(LUNAR_COLOR_MAP_JPEG)
+                .expect("canonical lunar color map JPEG should decode");
+            LunarColorMap::new(image)
+        })
+    }
+
+    fn render_test_lunar_globe(width: u32, height: u32, scene_time: SceneTime) -> Framebuffer {
+        render_lunar_globe(width, height, scene_time, lunar_color_map())
+            .expect("lunar globe should render")
     }
 
     fn scene_time(seconds: f64) -> SceneTime {
@@ -290,6 +336,68 @@ mod tests {
         assert_eq!(frame.pixels(), pixels);
     }
 
+    fn assert_matches_realistic_golden(frame: &Framebuffer, golden_path: &Path) {
+        if std::env::var_os("APOLLO18_UPDATE_GOLDENS").is_some() {
+            write_png(golden_path, frame).expect("golden should be written");
+        }
+
+        let (width, height, expected) =
+            read_png(golden_path).expect("realistic golden should be readable");
+        assert_eq!(frame.width(), width);
+        assert_eq!(frame.height(), height);
+
+        let mut maximum_rgb_difference = 0_u8;
+        let mut rgb_channels_over_tolerance = 0_usize;
+        let mut alpha_mismatches = 0_usize;
+        let mut amplified = Vec::with_capacity(expected.len());
+        for (actual, expected) in frame.pixels().chunks_exact(4).zip(expected.chunks_exact(4)) {
+            for channel in 0..3 {
+                let difference = actual[channel].abs_diff(expected[channel]);
+                maximum_rgb_difference = maximum_rgb_difference.max(difference);
+                rgb_channels_over_tolerance += usize::from(difference > 1);
+                amplified.push(difference.saturating_mul(16));
+            }
+            alpha_mismatches += usize::from(actual[3] != expected[3]);
+            amplified.push(0xff);
+        }
+
+        if rgb_channels_over_tolerance > 0 || alpha_mismatches > 0 {
+            let summary = format!(
+                "maximum RGB difference: {maximum_rgb_difference}\nRGB channels over tolerance: \
+                 {rgb_channels_over_tolerance}\nalpha mismatches: {alpha_mismatches}\n"
+            );
+            write_golden_diff(golden_path, width, height, &amplified, &summary)
+                .expect("realistic golden diff artifacts should be written");
+            panic!("realistic lunar golden differs\n{summary}");
+        }
+    }
+
+    fn write_golden_diff(
+        golden_path: &Path,
+        width: u32,
+        height: u32,
+        pixels: &[u8],
+        summary: &str,
+    ) -> Result<(), Box<dyn Error>> {
+        let output_directory = Path::new("../../target/apollo18/golden-diffs");
+        fs::create_dir_all(output_directory)?;
+        let stem = golden_path
+            .file_stem()
+            .and_then(|stem| stem.to_str())
+            .unwrap_or("lunar-golden");
+        write_rgba_png(
+            &output_directory.join(format!("{stem}-amplified.png")),
+            width,
+            height,
+            pixels,
+        )?;
+        fs::write(
+            output_directory.join(format!("{stem}-summary.txt")),
+            summary,
+        )?;
+        Ok(())
+    }
+
     fn read_png(path: &Path) -> Result<(u32, u32, Vec<u8>), Box<dyn Error>> {
         let decoder = png::Decoder::new(File::open(path)?);
         let mut reader = decoder.read_info()?;
@@ -304,17 +412,26 @@ mod tests {
     }
 
     fn write_png(path: &Path, frame: &Framebuffer) -> Result<(), Box<dyn Error>> {
+        write_rgba_png(path, frame.width(), frame.height(), frame.pixels())
+    }
+
+    fn write_rgba_png(
+        path: &Path,
+        width: u32,
+        height: u32,
+        pixels: &[u8],
+    ) -> Result<(), Box<dyn Error>> {
         if let Some(parent) = path.parent() {
             fs::create_dir_all(parent)?;
         }
 
         let file = File::create(path)?;
         let writer = BufWriter::new(file);
-        let mut encoder = png::Encoder::new(writer, frame.width(), frame.height());
+        let mut encoder = png::Encoder::new(writer, width, height);
         encoder.set_color(png::ColorType::Rgba);
         encoder.set_depth(png::BitDepth::Eight);
         let mut writer = encoder.write_header()?;
-        writer.write_image_data(frame.pixels())?;
+        writer.write_image_data(pixels)?;
         Ok(())
     }
 }

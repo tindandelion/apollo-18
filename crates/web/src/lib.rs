@@ -1,4 +1,4 @@
-use apollo18_renderer::{SceneTime, render_lunar_globe};
+use apollo18_renderer::{LunarColorMap, SceneTime, image::decode_jpeg, render_lunar_globe};
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::Clamped;
@@ -9,6 +9,7 @@ use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData, Window};
 const CANONICAL_WIDTH: u32 = 800;
 const CANONICAL_HEIGHT: u32 = 800;
 const CANVAS_ID: &str = "apollo18-canvas";
+const LUNAR_COLOR_MAP_JPEG: &[u8] = include_bytes!("../../../assets/nasa/lroc_color_2k.jpg");
 
 #[wasm_bindgen(start)]
 pub fn start() -> Result<(), JsValue> {
@@ -35,7 +36,10 @@ pub fn start() -> Result<(), JsValue> {
 }
 
 fn start_animation(window: Window, context: CanvasRenderingContext2d) -> Result<(), JsValue> {
-    let animation = Rc::new(RefCell::new(LunarAnimation::new(context)));
+    let color_map = LunarColorMap::new(
+        decode_jpeg(LUNAR_COLOR_MAP_JPEG).map_err(|error| JsValue::from_str(&error.to_string()))?,
+    );
+    let animation = Rc::new(RefCell::new(LunarAnimation::new(context, color_map)));
     let callback_slot = Rc::new(RefCell::new(None));
     let callback_slot_for_frame = Rc::clone(&callback_slot);
     let window_for_frame = window.clone();
@@ -70,13 +74,15 @@ fn request_animation_frame(
 
 struct LunarAnimation {
     context: CanvasRenderingContext2d,
+    color_map: LunarColorMap,
     started_at_milliseconds: Option<f64>,
 }
 
 impl LunarAnimation {
-    fn new(context: CanvasRenderingContext2d) -> Self {
+    fn new(context: CanvasRenderingContext2d, color_map: LunarColorMap) -> Self {
         Self {
             context,
+            color_map,
             started_at_milliseconds: None,
         }
     }
@@ -88,8 +94,13 @@ impl LunarAnimation {
         let scene_time =
             SceneTime::from_elapsed_millis(started_at_milliseconds, timestamp_milliseconds)
                 .map_err(|error| JsValue::from_str(&error.to_string()))?;
-        let frame = render_lunar_globe(CANONICAL_WIDTH, CANONICAL_HEIGHT, scene_time)
-            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        let frame = render_lunar_globe(
+            CANONICAL_WIDTH,
+            CANONICAL_HEIGHT,
+            scene_time,
+            &self.color_map,
+        )
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
         let image = ImageData::new_with_u8_clamped_array_and_sh(
             Clamped(frame.pixels()),
             frame.width(),

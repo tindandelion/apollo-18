@@ -1,8 +1,55 @@
-use crate::color::Srgb8;
+use crate::color::{LinearRgb, Srgb8};
 use crate::framebuffer::{Framebuffer, RenderError};
-use crate::rasterizer::{NdcVertex, Rasterizer};
+use crate::lunar_color_map::LunarColorMap;
+use crate::rasterizer::{FragmentShader, NdcVertex, Rasterizer};
 use glam::{Mat4, Vec3};
 use std::collections::HashMap;
+
+#[derive(Debug, Clone, Copy)]
+struct RadialDirection(Vec3);
+
+impl RadialDirection {
+    fn new(direction: Vec3) -> Option<Self> {
+        if direction.is_finite() && direction.length_squared() > 0.0 {
+            Some(Self(direction))
+        } else {
+            None
+        }
+    }
+
+    fn into_inner(self) -> Vec3 {
+        self.0
+    }
+}
+
+type SphereNdcVertex = NdcVertex<RadialDirection>;
+
+struct LunarColorShader<'a> {
+    color_map: &'a LunarColorMap,
+}
+
+impl<'a> LunarColorShader<'a> {
+    const fn new(color_map: &'a LunarColorMap) -> Self {
+        Self { color_map }
+    }
+}
+
+impl FragmentShader for LunarColorShader<'_> {
+    type Attribute = RadialDirection;
+
+    fn shade(
+        &self,
+        radial_directions: [Self::Attribute; 3],
+        barycentric_weights: [f32; 3],
+    ) -> LinearRgb {
+        let radial_directions = radial_directions.map(RadialDirection::into_inner);
+        let radial_direction = radial_directions[0] * barycentric_weights[0]
+            + radial_directions[1] * barycentric_weights[1]
+            + radial_directions[2] * barycentric_weights[2];
+
+        self.color_map.sample_linear(radial_direction)
+    }
+}
 
 const CANONICAL_SUBDIVISION_LEVEL: u32 = 5;
 const GLOBE_RADIUS: f32 = 0.5;
@@ -16,6 +63,7 @@ pub(crate) fn render(
     height: u32,
     background: Srgb8,
     yaw_radians: f32,
+    color_map: &LunarColorMap,
 ) -> Result<Framebuffer, RenderError> {
     let mut rasterizer = Rasterizer::new(width, height, background)?;
     let object_to_ndc = projection_transform(width, height)
@@ -23,33 +71,22 @@ pub(crate) fn render(
         * Mat4::from_rotation_y(yaw_radians)
         * Mat4::from_scale(Vec3::splat(GLOBE_RADIUS));
     let mesh = generate(CANONICAL_SUBDIVISION_LEVEL);
+    let shader = LunarColorShader::new(color_map);
 
     for triangle in mesh.triangles {
         let vertices = triangle.map(|index| {
-            let radial_direction = mesh.positions[index as usize];
-            NdcVertex::new(
-                object_to_ndc.transform_point3(radial_direction),
-                color_for(radial_direction).to_linear(),
+            let radial_direction =
+                RadialDirection::new(mesh.positions[index as usize]).expect("unit direction");
+            SphereNdcVertex::new(
+                object_to_ndc.transform_point3(mesh.positions[index as usize]),
+                radial_direction,
             )
             .expect("canonical octasphere vertex should be inside the view volume")
         });
-        rasterizer.draw_triangle(vertices);
+        rasterizer.draw_triangle(vertices, &shader);
     }
 
     Ok(rasterizer.into_framebuffer())
-}
-
-fn color_for(radial_direction: Vec3) -> Srgb8 {
-    let normalized_srgb = Vec3::new(
-        (radial_direction.x + 1.0) * 0.5,
-        (radial_direction.y + 1.0) * 0.5,
-        (1.0 - radial_direction.z) * 0.5,
-    );
-    Srgb8::from_channels(
-        normalized_srgb
-            .to_array()
-            .map(|channel| (channel * 255.0).round() as u8),
-    )
 }
 
 fn projection_transform(width: u32, height: u32) -> Mat4 {
@@ -150,7 +187,54 @@ fn midpoint_index(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashSet;
+    use crate::image::SrgbImage;
+
+    #[test]
+    fn radial_direction_rejects_zero_and_non_finite_vectors() {
+        assert!(RadialDirection::new(Vec3::X).is_some());
+
+        for invalid in [
+            Vec3::ZERO,
+            Vec3::new(f32::NAN, 0.0, 0.0),
+            Vec3::new(0.0, f32::INFINITY, 0.0),
+            Vec3::new(0.0, 0.0, f32::NEG_INFINITY),
+        ] {
+            assert!(RadialDirection::new(invalid).is_none());
+        }
+    }
+
+    #[test]
+    fn lunar_shader_interpolates_radial_direction_per_fragment() {
+        let pixels = (0..8)
+            .flat_map(|x| [(x * 30) as u8, 0, 0])
+            .collect::<Vec<_>>();
+        let color_map =
+            LunarColorMap::new(SrgbImage::new(8, 1, pixels).expect("valid synthetic map"));
+        let vertices = [
+            SphereNdcVertex::new(
+                Vec3::new(-0.8, -0.8, 0.5),
+                RadialDirection::new(Vec3::NEG_Z).expect("valid radial direction"),
+            )
+            .expect("valid lunar vertex"),
+            SphereNdcVertex::new(
+                Vec3::new(0.0, 0.8, 0.5),
+                RadialDirection::new(Vec3::X).expect("valid radial direction"),
+            )
+            .expect("valid lunar vertex"),
+            SphereNdcVertex::new(
+                Vec3::new(0.8, -0.8, 0.5),
+                RadialDirection::new(Vec3::NEG_X).expect("valid radial direction"),
+            )
+            .expect("valid lunar vertex"),
+        ];
+        let mut rasterizer =
+            Rasterizer::new(6, 6, Srgb8::from_hex(0x18_18_18)).expect("valid rasterizer");
+
+        rasterizer.draw_triangle(vertices, &LunarColorShader::new(&color_map));
+        let framebuffer = rasterizer.into_framebuffer();
+
+        assert_eq!(pixel(&framebuffer, 2, 2), [150, 0, 0, 0xff]);
+    }
 
     #[test]
     fn subdivision_has_expected_topology_counts() {
@@ -196,22 +280,6 @@ mod tests {
     }
 
     #[test]
-    fn every_canonical_vertex_has_a_distinct_programmatic_color() {
-        let mesh = generate(CANONICAL_SUBDIVISION_LEVEL);
-        let colors = mesh
-            .positions
-            .iter()
-            .copied()
-            .map(color_for)
-            .map(Srgb8::channels)
-            .collect::<HashSet<_>>();
-
-        assert_eq!(colors.len(), mesh.positions.len());
-        assert_eq!(color_for(Vec3::NEG_Z).channels(), [128, 128, 255]);
-        assert_eq!(color_for(Vec3::Y).channels(), [128, 255, 128]);
-    }
-
-    #[test]
     fn canonical_axes_define_lunar_orientation() {
         let mesh = generate(0);
 
@@ -236,5 +304,12 @@ mod tests {
             assert!((pixel_width - expected).abs() < 1.0e-4);
             assert!((pixel_height - expected).abs() < 1.0e-4);
         }
+    }
+
+    fn pixel(frame: &Framebuffer, x: u32, y: u32) -> [u8; 4] {
+        let offset = ((y * frame.width() + x) * 4) as usize;
+        frame.pixels()[offset..offset + 4]
+            .try_into()
+            .expect("pixel should contain four channels")
     }
 }

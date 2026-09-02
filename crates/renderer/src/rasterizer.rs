@@ -1,55 +1,13 @@
+mod shader;
+mod triangle;
+mod vertex;
+
 use crate::color::LinearRgb;
 use crate::framebuffer::Framebuffer;
-use glam::{Vec2, Vec3};
-
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct NdcVertex {
-    position: Vec3,
-    color: LinearRgb,
-}
-
-impl NdcVertex {
-    pub(crate) fn new(position: Vec3, color: LinearRgb) -> Option<Self> {
-        if position.is_finite()
-            && (-1.0..=1.0).contains(&position.x)
-            && (-1.0..=1.0).contains(&position.y)
-            && (0.0..=1.0).contains(&position.z)
-        {
-            Some(Self { position, color })
-        } else {
-            None
-        }
-    }
-
-    fn to_screen(self, width: u32, height: u32) -> ScreenVertex {
-        ScreenVertex {
-            position: Vec2::new(
-                (self.position.x + 1.0) * width as f32 / 2.0,
-                (1.0 - self.position.y) * height as f32 / 2.0,
-            ),
-            depth: self.position.z,
-            color: self.color,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
-struct ScreenVertex {
-    position: Vec2,
-    depth: f32,
-    color: LinearRgb,
-}
-
-impl ScreenVertex {
-    #[cfg(test)]
-    const fn new(position: Vec2, depth: f32, color: LinearRgb) -> Self {
-        Self {
-            position,
-            depth,
-            color,
-        }
-    }
-}
+pub(crate) use shader::FragmentShader;
+use triangle::rasterize_fragments;
+pub(crate) use vertex::NdcVertex;
+use vertex::ScreenVertex;
 
 pub(crate) struct Rasterizer {
     framebuffer: Framebuffer,
@@ -70,177 +28,65 @@ impl Rasterizer {
         })
     }
 
-    pub(crate) fn draw_triangle(&mut self, vertices: [NdcVertex; 3]) {
+    pub(crate) fn draw_triangle<S: FragmentShader>(
+        &mut self,
+        vertices: [NdcVertex<S::Attribute>; 3],
+        shader: &S,
+    ) {
         let screen_vertices = vertices
-            .map(|vertex| vertex.to_screen(self.framebuffer.width(), self.framebuffer.height()));
-        let screen_area = edge(
-            screen_vertices[0].position,
-            screen_vertices[1].position,
-            screen_vertices[2].position,
-        );
-        if screen_area <= 0.0 {
-            return;
-        }
+            .map(|vertex| vertex.into_screen(self.framebuffer.width(), self.framebuffer.height()));
+        self.rasterize_triangle(screen_vertices, shader);
+    }
 
-        self.fill_triangle(screen_vertices, screen_area);
+    fn rasterize_triangle<S: FragmentShader>(
+        &mut self,
+        vertices: [ScreenVertex<S::Attribute>; 3],
+        shader: &S,
+    ) {
+        let positions = vertices.map(|vertex| vertex.position);
+        let depths = vertices.map(|vertex| vertex.depth);
+        let attributes = vertices.map(|vertex| vertex.attribute);
+        let width = self.framebuffer.width();
+        let height = self.framebuffer.height();
+
+        rasterize_fragments(width, height, positions, depths, |x, y, depth, weights| {
+            let color = shader.shade(attributes, weights);
+            self.write_if_nearer(x, y, depth, color);
+        });
     }
 
     pub(crate) fn into_framebuffer(self) -> Framebuffer {
         self.framebuffer
     }
 
-    fn fill_triangle(&mut self, vertices: [ScreenVertex; 3], area: f32) {
-        let min_x = vertices
-            .iter()
-            .copied()
-            .map(|vertex| vertex.position.x)
-            .fold(f32::INFINITY, f32::min)
-            .floor()
-            .max(0.0) as u32;
-        let max_x = vertices
-            .iter()
-            .copied()
-            .map(|vertex| vertex.position.x)
-            .fold(f32::NEG_INFINITY, f32::max)
-            .ceil()
-            .min(self.framebuffer.width() as f32) as u32;
-        let min_y = vertices
-            .iter()
-            .copied()
-            .map(|vertex| vertex.position.y)
-            .fold(f32::INFINITY, f32::min)
-            .floor()
-            .max(0.0) as u32;
-        let max_y = vertices
-            .iter()
-            .copied()
-            .map(|vertex| vertex.position.y)
-            .fold(f32::NEG_INFINITY, f32::max)
-            .ceil()
-            .min(self.framebuffer.height() as f32) as u32;
-
-        let edges = [
-            Edge::new(vertices[1].position, vertices[2].position),
-            Edge::new(vertices[2].position, vertices[0].position),
-            Edge::new(vertices[0].position, vertices[1].position),
-        ];
-        let colors = [vertices[0].color, vertices[1].color, vertices[2].color];
-        let depths = [vertices[0].depth, vertices[1].depth, vertices[2].depth];
-
-        for y in min_y..max_y {
-            for x in min_x..max_x {
-                let sample = Vec2::new(x as f32 + 0.5, y as f32 + 0.5);
-                let values = edge_values(&edges, sample);
-                if covers_sample(&edges, values) {
-                    let weights = barycentric_weights(values, area);
-                    let depth = interpolate(depths, weights);
-                    let index = y as usize * self.framebuffer.width() as usize + x as usize;
-                    if depth < self.depth_buffer[index] {
-                        let color = LinearRgb::interpolate(colors, weights);
-                        self.framebuffer.set_pixel(x, y, color.to_srgb8());
-                        self.depth_buffer[index] = depth;
-                    }
-                }
-            }
+    fn write_if_nearer(&mut self, x: u32, y: u32, depth: f32, color: LinearRgb) {
+        let index = y as usize * self.framebuffer.width() as usize + x as usize;
+        if depth < self.depth_buffer[index] {
+            self.framebuffer.set_pixel(x, y, color.to_srgb8());
+            self.depth_buffer[index] = depth;
         }
     }
-}
-
-fn edge_values(edges: &[Edge; 3], point: Vec2) -> [f32; 3] {
-    [
-        edges[0].value(point),
-        edges[1].value(point),
-        edges[2].value(point),
-    ]
-}
-
-fn covers_sample(edges: &[Edge; 3], values: [f32; 3]) -> bool {
-    (0..3).all(|index| edges[index].contains(values[index]))
-}
-
-fn barycentric_weights(edge_values: [f32; 3], area: f32) -> [f32; 3] {
-    edge_values.map(|value| value / area)
-}
-
-fn interpolate(values: [f32; 3], weights: [f32; 3]) -> f32 {
-    values[0] * weights[0] + values[1] * weights[1] + values[2] * weights[2]
-}
-
-#[derive(Debug, Clone, Copy)]
-struct Edge {
-    start: Vec2,
-    end: Vec2,
-    includes_on_edge_samples: bool,
-}
-
-impl Edge {
-    fn new(start: Vec2, end: Vec2) -> Self {
-        let direction = end - start;
-        Self {
-            start,
-            end,
-            includes_on_edge_samples: direction.y < 0.0
-                || (direction.y == 0.0 && direction.x > 0.0),
-        }
-    }
-
-    fn value(self, point: Vec2) -> f32 {
-        edge(self.start, self.end, point)
-    }
-
-    fn contains(self, value: f32) -> bool {
-        value > 0.0 || (value == 0.0 && self.includes_on_edge_samples)
-    }
-}
-
-fn edge(start: Vec2, end: Vec2, point: Vec2) -> f32 {
-    (end - start).perp_dot(point - start)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::color::Srgb8;
+    use glam::{Vec2, Vec3};
 
     const BACKGROUND: Srgb8 = Srgb8::from_hex(0x18_18_18);
 
-    #[test]
-    fn ndc_vertex_rejects_positions_outside_the_view_volume() {
-        let color = Srgb8::RED.to_linear();
-        assert!(NdcVertex::new(Vec3::new(-1.0, 1.0, 0.0), color).is_some());
-        assert!(NdcVertex::new(Vec3::new(1.0, -1.0, 1.0), color).is_some());
+    type TestNdcVertex = NdcVertex<LinearRgb>;
+    type TestScreenVertex = ScreenVertex<LinearRgb>;
 
-        for invalid in [
-            (f32::NAN, 0.0, 0.5),
-            (0.0, f32::INFINITY, 0.5),
-            (0.0, 0.0, f32::NEG_INFINITY),
-            (f32::MAX, 0.0, 0.5),
-            (f32::MIN, 0.0, 0.5),
-            (-1.001, 0.0, 0.5),
-            (1.001, 0.0, 0.5),
-            (0.0, -1.001, 0.5),
-            (0.0, 1.001, 0.5),
-            (0.0, 0.0, -0.001),
-            (0.0, 0.0, 1.001),
-        ] {
-            assert!(NdcVertex::new(Vec3::new(invalid.0, invalid.1, invalid.2), color).is_none());
+    struct TestColorShader;
+
+    impl FragmentShader for TestColorShader {
+        type Attribute = LinearRgb;
+
+        fn shade(&self, colors: [Self::Attribute; 3], _weights: [f32; 3]) -> LinearRgb {
+            colors[0]
         }
-    }
-
-    #[test]
-    fn viewport_conversion_maps_ndc_corners_and_inverts_y() {
-        let color = Srgb8::RED.to_linear();
-        let top_left = NdcVertex::new(Vec3::new(-1.0, 1.0, 0.0), color)
-            .expect("valid NDC vertex")
-            .to_screen(800, 600);
-        let bottom_right = NdcVertex::new(Vec3::new(1.0, -1.0, 1.0), color)
-            .expect("valid NDC vertex")
-            .to_screen(800, 600);
-
-        assert_eq!(top_left.position, Vec2::new(0.0, 0.0));
-        assert_eq!(top_left.depth, 0.0);
-        assert_eq!(bottom_right.position, Vec2::new(800.0, 600.0));
-        assert_eq!(bottom_right.depth, 1.0);
     }
 
     #[test]
@@ -255,13 +101,13 @@ mod tests {
         ];
 
         let mut visible = Rasterizer::new(6, 6, BACKGROUND).expect("valid rasterizer");
-        visible.draw_triangle(front_facing);
+        visible.draw_triangle(front_facing, &TestColorShader);
         assert_ne!(visible.into_framebuffer(), frame());
 
         let mut culled = Rasterizer::new(6, 6, BACKGROUND).expect("valid rasterizer");
-        culled.draw_triangle(counter_clockwise);
-        culled.draw_triangle(degenerate);
-        culled.draw_triangle(precision_collapsed);
+        culled.draw_triangle(counter_clockwise, &TestColorShader);
+        culled.draw_triangle(degenerate, &TestColorShader);
+        culled.draw_triangle(precision_collapsed, &TestColorShader);
         assert_eq!(culled.into_framebuffer(), frame());
     }
 
@@ -271,12 +117,12 @@ mod tests {
         let far = ndc_triangle(0.8, Srgb8::BLUE);
 
         let mut near_then_far = Rasterizer::new(6, 6, BACKGROUND).expect("valid rasterizer");
-        near_then_far.draw_triangle(near);
-        near_then_far.draw_triangle(far);
+        near_then_far.draw_triangle(near, &TestColorShader);
+        near_then_far.draw_triangle(far, &TestColorShader);
 
         let mut far_then_near = Rasterizer::new(6, 6, BACKGROUND).expect("valid rasterizer");
-        far_then_near.draw_triangle(far);
-        far_then_near.draw_triangle(near);
+        far_then_near.draw_triangle(far, &TestColorShader);
+        far_then_near.draw_triangle(near, &TestColorShader);
 
         let near_then_far = near_then_far.into_framebuffer();
         let far_then_near = far_then_near.into_framebuffer();
@@ -290,9 +136,9 @@ mod tests {
         fill_screen_triangle(
             &mut rasterizer,
             [
-                ScreenVertex::new(Vec2::new(1.0, 1.0), 0.0, Srgb8::RED.to_linear()),
-                ScreenVertex::new(Vec2::new(5.0, 1.0), 0.8, Srgb8::RED.to_linear()),
-                ScreenVertex::new(Vec2::new(1.0, 5.0), 0.4, Srgb8::RED.to_linear()),
+                TestScreenVertex::new(Vec2::new(1.0, 1.0), 0.0, Srgb8::RED.to_linear()),
+                TestScreenVertex::new(Vec2::new(5.0, 1.0), 0.8, Srgb8::RED.to_linear()),
+                TestScreenVertex::new(Vec2::new(1.0, 5.0), 0.4, Srgb8::RED.to_linear()),
             ],
         );
 
@@ -306,10 +152,10 @@ mod tests {
         let tied = ndc_triangle(0.5, Srgb8::BLUE);
         let mut rasterizer = Rasterizer::new(6, 6, BACKGROUND).expect("valid rasterizer");
 
-        rasterizer.draw_triangle(first);
+        rasterizer.draw_triangle(first, &TestColorShader);
         let framebuffer_before = rasterizer.framebuffer.clone();
         let depth_before = rasterizer.depth_buffer.clone();
-        rasterizer.draw_triangle(tied);
+        rasterizer.draw_triangle(tied, &TestColorShader);
 
         assert_eq!(rasterizer.framebuffer, framebuffer_before);
         assert_eq!(rasterizer.depth_buffer, depth_before);
@@ -318,33 +164,12 @@ mod tests {
     #[test]
     fn complete_normalized_depth_range_is_accepted() {
         let mut rasterizer = Rasterizer::new(6, 6, BACKGROUND).expect("valid rasterizer");
-        rasterizer.draw_triangle(ndc_triangle(1.0, Srgb8::BLUE));
+        rasterizer.draw_triangle(ndc_triangle(1.0, Srgb8::BLUE), &TestColorShader);
         assert_eq!(pixel(&rasterizer.framebuffer, 2, 2), opaque(Srgb8::BLUE));
 
-        rasterizer.draw_triangle(ndc_triangle(0.0, Srgb8::RED));
+        rasterizer.draw_triangle(ndc_triangle(0.0, Srgb8::RED), &TestColorShader);
         assert_eq!(pixel(&rasterizer.framebuffer, 2, 2), opaque(Srgb8::RED));
         assert_eq!(rasterizer.depth_buffer[2 * 6 + 2], 0.0);
-    }
-
-    #[test]
-    fn edge_values_normalize_to_barycentric_weights() {
-        let vertices = [
-            Vec2::new(0.0, 0.0),
-            Vec2::new(2.0, 0.0),
-            Vec2::new(0.0, 2.0),
-        ];
-        let area = edge(vertices[0], vertices[1], vertices[2]);
-        let edges = [
-            Edge::new(vertices[1], vertices[2]),
-            Edge::new(vertices[2], vertices[0]),
-            Edge::new(vertices[0], vertices[1]),
-        ];
-        let values = edge_values(&edges, Vec2::new(0.5, 0.5));
-        let weights = barycentric_weights(values, area);
-
-        assert_eq!(values, [2.0, 1.0, 1.0]);
-        assert_eq!(weights, [0.5, 0.25, 0.25]);
-        assert_eq!(weights.iter().sum::<f32>(), 1.0);
     }
 
     #[test]
@@ -400,7 +225,7 @@ mod tests {
         }
     }
 
-    fn ndc_triangle(depth: f32, color: Srgb8) -> [NdcVertex; 3] {
+    fn ndc_triangle(depth: f32, color: Srgb8) -> [TestNdcVertex; 3] {
         [
             ndc_vertex(-0.8, -0.8, depth, color),
             ndc_vertex(0.0, 0.8, depth, color),
@@ -408,20 +233,20 @@ mod tests {
         ]
     }
 
-    fn ndc_vertex(x: f32, y: f32, depth: f32, color: Srgb8) -> NdcVertex {
-        NdcVertex::new(Vec3::new(x, y, depth), color.to_linear())
+    fn ndc_vertex(x: f32, y: f32, depth: f32, color: Srgb8) -> TestNdcVertex {
+        TestNdcVertex::new(Vec3::new(x, y, depth), color.to_linear())
             .expect("test NDC vertex should be valid")
     }
 
-    fn vertex(x: f32, y: f32, color: Srgb8) -> ScreenVertex {
-        ScreenVertex::new(Vec2::new(x, y), 0.5, color.to_linear())
+    fn vertex(x: f32, y: f32, color: Srgb8) -> TestScreenVertex {
+        TestScreenVertex::new(Vec2::new(x, y), 0.5, color.to_linear())
     }
 
     fn frame() -> Framebuffer {
         Framebuffer::new(6, 6, BACKGROUND).expect("test frame should be valid")
     }
 
-    fn render_triangles(triangles: &[[ScreenVertex; 3]]) -> Framebuffer {
+    fn render_triangles(triangles: &[[TestScreenVertex; 3]]) -> Framebuffer {
         let mut rasterizer = Rasterizer::new(6, 6, BACKGROUND).expect("valid rasterizer");
         for triangle in triangles {
             fill_screen_triangle(&mut rasterizer, *triangle);
@@ -429,17 +254,8 @@ mod tests {
         rasterizer.into_framebuffer()
     }
 
-    fn fill_screen_triangle(rasterizer: &mut Rasterizer, vertices: [ScreenVertex; 3]) {
-        let area = edge(
-            vertices[0].position,
-            vertices[1].position,
-            vertices[2].position,
-        );
-        assert!(
-            area > 0.0,
-            "screen-space test triangle should have positive signed area"
-        );
-        rasterizer.fill_triangle(vertices, area);
+    fn fill_screen_triangle(rasterizer: &mut Rasterizer, vertices: [TestScreenVertex; 3]) {
+        rasterizer.rasterize_triangle(vertices, &TestColorShader);
     }
 
     fn opaque(color: Srgb8) -> [u8; 4] {

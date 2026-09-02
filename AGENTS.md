@@ -20,7 +20,7 @@ Run these checks before completing every implementation ticket:
 cargo fmt --check
 cargo clippy --workspace --all-targets -- -D warnings
 cargo test --workspace
-cd crates/web && trunk build index.html --release
+cd crates/web && NO_COLOR=true trunk build index.html --release
 ```
 
 Also run every ticket-specific golden, native-output, browser, asset-provenance, and deterministic-animation check required by its acceptance criteria.
