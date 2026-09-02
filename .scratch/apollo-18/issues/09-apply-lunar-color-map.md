@@ -4,7 +4,7 @@
 
 **Blocked by:** 08: Animate a vertex-colored octasphere
 
-**Status:** ready-for-agent
+**Status:** done
 
 ## Settled design
 
@@ -17,15 +17,15 @@
 - The color-mapped globe retains ticket 08's deterministic ten-second rotation. Its canonical golden is an 800×800 frame at scene time zero named `color_mapped_lunar_globe_at_zero_seconds.png`, replacing `vertex_colored_octasphere.png`; triangle and cube goldens remain byte-exact.
 - Realistic lunar golden comparison permits a maximum absolute difference of one per RGB channel and requires alpha to match exactly. A failure writes an amplified visual diff and summary statistics under `target/apollo18/golden-diffs/`; golden replacement remains gated by the existing explicit update action.
 
-- [ ] The selected NASA color data is versioned with source URL, retrieval date, checksum, and usage provenance distinct from the code license.
-- [ ] Shared image handling decodes JPEG bytes without coupling file formats to rasterization behavior.
-- [ ] Each fragment's normalized radial direction maps to longitude and latitude without mesh UV attributes.
-- [ ] Longitude wraps, latitude clamps, and nearest-neighbor access samples valid pixels at seams and poles.
-- [ ] Zero-degree longitude faces the initial camera and the familiar lunar near side appears centered.
-- [ ] Sampled sRGB color can be decoded to linear RGB and encoded back to sRGB without unintended color shifts.
-- [ ] The native lunar binary and webpage display the same color-mapped lunar globe without runtime NASA network access.
-- [ ] Canonical realistic lunar goldens compare decoded pixels with a small documented tolerance and emit amplified diff images on failure.
-- [ ] Golden replacement requires an explicit update action.
-- [ ] Focused tests cover JPEG decoding, radial mapping, seam/pole behavior, nearest-neighbor access, and color conversion.
-- [ ] Learning documentation explains spherical lookup and color spaces.
-- [ ] The local quality gate passes.
+- [x] The selected NASA color data is versioned with source URL, retrieval date, checksum, and usage provenance distinct from the code license.
+- [x] Shared image handling decodes JPEG bytes without coupling file formats to rasterization behavior.
+- [x] Each fragment's normalized radial direction maps to longitude and latitude without mesh UV attributes.
+- [x] Longitude wraps, latitude clamps, and nearest-neighbor access samples valid pixels at seams and poles.
+- [x] Zero-degree longitude faces the initial camera and the familiar lunar near side appears centered.
+- [x] Sampled sRGB color can be decoded to linear RGB and encoded back to sRGB without unintended color shifts.
+- [x] The native lunar binary and webpage display the same color-mapped lunar globe without runtime NASA network access.
+- [x] Canonical realistic lunar goldens compare decoded pixels with a small documented tolerance and emit amplified diff images on failure.
+- [x] Golden replacement requires an explicit update action.
+- [x] Focused tests cover JPEG decoding, radial mapping, seam/pole behavior, nearest-neighbor access, and color conversion.
+- [x] Learning documentation explains spherical lookup and color spaces.
+- [x] The local quality gate passes.
