@@ -37,7 +37,7 @@ jobs:
 
       - name: Configure GitHub Pages
         id: pages
-        uses: actions/configure-pages@v5
+        uses: actions/configure-pages@v6
 
       - name: Build web release
         working-directory: crates/web
@@ -50,7 +50,7 @@ jobs:
           --public-url "${{ steps.pages.outputs.base_path }}/"
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: crates/web/dist
 
@@ -69,4 +69,4 @@ jobs:
     steps:
       - name: Deploy GitHub Pages
         id: deployment
-        uses: actions/deploy-pages@v4
+        uses: actions/deploy-pages@v5
