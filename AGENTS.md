@@ -25,6 +25,10 @@ cd crates/web && NO_COLOR=true trunk build index.html --release
 
 Also run every ticket-specific golden, native-output, browser, asset-provenance, and deterministic-animation check required by its acceptance criteria.
 
+## Deployment
+
+The [public web showcase](https://www.tindandelion.com/apollo-18/) is hosted on GitHub Pages because the canonical repository remote is GitHub. `.github/workflows/deploy-website.yml` builds and deploys the site on pushes to `main` and supports manual workflow dispatch. Preserve the Pages base path supplied to Trunk so JavaScript and Wasm assets resolve under both the repository path and the configured custom domain.
+
 ## Review conventions
 
 Native artifact encoding and golden-fixture encoding are separate responsibilities that may diverge. Similar PNG-writing code across those boundaries is intentional, not duplicated code to extract.
