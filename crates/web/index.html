@@ -48,6 +48,20 @@
         height: auto;
         image-rendering: pixelated;
       }
+
+      footer {
+        margin-top: 1rem;
+        font-size: 0.8rem;
+        line-height: 1.5;
+      }
+
+      footer p {
+        margin-bottom: 0.5rem;
+      }
+
+      a {
+        color: #9dc7ff;
+      }
     </style>
   </head>
   <body>
@@ -55,6 +69,21 @@
       <h1>Apollo 18</h1>
       <p>A NASA color-mapped lunar globe drawn by the shared Rust software renderer.</p>
       <canvas id="apollo18-canvas" width="800" height="800" aria-label="Lunar globe render"></canvas>
+      <footer aria-label="Credits and licensing">
+        <p>
+          Surface data: NASA CGI Moon Kit’s December 2025 lunar color map, assembled from Lunar
+          Reconnaissance Orbiter Camera data and provided by
+          <a href="https://svs.gsfc.nasa.gov/4720/">NASA’s Scientific Visualization Studio</a>.
+          NASA’s <a href="https://www.nasa.gov/nasa-brand-center/images-and-media/">media usage guidelines</a>
+          apply separately from the project’s code license.
+        </p>
+        <p>
+          <a href="https://github.com/tindandelion/apollo-18">Apollo 18 source code</a> is available
+          under the <a href="https://github.com/tindandelion/apollo-18/blob/main/LICENSE-MIT">MIT License</a>
+          or the
+          <a href="https://github.com/tindandelion/apollo-18/blob/main/LICENSE-APACHE">Apache License 2.0</a>.
+        </p>
+      </footer>
     </main>
   </body>
 </html>
