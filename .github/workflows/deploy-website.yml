@@ -1,0 +1,72 @@
+name: Deploy Apollo 18 Website
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Install Rust components and Wasm target
+        run: |
+          rustup component add rustfmt clippy --toolchain 1.97.1
+          rustup target add wasm32-unknown-unknown --toolchain 1.97.1
+
+      - name: Install Trunk
+        run: cargo install trunk --locked --version 0.21.14
+
+      - name: Run quality gate
+        run: |
+          cargo fmt --check
+          cargo clippy --workspace --all-targets -- -D warnings
+          cargo test --workspace
+
+      - name: Configure GitHub Pages
+        id: pages
+        uses: actions/configure-pages@v5
+
+      - name: Build web release
+        working-directory: crates/web
+        env:
+          NO_COLOR: "true"
+        run: >
+          trunk build index.html
+          --release
+          --locked
+          --public-url "${{ steps.pages.outputs.base_path }}/"
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v4
+        with:
+          path: crates/web/dist
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+
+    permissions:
+      pages: write
+      id-token: write
+
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+
+    steps:
+      - name: Deploy GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4
