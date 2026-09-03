@@ -2,7 +2,7 @@
 
 **What to build:** Make partially visible geometry render robustly by clipping the cube's triangles against every view-volume plane before rasterization, with a native and web demonstration that crosses those planes safely.
 
-**Blocked by:** 14: Animate the lunar phases
+**Blocked by:** 15: Animate the lunar phases
 
 **Status:** ready-for-agent
 
