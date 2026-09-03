@@ -40,22 +40,22 @@ linear-light color model.
 
 **Blocked by:** 09: Apply the NASA lunar color map
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] Interpolation, shading, and future lighting continue to operate entirely
+- [x] Interpolation, shading, and future lighting continue to operate entirely
       in linear RGB.
-- [ ] Final framebuffer encoding uses lookup-table interpolation and performs
+- [x] Final framebuffer encoding uses lookup-table interpolation and performs
       no power-function evaluation for accepted fragments.
-- [ ] Output channels retain the standard sRGB transfer curve, clamp to the
+- [x] Output channels retain the standard sRGB transfer curve, clamp to the
       zero-to-one linear range, and round to the nearest 8-bit value.
-- [ ] Focused tests cover zero, one, the piecewise transfer boundary,
+- [x] Focused tests cover zero, one, the piecewise transfer boundary,
       representative mid-range values, out-of-range clamping, and interpolation
       error across the table domain.
-- [ ] The selected table resolution and its measured worst-case output error
+- [x] The selected table resolution and its measured worst-case output error
       are documented.
-- [ ] Existing canonical golden renders remain unchanged within their current
+- [x] Existing canonical golden renders remain unchanged within their current
       comparison tolerance.
-- [ ] The repeatable release browser performance test sustains at least 30 FPS
+- [x] The repeatable release browser performance test sustains at least 30 FPS
       for the canonical 800×800 lunar scene on the documented reference
       machine and browser.
-- [ ] The local quality gate passes.
+- [x] The local quality gate passes.

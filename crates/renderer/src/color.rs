@@ -1,3 +1,8 @@
+use std::sync::OnceLock;
+
+const SRGB_ENCODE_TABLE_INTERVALS: usize = 4_096;
+const SRGB_ENCODE_TABLE_SAMPLES: usize = SRGB_ENCODE_TABLE_INTERVALS + 1;
+
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub(crate) struct Srgb8 {
     channels: [u8; 3],
@@ -31,6 +36,10 @@ impl Srgb8 {
             srgb_to_linear(self.channels[2] as f32 / 255.0),
         )
     }
+
+    pub(crate) fn init_lookup_table() {
+        srgb_encode_table();
+    }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -60,12 +69,9 @@ impl LinearRgb {
     }
 
     pub(crate) fn to_srgb8(self) -> Srgb8 {
+        let table = srgb_encode_table();
         Srgb8 {
-            channels: [
-                encode_linear_channel(self.channels[0]),
-                encode_linear_channel(self.channels[1]),
-                encode_linear_channel(self.channels[2]),
-            ],
+            channels: self.channels.map(|channel| table.encode(channel)),
         }
     }
 }
@@ -86,8 +92,38 @@ fn linear_to_srgb(channel: f32) -> f32 {
     }
 }
 
-fn encode_linear_channel(channel: f32) -> u8 {
-    (linear_to_srgb(channel.clamp(0.0, 1.0)) * 255.0).round() as u8
+struct SrgbEncodeTable {
+    samples: [f32; SRGB_ENCODE_TABLE_SAMPLES],
+}
+
+impl SrgbEncodeTable {
+    fn new() -> Self {
+        let mut samples = [0.0; SRGB_ENCODE_TABLE_SAMPLES];
+        for (index, sample) in samples.iter_mut().enumerate() {
+            let linear = index as f32 / SRGB_ENCODE_TABLE_INTERVALS as f32;
+            *sample = linear_to_srgb(linear);
+        }
+        Self { samples }
+    }
+
+    fn encode(&self, linear: f32) -> u8 {
+        (self.interpolate(linear.clamp(0.0, 1.0)) * 255.0).round() as u8
+    }
+
+    fn interpolate(&self, linear: f32) -> f32 {
+        let position = linear * SRGB_ENCODE_TABLE_INTERVALS as f32;
+        let lower_index = (position as usize).min(SRGB_ENCODE_TABLE_INTERVALS - 1);
+        let fraction = position - lower_index as f32;
+        let lower = self.samples[lower_index];
+        let upper = self.samples[lower_index + 1];
+        lower + (upper - lower) * fraction
+    }
+}
+
+fn srgb_encode_table() -> &'static SrgbEncodeTable {
+    static TABLE: OnceLock<SrgbEncodeTable> = OnceLock::new();
+
+    TABLE.get_or_init(SrgbEncodeTable::new)
 }
 
 #[cfg(test)]
@@ -118,8 +154,45 @@ mod tests {
     fn srgb_transfer_function_uses_linear_light() {
         assert!((srgb_to_linear(0.04045) - 0.003_130_805).abs() < 0.000_000_1);
         assert!((linear_to_srgb(0.003_130_8) - 0.040_449_936).abs() < 0.000_000_1);
-        assert_eq!(encode_linear_channel(0.0), 0);
-        assert_eq!(encode_linear_channel(0.5), 188);
-        assert_eq!(encode_linear_channel(1.0), 255);
+    }
+
+    #[test]
+    fn linear_channels_encode_to_standard_srgb_output_codes() {
+        assert_eq!(
+            [
+                encode_test_channel(0.0),
+                encode_test_channel(0.003),
+                encode_test_channel(0.003_130_8),
+                encode_test_channel(0.003_2),
+                encode_test_channel(0.18),
+                encode_test_channel(0.5),
+                encode_test_channel(1.0),
+            ],
+            [0, 10, 10, 11, 118, 188, 255]
+        );
+    }
+
+    #[test]
+    fn linear_channels_clamp_to_the_displayable_range() {
+        assert_eq!(encode_test_channel(-1.0), 0);
+        assert_eq!(encode_test_channel(2.0), 255);
+    }
+
+    #[test]
+    fn srgb_encode_table_stays_within_one_quantized_output_code() {
+        for step in 0..=65_536 {
+            let linear = step as f32 / 65_536.0;
+            let exact = (linear_to_srgb(linear) * 255.0).round() as u8;
+            let encoded = encode_test_channel(linear);
+
+            assert!(
+                encoded.abs_diff(exact) <= 1,
+                "linear channel {linear} encoded as {encoded}, expected {exact}"
+            );
+        }
+    }
+
+    fn encode_test_channel(linear: f32) -> u8 {
+        LinearRgb::new(linear, 0.0, 0.0).to_srgb8().channels()[0]
     }
 }

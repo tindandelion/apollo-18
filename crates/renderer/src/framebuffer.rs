@@ -27,6 +27,8 @@ impl Framebuffer {
             return Err(RenderError::EmptyFrame { width, height });
         }
 
+        Srgb8::init_lookup_table();
+
         let pixel_count = (width as usize)
             .checked_mul(height as usize)
             .and_then(|count| count.checked_mul(4))

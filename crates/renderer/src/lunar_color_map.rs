@@ -2,22 +2,37 @@ use crate::color::LinearRgb;
 use crate::image::SrgbImage;
 use glam::Vec3;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq)]
 pub struct LunarColorMap {
-    image: SrgbImage,
+    width: u32,
+    height: u32,
+    pixels: Vec<LinearRgb>,
 }
 
 impl LunarColorMap {
-    pub const fn new(image: SrgbImage) -> Self {
-        Self { image }
+    pub fn new(image: SrgbImage) -> Self {
+        let width = image.width();
+        let height = image.height();
+        let mut pixels = Vec::with_capacity(width as usize * height as usize);
+        for y in 0..height {
+            for x in 0..width {
+                pixels.push(image.pixel(x, y).to_linear());
+            }
+        }
+
+        Self {
+            width,
+            height,
+            pixels,
+        }
     }
 
     pub const fn width(&self) -> u32 {
-        self.image.width()
+        self.width
     }
 
     pub const fn height(&self) -> u32 {
-        self.image.height()
+        self.height
     }
 
     pub(crate) fn sample_linear(&self, radial_direction: Vec3) -> LinearRgb {
@@ -30,7 +45,7 @@ impl LunarColorMap {
         let y = (vertical * self.height() as f32).floor() as u32;
         let y = y.min(self.height() - 1);
 
-        self.image.pixel(x, y).to_linear()
+        self.pixels[y as usize * self.width as usize + x as usize]
     }
 }
 
