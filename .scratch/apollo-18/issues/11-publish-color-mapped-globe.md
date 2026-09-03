@@ -1,4 +1,4 @@
-# 10: Publish the color-mapped lunar globe
+# 11: Publish the color-mapped lunar globe
 
 **What to build:** Publish the color-mapped lunar globe as a one-page static showcase using the hosting provider appropriate to the repository's remote environment when this ticket begins.
 

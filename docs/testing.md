@@ -39,6 +39,24 @@ scripts/web-smoke-test.sh
 
 The script forwards additional Playwright arguments, such as `--headed`, after `npm test`. Playwright starts and stops a release-mode Trunk server automatically. Trunk output, Playwright results, and installed Node packages are written only to ignored directories.
 
+## Browser performance test
+
+The browser performance test measures completed `requestAnimationFrame`
+callbacks while the release web host renders the canonical 800×800 lunar
+globe. After a two-second warmup, it measures eight seconds of animation and
+requires at least 30 FPS, matching the project's sustained desktop Wasm
+performance target.
+
+Run it from the repository root:
+
+```bash
+scripts/web-performance-test.sh
+```
+
+The test prints its measured FPS. Results are specific to the executing machine
+and bundled Chromium version; use the same environment when comparing changes.
+Additional Playwright arguments such as `--headed` are forwarded by the script.
+
 ## Golden images
 
 Triangle and cube goldens require exact decoded RGBA pixels. The realistic
