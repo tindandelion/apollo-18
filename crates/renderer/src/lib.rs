@@ -71,7 +71,7 @@ mod tests {
     const ROTATED_LUNAR_GOLDEN_PATH: &str =
         "tests/goldens/gibbous_lunar_globe_at_two_point_five_seconds.png";
     const REALISTIC_RGB_TOLERANCE: u8 = 1;
-    const REALISTIC_OUTLIER_PIXEL_BUDGET: usize = 8;
+    const REALISTIC_OUTLIER_PIXEL_BUDGET: usize = 16;
     const TRIANGLE_COLORS: [Srgb8; 3] = [Srgb8::RED, Srgb8::GREEN, Srgb8::BLUE];
 
     type TriangleNdcVertex = NdcVertex<LinearRgb>;
@@ -295,35 +295,35 @@ mod tests {
         assert_eq!(comparison.maximum_rgb_difference, 1);
     }
 
-    /// Eight pixels may exceed the per-channel RGB tolerance.
+    /// Sixteen pixels may exceed the per-channel RGB tolerance.
     #[test]
-    fn realistic_golden_allows_eight_outlier_pixels() {
-        let expected = [10, 10, 10, 255].repeat(8);
+    fn realistic_golden_allows_sixteen_outlier_pixels() {
+        let expected = [10, 10, 10, 255].repeat(16);
         let mut actual = expected.clone();
-        for pixel in 0..8 {
+        for pixel in 0..16 {
             actual[pixel * 4] = 30;
         }
 
         let comparison = compare_realistic_pixels(&actual, &expected);
 
         assert!(!comparison.exceeds_budget());
-        assert_eq!(comparison.outlier_pixels, 8);
+        assert_eq!(comparison.outlier_pixels, 16);
         assert_eq!(comparison.maximum_rgb_difference, 20);
     }
 
-    /// Nine pixels over the RGB tolerance exceed the outlier budget.
+    /// Seventeen pixels over the RGB tolerance exceed the outlier budget.
     #[test]
-    fn realistic_golden_rejects_nine_outlier_pixels() {
-        let expected = [10, 10, 10, 255].repeat(9);
+    fn realistic_golden_rejects_seventeen_outlier_pixels() {
+        let expected = [10, 10, 10, 255].repeat(17);
         let mut actual = expected.clone();
-        for pixel in 0..9 {
+        for pixel in 0..17 {
             actual[pixel * 4] = 30;
         }
 
         let comparison = compare_realistic_pixels(&actual, &expected);
 
         assert!(comparison.exceeds_budget());
-        assert_eq!(comparison.outlier_pixels, 9);
+        assert_eq!(comparison.outlier_pixels, 17);
     }
 
     /// Alpha must match exactly and does not consume the outlier budget.

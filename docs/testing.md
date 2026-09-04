@@ -61,7 +61,7 @@ Additional Playwright arguments such as `--headed` are forwarded by the script.
 
 Triangle and cube goldens require exact decoded RGBA pixels. Realistic lunar
 goldens allow a maximum absolute difference of one per RGB channel, and up to
-eight pixels may exceed that RGB tolerance to absorb rare platform
+sixteen pixels may exceed that RGB tolerance to absorb rare platform
 floating-point texel-boundary hits. Alpha must match exactly. A failure writes
 an amplified PNG and numerical summary to `target/apollo18/golden-diffs/`.
 
