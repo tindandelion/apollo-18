@@ -2,11 +2,11 @@
 
 **What to build:** Make the web lunar globe materially sharper on high-density displays by choosing its framebuffer and Canvas 2D backing resolution from the displayed canvas size and device pixel ratio, without giving up the sustained 30 FPS desktop WebAssembly target.
 
-**Blocked by:** 12: Light and rotate the lunar globe
+**Blocked by:** 14: Derive terrain normals from lunar elevation
 
 **Status:** ready-for-agent
 
-**Scheduling note:** This follows lighting so resolution and performance decisions are measured against the representative shaded lunar workload rather than the cheaper color-mapped globe.
+**Scheduling note:** This follows terrain-normal shading so resolution and performance decisions are measured against the representative elevation-shaded lunar workload rather than the cheaper smooth globe.
 
 - [ ] The web host observes the canvas's displayed CSS dimensions and browser device pixel ratio instead of always rendering an 800×800 framebuffer.
 - [ ] A documented resolution or pixel-budget policy prevents high device pixel ratios from multiplying rendering work without a measured bound.

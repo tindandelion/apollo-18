@@ -2,9 +2,11 @@
 
 **What to build:** Reveal crater and terrain relief by deriving per-fragment terrain normals from NASA's physical lunar elevation data while leaving the octasphere geometry and silhouette spherical.
 
-**Blocked by:** 13: Support sharp rendering on Retina displays
+**Blocked by:** 12: Light and rotate the lunar globe
 
 **Status:** ready-for-agent
+
+**Scheduling note:** This follows the lit rotating globe. High-DPI canvas resolution waits until after terrain-normal shading exists as the representative lunar workload.
 
 - [ ] The NASA 1440×720, 4-pixels-per-degree floating-point lunar elevation map is versioned with source URL, retrieval date, checksum, units, reference radius, and usage provenance.
 - [ ] Shared image handling decodes the floating-point TIFF without coupling file formats to rasterization behavior.
