@@ -16,7 +16,7 @@ Subdivision level zero is this original eight-triangle octahedron.
 
 ## Split one triangle into four
 
-For a triangle with unit radial directions `a`, `b`, and `c`, calculate one midpoint on each edge:
+For a triangle with unit globe locations `a`, `b`, and `c`, calculate one midpoint on each edge:
 
 ```text
 ab = normalize(a + b)
@@ -45,7 +45,7 @@ The canonical level-5 globe contains 8,192 triangles and 4,098 shared vertices.
 
 ## Place the globe in the frame
 
-Mesh positions remain unit radial directions. The object transformation scales them to radius `0.5`, producing a unit-diameter globe centered at the world origin. The camera remains at `(0, 0, -3)` and looks along `+Z`.
+Mesh positions remain unit globe locations. The object transformation scales them to radius `0.5`, producing a unit-diameter globe centered at the world origin. The camera remains at `(0, 0, -3)` and looks along `+Z`.
 
 The orthographic bounds depend on framebuffer aspect ratio. If `s` is the shorter framebuffer dimension, radius `r = 0.5`, and occupancy `q = 0.9`, the projection half-extents are
 
@@ -65,13 +65,13 @@ loop_time = t mod 10 s
 yaw(t) = 360° × loop_time / 10 s
 ```
 
-At zero seconds, zero-degree longitude points toward the camera along object-space `-Z`. The generated colors remain attached to their object-space radial directions, so their movement makes the rotation visible.
+At zero seconds, zero-degree longitude points toward the camera along object-space `-Z`. The generated colors remain attached to their object-space globe locations, so their movement makes the rotation visible.
 
 As with the earlier cube animation, each frame is a pure function of explicit scene time. Native sequence timestamps come independently from frame index and frame rate, while the web adapter converts monotonic `requestAnimationFrame` timestamps into elapsed scene time. No host accumulates rotation frame by frame.
 
-## Generate a color from radial direction
+## Generate a color from globe location
 
-The octasphere milestone gives every shared vertex a deterministic sRGB color derived from its radial direction `(x, y, z)`:
+The octasphere milestone gives every shared vertex a deterministic sRGB color derived from its globe location `(x, y, z)`:
 
 ```text
 red   = (x + 1) / 2
@@ -83,4 +83,4 @@ Each channel maps the directional range `[-1, 1]` into sRGB `[0, 1]`. Thus lunar
 
 ## Enter the established pipeline
 
-Each indexed triangle is expanded into three NDC vertices and sent through the existing viewport, back-face-culling, edge-function, and depth-buffer stages. The generated sRGB vertex colors are decoded to linear RGB before barycentric interpolation and encoded back to sRGB for the framebuffer. The resulting gradients make interpolation and orientation visible while the dense level-5 silhouette demonstrates subdivision. Later stages will replace these generated colors with lunar color-map samples derived per fragment from radial direction.
+Each indexed triangle is expanded into three NDC vertices and sent through the existing viewport, back-face-culling, edge-function, and depth-buffer stages. The generated sRGB vertex colors are decoded to linear RGB before barycentric interpolation and encoded back to sRGB for the framebuffer. The resulting gradients make interpolation and orientation visible while the dense level-5 silhouette demonstrates subdivision. Later stages will replace these generated colors with lunar color-map samples derived per fragment from globe location.

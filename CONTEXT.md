@@ -44,9 +44,9 @@ _Avoid_: Mean radius, sea level
 A spherical triangular mesh formed by repeatedly subdividing an octahedron and projecting the resulting vertices onto a sphere.
 _Avoid_: Icosphere, sphere mesh
 
-**Radial direction**:
-The unit direction from the center of the lunar globe through a surface location, expressed in the globe's object space before rotation. It identifies longitude and latitude independently of elevation and lighting normals.
-_Avoid_: Surface direction, normal
+**Globe location**:
+The unit direction from the center of the lunar globe through a surface location, expressed in the globe's object space before rotation. It identifies longitude and latitude independently of elevation and the terrain normal.
+_Avoid_: Radial direction, surface direction, normal
 
 **Lunar phase**:
 The visible pattern of illumination determined by the angle between the viewing direction and the Sun direction.
@@ -57,5 +57,5 @@ The unit direction from the lunar globe toward the Sun, used as the incoming-lig
 _Avoid_: Light direction, direction of light travel
 
 **Terrain normal**:
-The local surface orientation at a lunar-globe location, derived from elevation gradients on the reference sphere and expressed in the globe's object space before rotation.
-_Avoid_: Radial direction, geometry normal, displacement normal
+The local surface orientation at a lunar-globe location, derived from elevation gradients on the lunar reference radius.
+_Avoid_: Globe location, geometry normal, displacement normal

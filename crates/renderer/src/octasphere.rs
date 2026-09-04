@@ -1,6 +1,8 @@
 use crate::color::{LinearRgb, Srgb8};
 use crate::framebuffer::{Framebuffer, RenderError};
-use crate::lunar_color_map::{LunarColorMap, RadialDirection};
+use crate::globe_location::GlobeLocation;
+use crate::lunar_color_map::LunarColorMap;
+use crate::lunar_elevation_map::LunarElevationMap;
 use crate::rasterizer::{FragmentShader, NdcVertex, Rasterizer};
 use glam::{Mat4, Vec3};
 use std::collections::HashMap;
@@ -22,59 +24,46 @@ impl SunDirection {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
-struct LunarVertexAttributes {
-    radial_direction: RadialDirection,
-    lighting_normal: Vec3,
-}
-
-impl LunarVertexAttributes {
-    fn new(radial_direction: RadialDirection, lighting_normal: Vec3) -> Self {
-        Self {
-            radial_direction,
-            lighting_normal,
-        }
-    }
-}
-
-type SphereNdcVertex = NdcVertex<LunarVertexAttributes>;
+type SphereNdcVertex = NdcVertex<GlobeLocation>;
 
 struct LunarShader<'a> {
     color_map: &'a LunarColorMap,
+    elevation_map: &'a LunarElevationMap,
+    object_rotation: Mat4,
     sun_direction: SunDirection,
 }
 
 impl<'a> LunarShader<'a> {
-    const fn new(color_map: &'a LunarColorMap, sun_direction: SunDirection) -> Self {
+    const fn new(
+        color_map: &'a LunarColorMap,
+        elevation_map: &'a LunarElevationMap,
+        object_rotation: Mat4,
+        sun_direction: SunDirection,
+    ) -> Self {
         Self {
             color_map,
+            elevation_map,
+            object_rotation,
             sun_direction,
         }
     }
 }
 
 impl FragmentShader for LunarShader<'_> {
-    type Attribute = LunarVertexAttributes;
+    type Attribute = GlobeLocation;
 
     fn shade(&self, attributes: [Self::Attribute; 3], barycentric_weights: [f32; 3]) -> LinearRgb {
-        let radial_direction = RadialDirection::interpolate(
-            attributes.map(|attribute| attribute.radial_direction),
-            barycentric_weights,
-        )
-        .expect("covered fragments interpolate a nonzero radial direction");
-        let lighting_normal = interpolate_direction(
-            attributes.map(|attribute| attribute.lighting_normal),
-            barycentric_weights,
-        );
+        let globe_location = GlobeLocation::interpolate(attributes, barycentric_weights)
+            .expect("covered fragments interpolate a nonzero globe location");
+        let perturbed_radial = self.elevation_map.perturbed_radial(globe_location);
+        let lighting_normal = self
+            .object_rotation
+            .transform_vector3(perturbed_radial)
+            .normalize();
         let diffuse_intensity = self.sun_direction.diffuse_intensity(lighting_normal);
 
-        self.color_map.sample_linear(radial_direction) * diffuse_intensity
+        self.color_map.sample_linear(globe_location) * diffuse_intensity
     }
-}
-
-fn interpolate_direction(directions: [Vec3; 3], weights: [f32; 3]) -> Vec3 {
-    (directions[0] * weights[0] + directions[1] * weights[1] + directions[2] * weights[2])
-        .normalize()
 }
 
 const CANONICAL_SUBDIVISION_LEVEL: u32 = 5;
@@ -90,6 +79,7 @@ pub(crate) fn render(
     background: Srgb8,
     yaw_radians: f32,
     color_map: &LunarColorMap,
+    elevation_map: &LunarElevationMap,
     sun_direction: SunDirection,
 ) -> Result<Framebuffer, RenderError> {
     let mut rasterizer = Rasterizer::new(width, height, background)?;
@@ -99,16 +89,15 @@ pub(crate) fn render(
         * object_rotation
         * Mat4::from_scale(Vec3::splat(GLOBE_RADIUS));
     let mesh = generate(CANONICAL_SUBDIVISION_LEVEL);
-    let shader = LunarShader::new(color_map, sun_direction);
+    let shader = LunarShader::new(color_map, elevation_map, object_rotation, sun_direction);
 
     for triangle in mesh.triangles {
         let vertices = triangle.map(|index| {
-            let radial_direction =
-                RadialDirection::new(mesh.positions[index as usize]).expect("unit direction");
-            let lighting_normal = object_rotation.transform_vector3(mesh.positions[index as usize]);
+            let globe_location =
+                GlobeLocation::new(mesh.positions[index as usize]).expect("unit globe location");
             SphereNdcVertex::new(
                 object_to_ndc.transform_point3(mesh.positions[index as usize]),
-                LunarVertexAttributes::new(radial_direction, lighting_normal),
+                globe_location,
             )
             .expect("canonical octasphere vertex should be inside the view volume")
         });
@@ -216,20 +205,39 @@ fn midpoint_index(
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::image::SrgbImage;
+    use crate::image::{ElevationImage, SrgbImage};
 
+    fn flat_elevation_map() -> LunarElevationMap {
+        LunarElevationMap::new(
+            ElevationImage::new(1, 1, vec![0.0]).expect("valid synthetic elevation map"),
+        )
+    }
+
+    fn identity_shader<'a>(
+        color_map: &'a LunarColorMap,
+        elevation_map: &'a LunarElevationMap,
+        sun_direction: Vec3,
+    ) -> LunarShader<'a> {
+        LunarShader::new(
+            color_map,
+            elevation_map,
+            Mat4::IDENTITY,
+            SunDirection::new(sun_direction).expect("valid Sun direction"),
+        )
+    }
+
+    /// Flat elevation and identity rotation keep Lambert at 1 facing the Sun and 0 facing away.
     #[test]
     fn lambertian_shading_is_full_facing_the_sun_and_zero_facing_away() {
         let color_map = LunarColorMap::new(
             SrgbImage::new(1, 1, vec![255, 255, 255]).expect("valid synthetic map"),
         );
-        let sun_direction = SunDirection::new(Vec3::NEG_Z).expect("valid Sun direction");
-        let shader = LunarShader::new(&color_map, sun_direction);
-        let radial_direction = RadialDirection::new(Vec3::NEG_Z).expect("valid radial direction");
+        let elevation_map = flat_elevation_map();
+        let shader = identity_shader(&color_map, &elevation_map, Vec3::NEG_Z);
 
-        let facing_sun = LunarVertexAttributes::new(radial_direction, Vec3::NEG_Z);
-        let perpendicular = LunarVertexAttributes::new(radial_direction, Vec3::X);
-        let facing_away = LunarVertexAttributes::new(radial_direction, Vec3::Z);
+        let facing_sun = GlobeLocation::new(Vec3::NEG_Z).expect("valid globe location");
+        let perpendicular = GlobeLocation::new(Vec3::X).expect("valid globe location");
+        let facing_away = GlobeLocation::new(Vec3::Z).expect("valid globe location");
 
         assert_eq!(
             shader
@@ -249,19 +257,19 @@ mod tests {
         }
     }
 
+    /// Interpolated globe locations are renormalized so Lambert does not reveal tessellation.
     #[test]
-    fn interpolated_radial_direction_is_normalized_for_smooth_lighting() {
+    fn interpolated_globe_location_is_normalized_for_smooth_lighting() {
         let color_map = LunarColorMap::new(
             SrgbImage::new(1, 1, vec![255, 255, 255]).expect("valid synthetic map"),
         );
+        let elevation_map = flat_elevation_map();
         let halfway = (Vec3::X + Vec3::NEG_Z).normalize();
-        let sun_direction = SunDirection::new(halfway).expect("valid Sun direction");
-        let shader = LunarShader::new(&color_map, sun_direction);
-        let radial_direction = RadialDirection::new(Vec3::NEG_Z).expect("valid radial direction");
+        let shader = identity_shader(&color_map, &elevation_map, halfway);
         let attributes = [
-            LunarVertexAttributes::new(radial_direction, Vec3::X),
-            LunarVertexAttributes::new(radial_direction, Vec3::NEG_Z),
-            LunarVertexAttributes::new(radial_direction, Vec3::NEG_Z),
+            GlobeLocation::new(Vec3::X).expect("valid globe location"),
+            GlobeLocation::new(Vec3::NEG_Z).expect("valid globe location"),
+            GlobeLocation::new(Vec3::NEG_Z).expect("valid globe location"),
         ];
 
         assert_eq!(
@@ -273,47 +281,46 @@ mod tests {
         );
     }
 
+    /// Different fragments of one triangle sample different longitudes of a ramped color map.
     #[test]
-    fn lunar_shader_interpolates_radial_direction_per_fragment() {
+    fn lunar_shader_interpolates_globe_location_per_fragment() {
         let pixels = (0..8)
             .flat_map(|x| [(x * 30) as u8, 0, 0])
             .collect::<Vec<_>>();
         let color_map =
             LunarColorMap::new(SrgbImage::new(8, 1, pixels).expect("valid synthetic map"));
+        let elevation_map = flat_elevation_map();
         let vertices = [
             SphereNdcVertex::new(
                 Vec3::new(-0.8, -0.8, 0.5),
-                LunarVertexAttributes::new(
-                    RadialDirection::new(Vec3::NEG_Z).expect("valid radial direction"),
-                    Vec3::NEG_Z,
-                ),
+                GlobeLocation::new(Vec3::NEG_Z).expect("valid globe location"),
             )
             .expect("valid lunar vertex"),
             SphereNdcVertex::new(
                 Vec3::new(0.0, 0.8, 0.5),
-                LunarVertexAttributes::new(
-                    RadialDirection::new(Vec3::X).expect("valid radial direction"),
-                    Vec3::NEG_Z,
-                ),
+                GlobeLocation::new(Vec3::X).expect("valid globe location"),
             )
             .expect("valid lunar vertex"),
             SphereNdcVertex::new(
                 Vec3::new(0.8, -0.8, 0.5),
-                LunarVertexAttributes::new(
-                    RadialDirection::new(Vec3::NEG_X).expect("valid radial direction"),
-                    Vec3::NEG_Z,
-                ),
+                GlobeLocation::new(Vec3::NEG_X).expect("valid globe location"),
             )
             .expect("valid lunar vertex"),
         ];
         let mut rasterizer =
             Rasterizer::new(6, 6, Srgb8::from_hex(0x18_18_18)).expect("valid rasterizer");
 
-        let sun_direction = SunDirection::new(Vec3::NEG_Z).expect("valid Sun direction");
-        rasterizer.draw_triangle(vertices, &LunarShader::new(&color_map, sun_direction));
+        rasterizer.draw_triangle(
+            vertices,
+            &identity_shader(&color_map, &elevation_map, Vec3::NEG_Z),
+        );
         let framebuffer = rasterizer.into_framebuffer();
+        let first = pixel(&framebuffer, 2, 2);
+        let second = pixel(&framebuffer, 3, 3);
 
-        assert_eq!(pixel(&framebuffer, 2, 2), [150, 0, 0, 0xff]);
+        assert_ne!(first, second);
+        assert!(first[0] > 0 && second[0] > 0);
+        assert_eq!((first[3], second[3]), (0xff, 0xff));
     }
 
     #[test]
@@ -328,8 +335,9 @@ mod tests {
         }
     }
 
+    /// Generated octasphere vertices lie on the unit sphere.
     #[test]
-    fn generated_vertices_are_unit_radial_directions() {
+    fn generated_vertices_are_unit_globe_locations() {
         let mesh = generate(5);
 
         assert!(

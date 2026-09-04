@@ -1,8 +1,10 @@
 mod color;
 mod cube;
 mod framebuffer;
+mod globe_location;
 pub mod image;
 mod lunar_color_map;
+mod lunar_elevation_map;
 mod octasphere;
 mod rasterizer;
 mod scene_time;
@@ -11,6 +13,7 @@ use color::Srgb8;
 pub use framebuffer::{Framebuffer, RenderError};
 use glam::Vec3;
 pub use lunar_color_map::LunarColorMap;
+pub use lunar_elevation_map::LunarElevationMap;
 pub use scene_time::{InvalidSceneTime, SceneTime};
 
 pub const ROTATION_PERIOD_SECONDS: f64 = 10.0;
@@ -23,6 +26,7 @@ pub fn render_lunar_globe(
     height: u32,
     scene_time: SceneTime,
     color_map: &LunarColorMap,
+    elevation_map: &LunarElevationMap,
 ) -> Result<Framebuffer, RenderError> {
     let yaw = periodic_angle_radians(scene_time, ROTATION_PERIOD_SECONDS);
     let sun_direction = octasphere::SunDirection::new(Vec3::new(
@@ -32,7 +36,15 @@ pub fn render_lunar_globe(
     ))
     .expect("initial Sun direction should be finite and nonzero");
 
-    octasphere::render(width, height, BACKGROUND, yaw, color_map, sun_direction)
+    octasphere::render(
+        width,
+        height,
+        BACKGROUND,
+        yaw,
+        color_map,
+        elevation_map,
+        sun_direction,
+    )
 }
 
 pub fn render_cube(
@@ -65,11 +77,13 @@ mod tests {
     use std::sync::OnceLock;
 
     const LUNAR_COLOR_MAP_JPEG: &[u8] = include_bytes!("../../../assets/nasa/lroc_color_2k.jpg");
+    const LUNAR_ELEVATION_MAP_TIFF: &[u8] = include_bytes!("../../../assets/nasa/ldem_4.tif");
     const TRIANGLE_GOLDEN_PATH: &str = "tests/goldens/first_triangle.png";
     const CUBE_GOLDEN_PATH: &str = "tests/goldens/cube_at_zero_seconds.png";
-    const GIBBOUS_LUNAR_GOLDEN_PATH: &str = "tests/goldens/gibbous_lunar_globe_at_zero_seconds.png";
-    const ROTATED_LUNAR_GOLDEN_PATH: &str =
-        "tests/goldens/gibbous_lunar_globe_at_two_point_five_seconds.png";
+    const TERRAIN_SHADED_LUNAR_GOLDEN_PATH: &str =
+        "tests/goldens/terrain_shaded_lunar_globe_at_zero_seconds.png";
+    const ROTATED_TERRAIN_SHADED_LUNAR_GOLDEN_PATH: &str =
+        "tests/goldens/terrain_shaded_lunar_globe_at_two_point_five_seconds.png";
     const REALISTIC_RGB_TOLERANCE: u8 = 1;
     const REALISTIC_OUTLIER_PIXEL_BUDGET: usize = 16;
     const TRIANGLE_COLORS: [Srgb8; 3] = [Srgb8::RED, Srgb8::GREEN, Srgb8::BLUE];
@@ -232,14 +246,26 @@ mod tests {
             })
         );
         assert_eq!(
-            render_lunar_globe(0, 800, scene_time(0.0), lunar_color_map()),
+            render_lunar_globe(
+                0,
+                800,
+                scene_time(0.0),
+                lunar_color_map(),
+                lunar_elevation_map()
+            ),
             Err(RenderError::EmptyFrame {
                 width: 0,
                 height: 800
             })
         );
         assert_eq!(
-            render_lunar_globe(800, 0, scene_time(0.0), lunar_color_map()),
+            render_lunar_globe(
+                800,
+                0,
+                scene_time(0.0),
+                lunar_color_map(),
+                lunar_elevation_map()
+            ),
             Err(RenderError::EmptyFrame {
                 width: 800,
                 height: 0
@@ -269,17 +295,20 @@ mod tests {
     }
 
     #[test]
-    fn gibbous_lunar_globe_matches_golden_pixels() {
+    fn terrain_shaded_lunar_globe_matches_golden_pixels() {
         let frame = render_test_lunar_globe(800, 800, scene_time(0.0));
 
-        assert_matches_realistic_golden(&frame, Path::new(GIBBOUS_LUNAR_GOLDEN_PATH));
+        assert_matches_realistic_golden(&frame, Path::new(TERRAIN_SHADED_LUNAR_GOLDEN_PATH));
     }
 
     #[test]
-    fn rotated_gibbous_lunar_globe_matches_golden_pixels() {
+    fn rotated_terrain_shaded_lunar_globe_matches_golden_pixels() {
         let frame = render_test_lunar_globe(800, 800, scene_time(2.5));
 
-        assert_matches_realistic_golden(&frame, Path::new(ROTATED_LUNAR_GOLDEN_PATH));
+        assert_matches_realistic_golden(
+            &frame,
+            Path::new(ROTATED_TERRAIN_SHADED_LUNAR_GOLDEN_PATH),
+        );
     }
 
     /// A per-channel RGB difference of one is within tolerance and is not an outlier.
@@ -366,6 +395,29 @@ mod tests {
         );
     }
 
+    /// A committed 1440×720 elevation TIFF must keep the recorded SHA-256 checksum.
+    #[test]
+    fn canonical_lunar_elevation_map_has_recorded_dimensions_and_checksum() {
+        use sha2::{Digest, Sha256};
+
+        let digest = Sha256::digest(LUNAR_ELEVATION_MAP_TIFF);
+
+        assert_eq!(
+            (
+                lunar_elevation_map().width(),
+                lunar_elevation_map().height()
+            ),
+            (1440, 720)
+        );
+        assert_eq!(
+            digest
+                .iter()
+                .map(|byte| format!("{byte:02x}"))
+                .collect::<String>(),
+            "d876c867612e8941d775a005b2bc1ebaef5c15f97e04a43022a71fc21f5c9d65"
+        );
+    }
+
     fn lunar_color_map() -> &'static LunarColorMap {
         static COLOR_MAP: OnceLock<LunarColorMap> = OnceLock::new();
         COLOR_MAP.get_or_init(|| {
@@ -375,9 +427,24 @@ mod tests {
         })
     }
 
+    fn lunar_elevation_map() -> &'static LunarElevationMap {
+        static ELEVATION_MAP: OnceLock<LunarElevationMap> = OnceLock::new();
+        ELEVATION_MAP.get_or_init(|| {
+            let image = image::decode_float_tiff(LUNAR_ELEVATION_MAP_TIFF)
+                .expect("canonical lunar elevation map TIFF should decode");
+            LunarElevationMap::new(image)
+        })
+    }
+
     fn render_test_lunar_globe(width: u32, height: u32, scene_time: SceneTime) -> Framebuffer {
-        render_lunar_globe(width, height, scene_time, lunar_color_map())
-            .expect("lunar globe should render")
+        render_lunar_globe(
+            width,
+            height,
+            scene_time,
+            lunar_color_map(),
+            lunar_elevation_map(),
+        )
+        .expect("lunar globe should render")
     }
 
     fn scene_time(seconds: f64) -> SceneTime {

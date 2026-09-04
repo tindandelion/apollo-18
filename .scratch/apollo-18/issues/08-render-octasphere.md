@@ -9,7 +9,7 @@
 ## Settled design
 
 - Lunar north is object-space `+Y`, and zero-degree longitude points toward the initial camera along object-space `-Z`.
-- Every shared vertex receives a deterministic sRGB color from its radial direction: `red = (x + 1) / 2`, `green = (y + 1) / 2`, and `blue = (1 - z) / 2`. The renderer decodes these colors to linear RGB before interpolation.
+- Every shared vertex receives a deterministic sRGB color from its globe location: `red = (x + 1) / 2`, `green = (y + 1) / 2`, and `blue = (1 - z) / 2`. The renderer decodes these colors to linear RGB before interpolation.
 - Its diameter is 90% of the shorter framebuffer dimension, with aspect-correct projection preserving a circular silhouette.
 - The canonical lunar scene, native host, and web host use subdivision level 5 as a constant. The internal mesh generator accepts other levels for focused tests and future exploration; subdivision is not part of the public render interface or native CLI.
 - Subdivision level 0 is the base octahedron. The mesh is indexed, reuses midpoint vertices, and contains `8 × 4^level` triangles.

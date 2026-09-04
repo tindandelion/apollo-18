@@ -7,6 +7,7 @@ license.workspace = true
 [dependencies]
 glam = "0.30"
 image = { version = "0.25.10", default-features = false, features = ["jpeg"] }
+tiff = "0.11"
 
 [dev-dependencies]
 png = "0.17"

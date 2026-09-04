@@ -1,20 +1,20 @@
 # Mapping the lunar globe
 
-The octasphere carries an object-space **radial direction** at each vertex. The
-software renderer interpolates the three directions with the fragment's
+The octasphere carries an object-space **globe location** at each vertex. The
+software renderer interpolates the three locations with the fragment's
 barycentric weights and normalizes the result:
 
 ```text
 r = normalize(w0 r0 + w1 r1 + w2 r2)
 ```
 
-Keeping this direction in object space makes the lunar color map rotate with
+Keeping this location in object space makes the lunar color map rotate with
 the globe. It also avoids longitude seams in the mesh: no UV coordinates or
-duplicated seam vertices are needed. The barycentric sum of unit radial
-directions is not itself unit, so interpolation renormalizes once. Map
-sampling then consumes that unit radial direction without normalizing again.
+duplicated seam vertices are needed. The barycentric sum of unit globe
+locations is not itself unit, so interpolation renormalizes once. Map
+sampling then consumes that unit globe location without normalizing again.
 
-## From a direction to a map pixel
+## From a globe location to a map pixel
 
 Apollo 18 defines lunar north as `+Y` and zero-degree longitude as `-Z`, which
 faces the initial camera. For normalized `r = (x, y, z)`:
@@ -29,11 +29,12 @@ v = clamp(1/2 - latitude / π, 0, 1)
 Longitude wraps because `-180°` and `+180°` meet at the same meridian.
 Latitude clamps because the poles are boundaries, not another seam. The
 nearest-neighbor lookup uses `floor(u × width)` and
-`min(floor(v × height), height - 1)`.
+`min(floor(v × height), height - 1)`. The lunar elevation map uses this same
+lookup so both maps stay on one texel for a given globe location.
 
 The lookup happens per fragment rather than per vertex. Interpolating map
 coordinates across a triangle would cross the longitude seam incorrectly;
-interpolating the seam-free radial direction first avoids that discontinuity.
+interpolating the seam-free globe location first avoids that discontinuity.
 
 ## sRGB and linear light
 

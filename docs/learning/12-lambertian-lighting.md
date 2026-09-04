@@ -1,11 +1,11 @@
 # Lighting and rotating the lunar globe
 
 The color-mapped lunar globe now combines two directions with different jobs.
-Its object-space **radial direction** continues to locate a fragment in the
+Its object-space **globe location** continues to locate a fragment in the
 lunar color map. A rotated, normalized copy supplies the smooth lighting
 normal in world space, so the map turns beneath a fixed directional Sun.
 
-## Smooth radial lighting normals
+## Smooth spherical lighting normals
 
 For barycentric weights `w0`, `w1`, and `w2`, interpolate the three rotated
 vertex directions and normalize the result:
@@ -18,9 +18,10 @@ Normalization matters because a weighted sum of unit vectors is generally
 shorter than one. Using the unnormalized sum would incorrectly darken the
 interiors of triangles and reveal the octasphere tessellation.
 
-This lighting normal is derived from the globe's spherical shape. It remains
-separate from the object-space radial direction used for map lookup and from
-the terrain normal introduced by lunar elevation in a later stage.
+This lighting normal is derived from the globe's spherical shape. Later,
+per-fragment terrain normals from lunar elevation replace that spherical
+lighting vector; see [deriving terrain normals](14-terrain-normals.md).
+The Lambertian response and globe rotation in this guide stay the same.
 
 ## Linear-light Lambertian shading
 

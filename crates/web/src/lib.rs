@@ -1,4 +1,7 @@
-use apollo18_renderer::{LunarColorMap, SceneTime, image::decode_jpeg, render_lunar_globe};
+use apollo18_renderer::{
+    LunarColorMap, LunarElevationMap, SceneTime, image::decode_float_tiff, image::decode_jpeg,
+    render_lunar_globe,
+};
 use std::cell::RefCell;
 use std::rc::Rc;
 use wasm_bindgen::Clamped;
@@ -10,6 +13,7 @@ const CANONICAL_WIDTH: u32 = 800;
 const CANONICAL_HEIGHT: u32 = 800;
 const CANVAS_ID: &str = "apollo18-canvas";
 const LUNAR_COLOR_MAP_JPEG: &[u8] = include_bytes!("../../../assets/nasa/lroc_color_2k.jpg");
+const LUNAR_ELEVATION_MAP_TIFF: &[u8] = include_bytes!("../../../assets/nasa/ldem_4.tif");
 
 #[wasm_bindgen(start)]
 pub fn start() -> Result<(), JsValue> {
@@ -39,7 +43,15 @@ fn start_animation(window: Window, context: CanvasRenderingContext2d) -> Result<
     let color_map = LunarColorMap::new(
         decode_jpeg(LUNAR_COLOR_MAP_JPEG).map_err(|error| JsValue::from_str(&error.to_string()))?,
     );
-    let animation = Rc::new(RefCell::new(LunarAnimation::new(context, color_map)));
+    let elevation_map = LunarElevationMap::new(
+        decode_float_tiff(LUNAR_ELEVATION_MAP_TIFF)
+            .map_err(|error| JsValue::from_str(&error.to_string()))?,
+    );
+    let animation = Rc::new(RefCell::new(LunarAnimation::new(
+        context,
+        color_map,
+        elevation_map,
+    )));
     let callback_slot = Rc::new(RefCell::new(None));
     let callback_slot_for_frame = Rc::clone(&callback_slot);
     let window_for_frame = window.clone();
@@ -75,14 +87,20 @@ fn request_animation_frame(
 struct LunarAnimation {
     context: CanvasRenderingContext2d,
     color_map: LunarColorMap,
+    elevation_map: LunarElevationMap,
     started_at_milliseconds: Option<f64>,
 }
 
 impl LunarAnimation {
-    fn new(context: CanvasRenderingContext2d, color_map: LunarColorMap) -> Self {
+    fn new(
+        context: CanvasRenderingContext2d,
+        color_map: LunarColorMap,
+        elevation_map: LunarElevationMap,
+    ) -> Self {
         Self {
             context,
             color_map,
+            elevation_map,
             started_at_milliseconds: None,
         }
     }
@@ -99,6 +117,7 @@ impl LunarAnimation {
             CANONICAL_HEIGHT,
             scene_time,
             &self.color_map,
+            &self.elevation_map,
         )
         .map_err(|error| JsValue::from_str(&error.to_string()))?;
         let image = ImageData::new_with_u8_clamped_array_and_sh(
