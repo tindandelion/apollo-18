@@ -22,8 +22,21 @@ impl GlobeLocation {
         self.0
     }
 
-    pub(crate) fn longitude_latitude(self) -> LongitudeLatitude {
-        LongitudeLatitude {
+    pub(crate) fn tangent_frame(self) -> (Vec3, Vec3) {
+        let horizontal_radius = self.0.x.hypot(self.0.z);
+        let east = if horizontal_radius > 0.0 {
+            Vec3::new(-self.0.z, 0.0, self.0.x) / horizontal_radius
+        } else {
+            Vec3::NEG_X
+        };
+        let north = east.cross(self.0);
+
+        (east, north)
+    }
+
+    pub(crate) fn geo_coords(self) -> GeoCoords {
+        GeoCoords {
+            globe_location: self,
             longitude: self.0.x.atan2(-self.0.z),
             latitude: self.0.y.asin(),
         }
@@ -31,12 +44,17 @@ impl GlobeLocation {
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct LongitudeLatitude {
+pub(crate) struct GeoCoords {
+    globe_location: GlobeLocation,
     longitude: f32,
     latitude: f32,
 }
 
-impl LongitudeLatitude {
+impl GeoCoords {
+    pub(crate) const fn globe_location(self) -> GlobeLocation {
+        self.globe_location
+    }
+
     pub(crate) const fn latitude(self) -> f32 {
         self.latitude
     }
@@ -47,18 +65,6 @@ impl LongitudeLatitude {
         let x = ((horizontal * width as f32).floor() as u32) % width;
         let y = (vertical * height as f32).floor() as u32;
         (x, y.min(height - 1))
-    }
-
-    pub(crate) fn east(self) -> Vec3 {
-        Vec3::new(self.longitude.cos(), 0.0, self.longitude.sin())
-    }
-
-    pub(crate) fn north(self) -> Vec3 {
-        Vec3::new(
-            -self.longitude.sin() * self.latitude.sin(),
-            self.latitude.cos(),
-            self.longitude.cos() * self.latitude.sin(),
-        )
     }
 }
 
@@ -72,7 +78,7 @@ mod tests {
 
     fn sampled_texel(direction: Vec3, width: u32, height: u32) -> (u32, u32) {
         globe_location(direction)
-            .longitude_latitude()
+            .geo_coords()
             .nearest_texel(width, height)
     }
 
@@ -124,13 +130,39 @@ mod tests {
     /// Zero-degree longitude faces `+X` east and `+Y` north.
     #[test]
     fn zero_longitude_equator_has_canonical_east_and_north() {
-        let coords = globe_location(Vec3::NEG_Z).longitude_latitude();
+        let location = globe_location(Vec3::NEG_Z);
 
-        let east = coords.east();
-        let north = coords.north();
+        let (east, north) = location.tangent_frame();
 
         assert!((east - Vec3::X).length() < 1.0e-6);
         assert!((north - Vec3::Y).length() < 1.0e-6);
+    }
+
+    /// A general globe location has an orthonormal tangent frame.
+    #[test]
+    fn tangent_frame_is_orthonormal() {
+        let location = globe_location(Vec3::new(1.0, 2.0, -3.0));
+
+        let (east, north) = location.tangent_frame();
+
+        assert!((east.length() - 1.0).abs() < 1.0e-6);
+        assert!((north.length() - 1.0).abs() < 1.0e-6);
+        assert!(east.dot(location.as_vec3()).abs() < 1.0e-6);
+        assert!(north.dot(location.as_vec3()).abs() < 1.0e-6);
+        assert!(east.dot(north).abs() < 1.0e-6);
+    }
+
+    /// Exact poles use the antimeridian's east direction and opposite meridional north tangents.
+    #[test]
+    fn poles_have_a_defined_tangent_frame() {
+        let north_pole = globe_location(Vec3::Y);
+        let south_pole = globe_location(Vec3::NEG_Y);
+
+        let north_frame = north_pole.tangent_frame();
+        let south_frame = south_pole.tangent_frame();
+
+        assert_eq!(north_frame, (Vec3::NEG_X, Vec3::NEG_Z));
+        assert_eq!(south_frame, (Vec3::NEG_X, Vec3::Z));
     }
 
     /// Nonzero finite vectors are stored as unit globe locations.

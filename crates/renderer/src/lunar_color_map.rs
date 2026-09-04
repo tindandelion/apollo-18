@@ -1,5 +1,5 @@
 use crate::color::LinearRgb;
-use crate::globe_location::GlobeLocation;
+use crate::globe_location::GeoCoords;
 use crate::image::SrgbImage;
 
 #[derive(Debug, Clone, PartialEq)]
@@ -35,10 +35,8 @@ impl LunarColorMap {
         self.height
     }
 
-    pub(crate) fn sample_linear(&self, globe_location: GlobeLocation) -> LinearRgb {
-        let (x, y) = globe_location
-            .longitude_latitude()
-            .nearest_texel(self.width(), self.height());
+    pub(crate) fn sample_linear(&self, geo_coords: GeoCoords) -> LinearRgb {
+        let (x, y) = geo_coords.nearest_texel(self.width(), self.height());
 
         self.pixels[y as usize * self.width as usize + x as usize]
     }
@@ -48,10 +46,13 @@ impl LunarColorMap {
 mod tests {
     use super::*;
     use crate::color::Srgb8;
+    use crate::globe_location::GlobeLocation;
     use glam::Vec3;
 
-    fn globe_location(direction: Vec3) -> GlobeLocation {
-        GlobeLocation::new(direction).expect("test direction should be finite and nonzero")
+    fn geo_coords(direction: Vec3) -> GeoCoords {
+        GlobeLocation::new(direction)
+            .expect("test direction should be finite and nonzero")
+            .geo_coords()
     }
 
     /// Sampled sRGB bytes round-trip through linear light unchanged.
@@ -60,7 +61,7 @@ mod tests {
         let image = SrgbImage::new(1, 1, vec![12, 128, 241]).expect("valid synthetic map");
         let map = LunarColorMap::new(image);
 
-        let sampled = map.sample_linear(globe_location(Vec3::NEG_Z)).to_srgb8();
+        let sampled = map.sample_linear(geo_coords(Vec3::NEG_Z)).to_srgb8();
 
         assert_eq!(sampled, Srgb8::from_channels([12, 128, 241]));
     }

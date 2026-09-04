@@ -55,14 +55,15 @@ impl FragmentShader for LunarShader<'_> {
     fn shade(&self, attributes: [Self::Attribute; 3], barycentric_weights: [f32; 3]) -> LinearRgb {
         let globe_location = GlobeLocation::interpolate(attributes, barycentric_weights)
             .expect("covered fragments interpolate a nonzero globe location");
-        let perturbed_radial = self.elevation_map.perturbed_radial(globe_location);
+        let geo_coords = globe_location.geo_coords();
+        let perturbed_radial = self.elevation_map.perturbed_radial(geo_coords);
         let lighting_normal = self
             .object_rotation
             .transform_vector3(perturbed_radial)
             .normalize();
         let diffuse_intensity = self.sun_direction.diffuse_intensity(lighting_normal);
 
-        self.color_map.sample_linear(globe_location) * diffuse_intensity
+        self.color_map.sample_linear(geo_coords) * diffuse_intensity
     }
 }
 

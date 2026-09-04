@@ -1,4 +1,4 @@
-use crate::globe_location::GlobeLocation;
+use crate::globe_location::GeoCoords;
 use crate::image::ElevationImage;
 use glam::Vec3;
 
@@ -22,13 +22,14 @@ impl LunarElevationMap {
         self.image.height()
     }
 
-    pub(crate) fn perturbed_radial(&self, globe_location: GlobeLocation) -> Vec3 {
+    pub(crate) fn perturbed_radial(&self, geo_coords: GeoCoords) -> Vec3 {
+        let globe_location = geo_coords.globe_location();
         let location = globe_location.as_vec3();
-        let coords = globe_location.longitude_latitude();
-        let (x, y) = coords.nearest_texel(self.width(), self.height());
-        let (eastward_slope, northward_slope) = self.physical_slopes(x, y, coords.latitude());
+        let (east, north) = globe_location.tangent_frame();
+        let (x, y) = geo_coords.nearest_texel(self.width(), self.height());
+        let (eastward_slope, northward_slope) = self.physical_slopes(x, y, geo_coords.latitude());
 
-        location - eastward_slope * coords.east() - northward_slope * coords.north()
+        location - eastward_slope * east - northward_slope * north
     }
 
     fn physical_slopes(&self, x: u32, y: u32, latitude: f32) -> (f32, f32) {
@@ -64,6 +65,7 @@ impl LunarElevationMap {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::globe_location::GlobeLocation;
     use crate::image::ElevationImage;
     use glam::Vec3;
 
@@ -73,8 +75,10 @@ mod tests {
         )
     }
 
-    fn globe_location(direction: Vec3) -> GlobeLocation {
-        GlobeLocation::new(direction).expect("test direction should be finite and nonzero")
+    fn geo_coords(direction: Vec3) -> GeoCoords {
+        GlobeLocation::new(direction)
+            .expect("test direction should be finite and nonzero")
+            .geo_coords()
     }
 
     /// A constant elevation map does not tilt the globe location.
@@ -83,7 +87,7 @@ mod tests {
         let map = elevation_map(4, 3, vec![0.0; 12]);
 
         for direction in [Vec3::NEG_Z, Vec3::X, Vec3::Y, Vec3::NEG_Y] {
-            let perturbed_radial = map.perturbed_radial(globe_location(direction));
+            let perturbed_radial = map.perturbed_radial(geo_coords(direction));
 
             assert!((perturbed_radial - direction).length() < 1.0e-6);
         }
@@ -99,7 +103,7 @@ mod tests {
         let slope_east = 2.0 / (std::f32::consts::PI * 1737.4);
         let expected = Vec3::new(-slope_east, 0.0, -1.0);
 
-        let perturbed_radial = map.perturbed_radial(globe_location(Vec3::NEG_Z));
+        let perturbed_radial = map.perturbed_radial(geo_coords(Vec3::NEG_Z));
 
         assert!((perturbed_radial - expected).length() < 1.0e-5);
     }
@@ -114,7 +118,7 @@ mod tests {
         let slope_east = 2.0 / (std::f32::consts::PI * 1737.4);
         let expected = Vec3::new(slope_east, 0.0, 1.0);
 
-        let perturbed_radial = map.perturbed_radial(globe_location(Vec3::Z));
+        let perturbed_radial = map.perturbed_radial(geo_coords(Vec3::Z));
 
         assert!((perturbed_radial - expected).length() < 1.0e-5);
     }
@@ -127,7 +131,7 @@ mod tests {
         samples[3] = 10.0;
         let map = elevation_map(4, 3, samples);
 
-        let perturbed_radial = map.perturbed_radial(globe_location(Vec3::Y));
+        let perturbed_radial = map.perturbed_radial(geo_coords(Vec3::Y));
 
         assert!(perturbed_radial.x.abs() < 1.0e-6);
     }
@@ -146,7 +150,7 @@ mod tests {
         let north = Vec3::new(0.0, -location.z, location.y);
         let expected = location - slope_north * north;
 
-        let perturbed_radial = map.perturbed_radial(globe_location(location));
+        let perturbed_radial = map.perturbed_radial(geo_coords(location));
 
         assert!((perturbed_radial - expected).length() < 1.0e-5);
     }

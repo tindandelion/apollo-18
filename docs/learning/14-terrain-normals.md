@@ -22,12 +22,20 @@ longitude `λ` and latitude `φ` from the same convention as color-map lookup:
 φ = asin(y)
 ```
 
-the east and north unit tangents are determined by those same angles:
+the east and north unit tangents can be derived directly from the globe
+location. Let `ρ = hypot(x, z)`, the location's radius around the lunar north
+axis:
 
 ```text
-east  = (cos λ, 0, sin λ)
-north = (-sin λ sin φ, cos φ, cos λ sin φ)
+east  = (-z / ρ, 0, x / ρ)
+north = east × û
 ```
+
+This is algebraically equivalent to reconstructing the tangents from `λ` and
+`φ`, but avoids additional trigonometric functions. At an exact pole `ρ = 0`,
+longitude—and therefore the tangent frame—is inherently ambiguous. Apollo 18
+uses the antimeridian convention `east = -X`; crossing with `û` then gives the
+corresponding north tangent.
 
 Finite differences supply `∂h/∂λ` and `∂h/∂φ`. Physical slopes use the
 reference radius `R = 1737.4 km` only, not the local radius `R + h`, because
@@ -45,10 +53,11 @@ that rises toward the Sun brightens; the opposite wall darkens.
 
 ## Discrete gradients
 
-The elevation map is 4 pixels per degree, so `Δλ = Δφ = 0.25°`. The fragment's
-`û` still provides `û`, east, north, and `cos φ`. Only `h` is quantized with
-the shared nearest-neighbor lookup: `floor` into a texel, wrap longitude,
-clamp latitude.
+The elevation map is 4 pixels per degree, so `Δλ = Δφ = 0.25°`. Each fragment
+calculates `λ` and `φ` once and shares those coordinates between the lunar
+color and elevation map lookups. The fragment's `û` still provides `û`, east,
+north, and `cos φ`. Only `h` is quantized with the shared nearest-neighbor
+lookup: `floor` into a texel, wrap longitude, clamp latitude.
 
 Interior texels use 4-connected central differences of that texel's neighbors:
 
