@@ -10,7 +10,9 @@ r = normalize(w0 r0 + w1 r1 + w2 r2)
 
 Keeping this direction in object space makes the lunar color map rotate with
 the globe. It also avoids longitude seams in the mesh: no UV coordinates or
-duplicated seam vertices are needed.
+duplicated seam vertices are needed. The barycentric sum of unit radial
+directions is not itself unit, so interpolation renormalizes once. Map
+sampling then consumes that unit radial direction without normalizing again.
 
 ## From a direction to a map pixel
 

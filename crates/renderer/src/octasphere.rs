@@ -1,26 +1,9 @@
 use crate::color::{LinearRgb, Srgb8};
 use crate::framebuffer::{Framebuffer, RenderError};
-use crate::lunar_color_map::LunarColorMap;
+use crate::lunar_color_map::{LunarColorMap, RadialDirection};
 use crate::rasterizer::{FragmentShader, NdcVertex, Rasterizer};
 use glam::{Mat4, Vec3};
 use std::collections::HashMap;
-
-#[derive(Debug, Clone, Copy)]
-struct RadialDirection(Vec3);
-
-impl RadialDirection {
-    fn new(direction: Vec3) -> Option<Self> {
-        if direction.is_finite() && direction.length_squared() > 0.0 {
-            Some(Self(direction))
-        } else {
-            None
-        }
-    }
-
-    fn into_inner(self) -> Vec3 {
-        self.0
-    }
-}
 
 #[derive(Debug, Clone, Copy)]
 pub(crate) struct SunDirection(Vec3);
@@ -74,10 +57,11 @@ impl FragmentShader for LunarShader<'_> {
     type Attribute = LunarVertexAttributes;
 
     fn shade(&self, attributes: [Self::Attribute; 3], barycentric_weights: [f32; 3]) -> LinearRgb {
-        let radial_direction = interpolate_direction(
-            attributes.map(|attribute| attribute.radial_direction.into_inner()),
+        let radial_direction = RadialDirection::interpolate(
+            attributes.map(|attribute| attribute.radial_direction),
             barycentric_weights,
-        );
+        )
+        .expect("covered fragments interpolate a nonzero radial direction");
         let lighting_normal = interpolate_direction(
             attributes.map(|attribute| attribute.lighting_normal),
             barycentric_weights,
@@ -287,20 +271,6 @@ mod tests {
                 .channels(),
             [255, 255, 255]
         );
-    }
-
-    #[test]
-    fn radial_direction_rejects_zero_and_non_finite_vectors() {
-        assert!(RadialDirection::new(Vec3::X).is_some());
-
-        for invalid in [
-            Vec3::ZERO,
-            Vec3::new(f32::NAN, 0.0, 0.0),
-            Vec3::new(0.0, f32::INFINITY, 0.0),
-            Vec3::new(0.0, 0.0, f32::NEG_INFINITY),
-        ] {
-            assert!(RadialDirection::new(invalid).is_none());
-        }
     }
 
     #[test]

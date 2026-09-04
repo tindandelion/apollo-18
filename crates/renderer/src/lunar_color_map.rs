@@ -2,6 +2,27 @@ use crate::color::LinearRgb;
 use crate::image::SrgbImage;
 use glam::Vec3;
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct RadialDirection(Vec3);
+
+impl RadialDirection {
+    pub(crate) fn new(direction: Vec3) -> Option<Self> {
+        if direction.is_finite() && direction.length_squared() > 0.0 {
+            Some(Self(direction.normalize()))
+        } else {
+            None
+        }
+    }
+
+    pub(crate) fn interpolate(directions: [Self; 3], weights: [f32; 3]) -> Option<Self> {
+        Self::new(
+            directions[0].0 * weights[0]
+                + directions[1].0 * weights[1]
+                + directions[2].0 * weights[2],
+        )
+    }
+}
+
 #[derive(Debug, Clone, PartialEq)]
 pub struct LunarColorMap {
     width: u32,
@@ -35,8 +56,8 @@ impl LunarColorMap {
         self.height
     }
 
-    pub(crate) fn sample_linear(&self, radial_direction: Vec3) -> LinearRgb {
-        let direction = radial_direction.normalize();
+    pub(crate) fn sample_linear(&self, radial_direction: RadialDirection) -> LinearRgb {
+        let direction = radial_direction.0;
         let longitude = direction.x.atan2(-direction.z);
         let latitude = direction.y.asin();
         let horizontal = (0.5 + longitude / std::f32::consts::TAU).rem_euclid(1.0);
@@ -74,7 +95,13 @@ mod tests {
     }
 
     fn sampled_srgb(map: &LunarColorMap, direction: Vec3) -> [u8; 3] {
-        map.sample_linear(direction).to_srgb8().channels()
+        map.sample_linear(unit_radial(direction))
+            .to_srgb8()
+            .channels()
+    }
+
+    fn unit_radial(direction: Vec3) -> RadialDirection {
+        RadialDirection::new(direction).expect("test direction should be finite and nonzero")
     }
 
     #[test]
@@ -117,8 +144,43 @@ mod tests {
         let map = LunarColorMap::new(image);
 
         assert_eq!(
-            map.sample_linear(Vec3::NEG_Z).to_srgb8(),
+            map.sample_linear(unit_radial(Vec3::NEG_Z)).to_srgb8(),
             Srgb8::from_channels([12, 128, 241])
         );
+    }
+
+    #[test]
+    fn radial_direction_normalizes_nonzero_vectors() {
+        let scaled = RadialDirection::new(Vec3::X * 2.0).expect("nonzero direction");
+        let unnormalized =
+            RadialDirection::new(Vec3::new(0.1, 0.1, -1.0)).expect("nonzero direction");
+
+        assert_eq!(scaled, RadialDirection::new(Vec3::X).expect("unit X"));
+        assert!((unnormalized.0.length() - 1.0).abs() < 1.0e-6);
+        assert_eq!(unnormalized.0, Vec3::new(0.1, 0.1, -1.0).normalize());
+    }
+
+    #[test]
+    fn radial_direction_rejects_zero_and_non_finite_vectors() {
+        for invalid in [
+            Vec3::ZERO,
+            Vec3::new(f32::NAN, 0.0, 0.0),
+            Vec3::new(0.0, f32::INFINITY, 0.0),
+            Vec3::new(0.0, 0.0, f32::NEG_INFINITY),
+        ] {
+            assert!(RadialDirection::new(invalid).is_none());
+        }
+    }
+
+    #[test]
+    fn interpolated_radial_direction_is_unit_length() {
+        let first = unit_radial(Vec3::X);
+        let second = unit_radial(Vec3::NEG_Z);
+        let interpolated = RadialDirection::interpolate([first, second, second], [0.5, 0.5, 0.0])
+            .expect("nonzero interpolated radial direction");
+
+        let expected = (Vec3::X + Vec3::NEG_Z).normalize();
+        assert!((interpolated.0.length() - 1.0).abs() < 1.0e-6);
+        assert!((interpolated.0 - expected).length() < 1.0e-6);
     }
 }
