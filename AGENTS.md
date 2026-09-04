@@ -25,6 +25,10 @@ cd crates/web && NO_COLOR=true trunk build index.html --release
 
 Also run every ticket-specific golden, native-output, browser, asset-provenance, and deterministic-animation check required by its acceptance criteria.
 
+## Unit tests
+
+Write each unit test in the Arrange-Act-Assert pattern: set up inputs, exercise one behavior, then assert the observable result, with a blank line between those phases. A `///` doc comment on the test describes the scenario it covers.
+
 ## Deployment
 
 The [public web showcase](https://www.tindandelion.com/apollo-18/) is hosted on GitHub Pages because the canonical repository remote is GitHub. `.github/workflows/deploy-website.yml` builds and deploys the site on pushes to `main` and supports manual workflow dispatch. Preserve the Pages base path supplied to Trunk so JavaScript and Wasm assets resolve under both the repository path and the configured custom domain.
