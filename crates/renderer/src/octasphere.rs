@@ -22,33 +22,75 @@ impl RadialDirection {
     }
 }
 
-type SphereNdcVertex = NdcVertex<RadialDirection>;
+#[derive(Debug, Clone, Copy)]
+pub(crate) struct SunDirection(Vec3);
 
-struct LunarColorShader<'a> {
+impl SunDirection {
+    pub(crate) fn new(direction: Vec3) -> Option<Self> {
+        if direction.is_finite() && direction.length_squared() > 0.0 {
+            Some(Self(direction.normalize()))
+        } else {
+            None
+        }
+    }
+
+    fn diffuse_intensity(self, lighting_normal: Vec3) -> f32 {
+        lighting_normal.dot(self.0).max(0.0)
+    }
+}
+
+#[derive(Debug, Clone, Copy)]
+struct LunarVertexAttributes {
+    radial_direction: RadialDirection,
+    lighting_normal: Vec3,
+}
+
+impl LunarVertexAttributes {
+    fn new(radial_direction: RadialDirection, lighting_normal: Vec3) -> Self {
+        Self {
+            radial_direction,
+            lighting_normal,
+        }
+    }
+}
+
+type SphereNdcVertex = NdcVertex<LunarVertexAttributes>;
+
+struct LunarShader<'a> {
     color_map: &'a LunarColorMap,
+    sun_direction: SunDirection,
 }
 
-impl<'a> LunarColorShader<'a> {
-    const fn new(color_map: &'a LunarColorMap) -> Self {
-        Self { color_map }
+impl<'a> LunarShader<'a> {
+    const fn new(color_map: &'a LunarColorMap, sun_direction: SunDirection) -> Self {
+        Self {
+            color_map,
+            sun_direction,
+        }
     }
 }
 
-impl FragmentShader for LunarColorShader<'_> {
-    type Attribute = RadialDirection;
+impl FragmentShader for LunarShader<'_> {
+    type Attribute = LunarVertexAttributes;
 
-    fn shade(
-        &self,
-        radial_directions: [Self::Attribute; 3],
-        barycentric_weights: [f32; 3],
-    ) -> LinearRgb {
-        let radial_directions = radial_directions.map(RadialDirection::into_inner);
-        let radial_direction = radial_directions[0] * barycentric_weights[0]
-            + radial_directions[1] * barycentric_weights[1]
-            + radial_directions[2] * barycentric_weights[2];
+    fn shade(&self, attributes: [Self::Attribute; 3], barycentric_weights: [f32; 3]) -> LinearRgb {
+        let radial_direction = interpolate_direction(
+            attributes.map(|attribute| attribute.radial_direction.into_inner()),
+            barycentric_weights,
+        );
+        let lighting_normal = interpolate_direction(
+            attributes.map(|attribute| attribute.lighting_normal),
+            barycentric_weights,
+        );
+        let diffuse_intensity = self.sun_direction.diffuse_intensity(lighting_normal);
 
-        self.color_map.sample_linear(radial_direction)
+        self.color_map.sample_linear(radial_direction) * diffuse_intensity
     }
+}
+
+fn interpolate_direction(directions: [Vec3; 3], weights: [f32; 3]) -> Vec3 {
+    (directions[0] * weights[0] + directions[1] * weights[1] + directions[2] * weights[2])
+        .normalize()
 }
 
 const CANONICAL_SUBDIVISION_LEVEL: u32 = 5;
@@ -64,22 +106,25 @@ pub(crate) fn render(
     background: Srgb8,
     yaw_radians: f32,
     color_map: &LunarColorMap,
+    sun_direction: SunDirection,
 ) -> Result<Framebuffer, RenderError> {
     let mut rasterizer = Rasterizer::new(width, height, background)?;
+    let object_rotation = Mat4::from_rotation_y(yaw_radians);
     let object_to_ndc = projection_transform(width, height)
         * Mat4::from_translation(-CAMERA_POSITION)
-        * Mat4::from_rotation_y(yaw_radians)
+        * object_rotation
         * Mat4::from_scale(Vec3::splat(GLOBE_RADIUS));
     let mesh = generate(CANONICAL_SUBDIVISION_LEVEL);
-    let shader = LunarColorShader::new(color_map);
+    let shader = LunarShader::new(color_map, sun_direction);
 
     for triangle in mesh.triangles {
         let vertices = triangle.map(|index| {
             let radial_direction =
                 RadialDirection::new(mesh.positions[index as usize]).expect("unit direction");
+            let lighting_normal = object_rotation.transform_vector3(mesh.positions[index as usize]);
             SphereNdcVertex::new(
                 object_to_ndc.transform_point3(mesh.positions[index as usize]),
-                radial_direction,
+                LunarVertexAttributes::new(radial_direction, lighting_normal),
             )
             .expect("canonical octasphere vertex should be inside the view volume")
         });
@@ -190,6 +235,61 @@ mod tests {
     use crate::image::SrgbImage;
 
     #[test]
+    fn lambertian_shading_is_full_facing_the_sun_and_zero_facing_away() {
+        let color_map = LunarColorMap::new(
+            SrgbImage::new(1, 1, vec![255, 255, 255]).expect("valid synthetic map"),
+        );
+        let sun_direction = SunDirection::new(Vec3::NEG_Z).expect("valid Sun direction");
+        let shader = LunarShader::new(&color_map, sun_direction);
+        let radial_direction = RadialDirection::new(Vec3::NEG_Z).expect("valid radial direction");
+
+        let facing_sun = LunarVertexAttributes::new(radial_direction, Vec3::NEG_Z);
+        let perpendicular = LunarVertexAttributes::new(radial_direction, Vec3::X);
+        let facing_away = LunarVertexAttributes::new(radial_direction, Vec3::Z);
+
+        assert_eq!(
+            shader
+                .shade([facing_sun; 3], [1.0, 0.0, 0.0])
+                .to_srgb8()
+                .channels(),
+            [255, 255, 255]
+        );
+        for unlit in [perpendicular, facing_away] {
+            assert_eq!(
+                shader
+                    .shade([unlit; 3], [1.0, 0.0, 0.0])
+                    .to_srgb8()
+                    .channels(),
+                [0, 0, 0]
+            );
+        }
+    }
+
+    #[test]
+    fn interpolated_radial_direction_is_normalized_for_smooth_lighting() {
+        let color_map = LunarColorMap::new(
+            SrgbImage::new(1, 1, vec![255, 255, 255]).expect("valid synthetic map"),
+        );
+        let halfway = (Vec3::X + Vec3::NEG_Z).normalize();
+        let sun_direction = SunDirection::new(halfway).expect("valid Sun direction");
+        let shader = LunarShader::new(&color_map, sun_direction);
+        let radial_direction = RadialDirection::new(Vec3::NEG_Z).expect("valid radial direction");
+        let attributes = [
+            LunarVertexAttributes::new(radial_direction, Vec3::X),
+            LunarVertexAttributes::new(radial_direction, Vec3::NEG_Z),
+            LunarVertexAttributes::new(radial_direction, Vec3::NEG_Z),
+        ];
+
+        assert_eq!(
+            shader
+                .shade(attributes, [0.5, 0.5, 0.0])
+                .to_srgb8()
+                .channels(),
+            [255, 255, 255]
+        );
+    }
+
+    #[test]
     fn radial_direction_rejects_zero_and_non_finite_vectors() {
         assert!(RadialDirection::new(Vec3::X).is_some());
 
@@ -213,24 +313,34 @@ mod tests {
         let vertices = [
             SphereNdcVertex::new(
                 Vec3::new(-0.8, -0.8, 0.5),
-                RadialDirection::new(Vec3::NEG_Z).expect("valid radial direction"),
+                LunarVertexAttributes::new(
+                    RadialDirection::new(Vec3::NEG_Z).expect("valid radial direction"),
+                    Vec3::NEG_Z,
+                ),
             )
             .expect("valid lunar vertex"),
             SphereNdcVertex::new(
                 Vec3::new(0.0, 0.8, 0.5),
-                RadialDirection::new(Vec3::X).expect("valid radial direction"),
+                LunarVertexAttributes::new(
+                    RadialDirection::new(Vec3::X).expect("valid radial direction"),
+                    Vec3::NEG_Z,
+                ),
             )
             .expect("valid lunar vertex"),
             SphereNdcVertex::new(
                 Vec3::new(0.8, -0.8, 0.5),
-                RadialDirection::new(Vec3::NEG_X).expect("valid radial direction"),
+                LunarVertexAttributes::new(
+                    RadialDirection::new(Vec3::NEG_X).expect("valid radial direction"),
+                    Vec3::NEG_Z,
+                ),
             )
             .expect("valid lunar vertex"),
         ];
         let mut rasterizer =
             Rasterizer::new(6, 6, Srgb8::from_hex(0x18_18_18)).expect("valid rasterizer");
 
-        rasterizer.draw_triangle(vertices, &LunarColorShader::new(&color_map));
+        let sun_direction = SunDirection::new(Vec3::NEG_Z).expect("valid Sun direction");
+        rasterizer.draw_triangle(vertices, &LunarShader::new(&color_map, sun_direction));
         let framebuffer = rasterizer.into_framebuffer();
 
         assert_eq!(pixel(&framebuffer, 2, 2), [150, 0, 0, 0xff]);

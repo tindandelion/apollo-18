@@ -9,12 +9,14 @@ mod scene_time;
 
 use color::Srgb8;
 pub use framebuffer::{Framebuffer, RenderError};
+use glam::Vec3;
 pub use lunar_color_map::LunarColorMap;
 pub use scene_time::{InvalidSceneTime, SceneTime};
 
 pub const ROTATION_PERIOD_SECONDS: f64 = 10.0;
 
 const BACKGROUND: Srgb8 = Srgb8::from_hex(0x18_18_18);
+const INITIAL_SUN_ANGLE_RADIANS: f32 = 30.0_f32.to_radians();
 
 pub fn render_lunar_globe(
     width: u32,
@@ -23,8 +25,14 @@ pub fn render_lunar_globe(
     color_map: &LunarColorMap,
 ) -> Result<Framebuffer, RenderError> {
     let yaw = periodic_angle_radians(scene_time, ROTATION_PERIOD_SECONDS);
+    let sun_direction = octasphere::SunDirection::new(Vec3::new(
+        INITIAL_SUN_ANGLE_RADIANS.sin(),
+        0.0,
+        -INITIAL_SUN_ANGLE_RADIANS.cos(),
+    ))
+    .expect("initial Sun direction should be finite and nonzero");
 
-    octasphere::render(width, height, BACKGROUND, yaw, color_map)
+    octasphere::render(width, height, BACKGROUND, yaw, color_map, sun_direction)
 }
 
 pub fn render_cube(
@@ -59,7 +67,9 @@ mod tests {
     const LUNAR_COLOR_MAP_JPEG: &[u8] = include_bytes!("../../../assets/nasa/lroc_color_2k.jpg");
     const TRIANGLE_GOLDEN_PATH: &str = "tests/goldens/first_triangle.png";
     const CUBE_GOLDEN_PATH: &str = "tests/goldens/cube_at_zero_seconds.png";
-    const LUNAR_GOLDEN_PATH: &str = "tests/goldens/color_mapped_lunar_globe_at_zero_seconds.png";
+    const GIBBOUS_LUNAR_GOLDEN_PATH: &str = "tests/goldens/gibbous_lunar_globe_at_zero_seconds.png";
+    const ROTATED_LUNAR_GOLDEN_PATH: &str =
+        "tests/goldens/gibbous_lunar_globe_at_two_point_five_seconds.png";
     const TRIANGLE_COLORS: [Srgb8; 3] = [Srgb8::RED, Srgb8::GREEN, Srgb8::BLUE];
 
     type TriangleNdcVertex = NdcVertex<LinearRgb>;
@@ -70,7 +80,7 @@ mod tests {
         type Attribute = LinearRgb;
 
         fn shade(&self, colors: [Self::Attribute; 3], weights: [f32; 3]) -> LinearRgb {
-            LinearRgb::interpolate(colors, weights)
+            colors[0] * weights[0] + colors[1] * weights[1] + colors[2] * weights[2]
         }
     }
 
@@ -148,6 +158,21 @@ mod tests {
         assert_eq!(zero, one_period);
         assert_eq!(quarter_turn, repeated_quarter_turn);
         assert_ne!(zero, quarter_turn);
+    }
+
+    #[test]
+    fn scene_time_maps_to_globe_rotation_angle() {
+        let start = scene_time(0.0);
+        let quarter_period = scene_time(ROTATION_PERIOD_SECONDS / 4.0);
+        let one_period = scene_time(ROTATION_PERIOD_SECONDS);
+
+        let start_yaw = periodic_angle_radians(start, ROTATION_PERIOD_SECONDS);
+        let quarter_yaw = periodic_angle_radians(quarter_period, ROTATION_PERIOD_SECONDS);
+        let wrapped_yaw = periodic_angle_radians(one_period, ROTATION_PERIOD_SECONDS);
+
+        assert_eq!(start_yaw, 0.0);
+        assert_eq!(quarter_yaw, std::f32::consts::FRAC_PI_2);
+        assert_eq!(wrapped_yaw, 0.0);
     }
 
     #[test]
@@ -242,10 +267,17 @@ mod tests {
     }
 
     #[test]
-    fn lunar_globe_matches_golden_pixels() {
+    fn gibbous_lunar_globe_matches_golden_pixels() {
         let frame = render_test_lunar_globe(800, 800, scene_time(0.0));
 
-        assert_matches_realistic_golden(&frame, Path::new(LUNAR_GOLDEN_PATH));
+        assert_matches_realistic_golden(&frame, Path::new(GIBBOUS_LUNAR_GOLDEN_PATH));
+    }
+
+    #[test]
+    fn rotated_gibbous_lunar_globe_matches_golden_pixels() {
+        let frame = render_test_lunar_globe(800, 800, scene_time(2.5));
+
+        assert_matches_realistic_golden(&frame, Path::new(ROTATED_LUNAR_GOLDEN_PATH));
     }
 
     #[test]

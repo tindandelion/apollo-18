@@ -1,3 +1,4 @@
+use std::ops::{Add, Mul};
 use std::sync::OnceLock;
 
 const SRGB_ENCODE_TABLE_INTERVALS: usize = 4_096;
@@ -54,25 +55,35 @@ impl LinearRgb {
         }
     }
 
-    pub(crate) fn interpolate(colors: [Self; 3], weights: [f32; 3]) -> Self {
-        Self::new(
-            colors[0].channels[0] * weights[0]
-                + colors[1].channels[0] * weights[1]
-                + colors[2].channels[0] * weights[2],
-            colors[0].channels[1] * weights[0]
-                + colors[1].channels[1] * weights[1]
-                + colors[2].channels[1] * weights[2],
-            colors[0].channels[2] * weights[0]
-                + colors[1].channels[2] * weights[1]
-                + colors[2].channels[2] * weights[2],
-        )
-    }
-
     pub(crate) fn to_srgb8(self) -> Srgb8 {
         let table = srgb_encode_table();
         Srgb8 {
             channels: self.channels.map(|channel| table.encode(channel)),
         }
+    }
+}
+
+impl Add for LinearRgb {
+    type Output = Self;
+
+    fn add(self, other: Self) -> Self {
+        Self::new(
+            self.channels[0] + other.channels[0],
+            self.channels[1] + other.channels[1],
+            self.channels[2] + other.channels[2],
+        )
+    }
+}
+
+impl Mul<f32> for LinearRgb {
+    type Output = Self;
+
+    fn mul(self, factor: f32) -> Self {
+        Self::new(
+            self.channels[0] * factor,
+            self.channels[1] * factor,
+            self.channels[2] * factor,
+        )
     }
 }
 
@@ -132,14 +143,9 @@ mod tests {
 
     #[test]
     fn barycentric_weights_interpolate_linear_color() {
-        let color = LinearRgb::interpolate(
-            [
-                Srgb8::RED.to_linear(),
-                Srgb8::GREEN.to_linear(),
-                Srgb8::BLUE.to_linear(),
-            ],
-            [0.5, 0.25, 0.25],
-        );
+        let color = Srgb8::RED.to_linear() * 0.5
+            + Srgb8::GREEN.to_linear() * 0.25
+            + Srgb8::BLUE.to_linear() * 0.25;
 
         assert_eq!(color, LinearRgb::new(0.5, 0.25, 0.25));
         assert_eq!(color.to_srgb8().channels(), [188, 137, 137]);

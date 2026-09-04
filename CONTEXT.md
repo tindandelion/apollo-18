@@ -48,6 +48,10 @@ _Avoid_: Surface direction, normal
 The visible pattern of illumination determined by the angle between the viewing direction and the Sun direction.
 _Avoid_: Lighting phase
 
+**Sun direction**:
+The unit direction from the lunar globe toward the Sun, used as the incoming-light direction for lunar illumination.
+_Avoid_: Light direction, direction of light travel
+
 **Terrain normal**:
 The local surface orientation derived from lunar elevation gradients for lighting, distinct from the globe's radial direction.
 _Avoid_: Radial direction, geometry normal
