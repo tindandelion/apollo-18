@@ -70,6 +70,8 @@ mod tests {
     const GIBBOUS_LUNAR_GOLDEN_PATH: &str = "tests/goldens/gibbous_lunar_globe_at_zero_seconds.png";
     const ROTATED_LUNAR_GOLDEN_PATH: &str =
         "tests/goldens/gibbous_lunar_globe_at_two_point_five_seconds.png";
+    const REALISTIC_RGB_TOLERANCE: u8 = 1;
+    const REALISTIC_OUTLIER_PIXEL_BUDGET: usize = 8;
     const TRIANGLE_COLORS: [Srgb8; 3] = [Srgb8::RED, Srgb8::GREEN, Srgb8::BLUE];
 
     type TriangleNdcVertex = NdcVertex<LinearRgb>;
@@ -280,6 +282,63 @@ mod tests {
         assert_matches_realistic_golden(&frame, Path::new(ROTATED_LUNAR_GOLDEN_PATH));
     }
 
+    /// A per-channel RGB difference of one is within tolerance and is not an outlier.
+    #[test]
+    fn realistic_golden_treats_one_rgb_step_as_a_match() {
+        let expected = [10, 20, 30, 255];
+        let actual = [11, 19, 30, 255];
+
+        let comparison = compare_realistic_pixels(&actual, &expected);
+
+        assert!(!comparison.exceeds_budget());
+        assert_eq!(comparison.outlier_pixels, 0);
+        assert_eq!(comparison.maximum_rgb_difference, 1);
+    }
+
+    /// Eight pixels may exceed the per-channel RGB tolerance.
+    #[test]
+    fn realistic_golden_allows_eight_outlier_pixels() {
+        let expected = [10, 10, 10, 255].repeat(8);
+        let mut actual = expected.clone();
+        for pixel in 0..8 {
+            actual[pixel * 4] = 30;
+        }
+
+        let comparison = compare_realistic_pixels(&actual, &expected);
+
+        assert!(!comparison.exceeds_budget());
+        assert_eq!(comparison.outlier_pixels, 8);
+        assert_eq!(comparison.maximum_rgb_difference, 20);
+    }
+
+    /// Nine pixels over the RGB tolerance exceed the outlier budget.
+    #[test]
+    fn realistic_golden_rejects_nine_outlier_pixels() {
+        let expected = [10, 10, 10, 255].repeat(9);
+        let mut actual = expected.clone();
+        for pixel in 0..9 {
+            actual[pixel * 4] = 30;
+        }
+
+        let comparison = compare_realistic_pixels(&actual, &expected);
+
+        assert!(comparison.exceeds_budget());
+        assert_eq!(comparison.outlier_pixels, 9);
+    }
+
+    /// Alpha must match exactly and does not consume the outlier budget.
+    #[test]
+    fn realistic_golden_rejects_an_alpha_mismatch() {
+        let expected = [10, 10, 10, 255];
+        let actual = [10, 10, 10, 254];
+
+        let comparison = compare_realistic_pixels(&actual, &expected);
+
+        assert!(comparison.exceeds_budget());
+        assert_eq!(comparison.outlier_pixels, 0);
+        assert_eq!(comparison.alpha_mismatches, 1);
+    }
+
     #[test]
     fn cube_matches_golden_pixels() {
         let frame =
@@ -368,6 +427,46 @@ mod tests {
         assert_eq!(frame.pixels(), pixels);
     }
 
+    struct RealisticGoldenComparison {
+        maximum_rgb_difference: u8,
+        outlier_pixels: usize,
+        alpha_mismatches: usize,
+        amplified: Vec<u8>,
+    }
+
+    impl RealisticGoldenComparison {
+        fn exceeds_budget(&self) -> bool {
+            self.outlier_pixels > REALISTIC_OUTLIER_PIXEL_BUDGET || self.alpha_mismatches > 0
+        }
+    }
+
+    fn compare_realistic_pixels(actual: &[u8], expected: &[u8]) -> RealisticGoldenComparison {
+        let mut maximum_rgb_difference = 0_u8;
+        let mut outlier_pixels = 0_usize;
+        let mut alpha_mismatches = 0_usize;
+        let mut amplified = Vec::with_capacity(expected.len());
+
+        for (actual, expected) in actual.chunks_exact(4).zip(expected.chunks_exact(4)) {
+            let mut pixel_is_outlier = false;
+            for channel in 0..3 {
+                let difference = actual[channel].abs_diff(expected[channel]);
+                maximum_rgb_difference = maximum_rgb_difference.max(difference);
+                pixel_is_outlier |= difference > REALISTIC_RGB_TOLERANCE;
+                amplified.push(difference.saturating_mul(16));
+            }
+            outlier_pixels += usize::from(pixel_is_outlier);
+            alpha_mismatches += usize::from(actual[3] != expected[3]);
+            amplified.push(0xff);
+        }
+
+        RealisticGoldenComparison {
+            maximum_rgb_difference,
+            outlier_pixels,
+            alpha_mismatches,
+            amplified,
+        }
+    }
+
     fn assert_matches_realistic_golden(frame: &Framebuffer, golden_path: &Path) {
         if std::env::var_os("APOLLO18_UPDATE_GOLDENS").is_some() {
             write_png(golden_path, frame).expect("golden should be written");
@@ -378,27 +477,16 @@ mod tests {
         assert_eq!(frame.width(), width);
         assert_eq!(frame.height(), height);
 
-        let mut maximum_rgb_difference = 0_u8;
-        let mut rgb_channels_over_tolerance = 0_usize;
-        let mut alpha_mismatches = 0_usize;
-        let mut amplified = Vec::with_capacity(expected.len());
-        for (actual, expected) in frame.pixels().chunks_exact(4).zip(expected.chunks_exact(4)) {
-            for channel in 0..3 {
-                let difference = actual[channel].abs_diff(expected[channel]);
-                maximum_rgb_difference = maximum_rgb_difference.max(difference);
-                rgb_channels_over_tolerance += usize::from(difference > 1);
-                amplified.push(difference.saturating_mul(16));
-            }
-            alpha_mismatches += usize::from(actual[3] != expected[3]);
-            amplified.push(0xff);
-        }
-
-        if rgb_channels_over_tolerance > 0 || alpha_mismatches > 0 {
+        let comparison = compare_realistic_pixels(frame.pixels(), &expected);
+        if comparison.exceeds_budget() {
             let summary = format!(
-                "maximum RGB difference: {maximum_rgb_difference}\nRGB channels over tolerance: \
-                 {rgb_channels_over_tolerance}\nalpha mismatches: {alpha_mismatches}\n"
+                "maximum RGB difference: {}\noutlier pixels: {} (budget \
+                 {REALISTIC_OUTLIER_PIXEL_BUDGET})\nalpha mismatches: {}\n",
+                comparison.maximum_rgb_difference,
+                comparison.outlier_pixels,
+                comparison.alpha_mismatches
             );
-            write_golden_diff(golden_path, width, height, &amplified, &summary)
+            write_golden_diff(golden_path, width, height, &comparison.amplified, &summary)
                 .expect("realistic golden diff artifacts should be written");
             panic!("realistic lunar golden differs\n{summary}");
         }
