@@ -33,8 +33,12 @@ Surface data that assigns visible color to locations on the lunar globe.
 _Avoid_: Texture, Moon image
 
 **Lunar elevation map**:
-Surface data that assigns terrain elevation to locations on the lunar globe.
-_Avoid_: Height texture, bump map
+Surface data that assigns terrain elevation to locations on the lunar globe, measured relative to the lunar reference radius.
+_Avoid_: Height texture, bump map, displacement map
+
+**Lunar reference radius**:
+The 1,737.4 km spherical radius relative to which lunar elevation is measured.
+_Avoid_: Mean radius, sea level
 
 **Octasphere**:
 A spherical triangular mesh formed by repeatedly subdividing an octahedron and projecting the resulting vertices onto a sphere.
@@ -53,5 +57,5 @@ The unit direction from the lunar globe toward the Sun, used as the incoming-lig
 _Avoid_: Light direction, direction of light travel
 
 **Terrain normal**:
-The local surface orientation derived from lunar elevation gradients for lighting, distinct from the globe's radial direction.
-_Avoid_: Radial direction, geometry normal
+The local surface orientation at a lunar-globe location, derived from elevation gradients on the reference sphere and expressed in the globe's object space before rotation.
+_Avoid_: Radial direction, geometry normal, displacement normal
