@@ -14,7 +14,7 @@
 - [x] Release automation runs the complete repository quality gate before rendering the animation.
 - [x] A successful run publishes a normal, non-draft, non-prerelease GitHub Release named after the tag, uses GitHub-generated release notes, and attaches the animation as `lunar-globe.webp`.
 - [x] A failed quality gate, render, encode, or upload does not report a successful release; rerunning a tag that already has a published release fails rather than replacing its asset.
-- [x] Release automation uses the runner-provided FFmpeg, has no manual-dispatch trigger, and adds no release concurrency policy.
+- [x] Release automation installs FFmpeg from the runner operating system's package repository, has no manual-dispatch trigger, and adds no release concurrency policy.
 - [x] The existing `main`-based GitHub Pages deployment behavior remains unchanged and does not render the release animation.
 - [x] `README.md` contains only an embedded lunar globe image whose stable URL resolves to `lunar-globe.webp` from GitHub's latest published release.
 - [x] Deployment documentation explains the version-tag release path, permanent animation asset, README indirection, and the current ten-second frame-count convention.

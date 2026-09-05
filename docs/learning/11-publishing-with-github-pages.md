@@ -107,8 +107,10 @@ permissions to the tag-triggered workflow.
 Before publishing, the release workflow checks that the tag has exact
 `MAJOR.MINOR.PATCH` form, is newer than every published release, and passes the
 same formatting, linting, test, and release web-build gate as deployment. It
-then invokes the reusable deployment script to render the native lunar-globe
-sequence and encode it with FFmpeg as a lossless animated WebP. The normal,
+then installs FFmpeg from Ubuntu's package repository and invokes the reusable
+deployment script to render the native lunar-globe sequence and encode it as a
+lossless animated WebP. Installing the encoder explicitly avoids depending on
+the changing software inventory of GitHub-hosted runner images. The normal,
 published GitHub Release uses the tag as its name, carries generated release
 notes, and retains the animation as `lunar-globe.webp`.
 

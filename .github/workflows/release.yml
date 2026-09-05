@@ -60,6 +60,11 @@ jobs:
       - name: Run quality gate
         uses: ./.github/actions/quality-gate
 
+      - name: Install FFmpeg
+        run: |
+          sudo apt-get update
+          sudo apt-get install --yes ffmpeg
+
       - name: Render lossless lunar globe animation
         run: scripts/deploy/globe-webp-animation.sh
 
