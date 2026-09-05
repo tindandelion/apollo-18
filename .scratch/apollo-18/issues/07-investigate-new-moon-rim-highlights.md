@@ -1,4 +1,4 @@
-# 17: Investigate new-Moon rim highlights
+# 07: Investigate new-Moon rim highlights
 
 **What to investigate:** Determine whether terrain normals produce objectionable rim highlights at exact new Moon, distinguish expected bump-normal behavior from rendering artifacts, and recommend whether Apollo 18 should preserve or refine the effect.
 
