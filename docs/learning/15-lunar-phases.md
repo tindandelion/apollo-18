@@ -57,7 +57,7 @@ diffuse = max(dot(n_terrain, s(t)), 0)
 linear_output = linear_lunar_color · diffuse
 ```
 
-There is no ambient or specular term. Apollo 18 also does not add a separate smooth-sphere illumination mask, so tilted terrain normals can affect the apparent terminator. Geometry displacement, self-shadowing, and cast shadows remain outside this renderer stage.
+There is no ambient or specular term. Apollo 18 also does not add a separate smooth-sphere illumination mask, so tilted terrain normals can affect the apparent terminator and produce sparse rim highlights even at exact new Moon. Those highlights are an accepted limitation of terrain-normal shading on undisplaced geometry: geometry displacement, self-shadowing, and cast shadows remain outside this renderer stage.
 
 ## Deterministic host timing
 
