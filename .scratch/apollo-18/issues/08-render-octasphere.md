@@ -14,7 +14,7 @@
 - The canonical lunar scene, native host, and web host use subdivision level 5 as a constant. The internal mesh generator accepts other levels for focused tests and future exploration; subdivision is not part of the public render interface or native CLI.
 - Subdivision level 0 is the base octahedron. The mesh is indexed, reuses midpoint vertices, and contains `8 × 4^level` triangles.
 - The globe starts with zero-degree longitude facing the camera and rotates positively around lunar north once every 10 seconds as a pure function of explicit scene time.
-- The native `lunar-globe` binary is sequence-only, requires `--fps` and `--num-frames`, and defaults to `target/apollo18/lunar-globe/frames`. The canonical animation script samples 300 frames at 30 FPS and writes `target/apollo18/lunar-globe/animation.webm` through `ffmpeg`.
+- The native `lunar-globe` binary is sequence-only, requires `--fps` and `--num-frames`, and defaults to `target/apollo18/lunar-globe/frames`. The canonical native sequence contains 300 frames at 30 FPS; release animation encoding is owned by separate deployment tooling.
 - The web host derives scene time from monotonic `requestAnimationFrame` timestamps and renders the corresponding lunar pose.
 - Exact golden coverage uses the canonical 800×800 level-5 frame at zero seconds.
 

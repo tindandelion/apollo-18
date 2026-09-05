@@ -65,7 +65,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 45. As a native user, I want each retained milestone to be a separate binary, so that triangle, cube, and lunar-globe behavior remain independently runnable.
 46. As a native user, I want every animation frame's scene time derived from its sequence index and requested frame rate, so that native animation output is deterministic without a separate single-frame CLI mode.
 47. As a native user, I want a binary to render a numbered PNG sequence at a requested frame rate and frame count, so that external tools can encode an animation.
-48. As a project maintainer, I want a shell script to produce WebM animation through `ffmpeg`, so that the workflow is convenient while codec complexity stays outside Apollo 18's Rust code.
+48. As a project maintainer, I want deployment tooling to encode native frame sequences through `ffmpeg`, so that release publishing is convenient while codec complexity stays outside Apollo 18's Rust code.
 49. As a web viewer, I want the renderer to appear on a single static webpage, so that Apollo 18 can be published without an application server.
 50. As a web viewer, I want animation time based on the browser's monotonic clock, so that rotation speed does not depend on rendering frame rate.
 51. As a web viewer, I want the framebuffer displayed through Canvas 2D `ImageData`, so that Apollo 18's graphics pipeline remains CPU/Wasm-owned.
@@ -140,7 +140,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - Geometry displacement is deferred. The silhouette remains spherical in this spec.
 - The lunar-phase animation follows terrain-normal shading. The camera and globe remain fixed while Sun direction completes one cycle every ten seconds.
 - The native package will retain separate binaries for the triangle, cube, and lunar-globe milestones. Shared native-host behavior may live behind the package's library interface.
-- Native animation binaries produce numbered PNG sequences rather than exposing a separate single-frame CLI mode. Each frame is deterministic from its sequence index and requested frame rate. A project shell script may invoke `ffmpeg` to turn a sequence into WebM; Rust code does not perform video encoding.
+- Native animation binaries produce numbered PNG sequences rather than exposing a separate single-frame CLI mode. Each frame is deterministic from its sequence index and requested frame rate. Deployment tooling invokes `ffmpeg` to turn the lunar sequence into the release WebP; Rust code does not perform animation encoding.
 - The WebAssembly host will be one evolving webpage rather than a demo selector. Earlier visual milestones remain available through native binaries and tests.
 - The web host will use `requestAnimationFrame` for elapsed time and Canvas 2D `ImageData` for display. It will not use WebGL or WebGPU.
 - The canvas has a fixed 800×800 internal resolution and may scale responsively through CSS without following device-pixel ratio.
@@ -197,7 +197,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - Interactive camera, lighting, pause, or quality controls
 - Native interactive window creation
 - HDR framebuffers and output formats
-- Implementing video, GIF, WebM, or MP4 encoding in Rust; project shell scripts may invoke external tools such as `ffmpeg`
+- Implementing animated-image or video encoding in Rust; deployment tooling may invoke external tools such as `ffmpeg`
 - Scientific-analysis claims or scientifically validated visualization output
 - Runtime downloading of NASA source data
 - A literal single-file HTML artifact

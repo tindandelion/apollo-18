@@ -39,7 +39,7 @@ The native cube binary accepts a frame rate `f` and frame count `N`. Each timest
 t(n) = n / f s, for n = 0, 1, ..., N - 1
 ```
 
-The cube animation script requests the canonical 300 frames at 30 frames per second. Those samples cover `0` through `299/30` seconds and deliberately omit a sample at exactly 10 seconds because it would duplicate the initial pose and introduce a repeated frame at the loop boundary.
+A canonical ten-second cube sequence contains 300 frames at 30 frames per second. Those samples cover `0` through `299/30` seconds and deliberately omit a sample at exactly 10 seconds because it would duplicate the initial pose and introduce a repeated frame at the loop boundary.
 
 Deriving `t(n)` from the index, rather than repeatedly adding `1/f`, avoids cumulative timing drift and makes every numbered frame reproducible in isolation.
 

@@ -13,7 +13,7 @@
 - The cube keeps a fixed `-20°` pitch. Its yaw starts at `+30°` at zero seconds and completes one revolution every 10 seconds. Scene time is reduced into that period before rotation is calculated.
 - The renderer exposes the cube rotation period because it is scene behavior.
 - The native cube binary is sequence-only. It requires `--fps` and `--num-frames`, renders canonical 800×800 frames, and obtains each timestamp independently through `SceneTime::for_frame(frame_index, fps)`. The frame-rate argument is represented as `NonZeroU32` after CLI validation.
-- The cube animation script requests 300 frames at 30 FPS. Its frame at exactly 10 seconds is omitted because it would duplicate the initial loop pose.
+- The canonical cube sequence contains 300 frames at 30 FPS. Its frame at exactly 10 seconds is omitted because it would duplicate the initial loop pose.
 - The optional output-directory argument defaults to `target/apollo18/cube/frames`. Frame indices use at least four digits, giving the canonical names `frame-0000.png` through `frame-0299.png`.
 - Existing expected frame paths are overwritten. Unrelated files are not removed, and completed frames remain if generation fails.
 - The binary reports progress after each requested second's worth of frames. Its final summary reports summed software-renderer time and average rendering FPS; PNG encoding and filesystem operations are excluded from those measurements.
