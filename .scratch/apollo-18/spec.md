@@ -60,7 +60,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 40. As a graphics learner, I want neighboring elevation samples used to estimate local gradients, so that small-scale terrain affects lighting without increasing mesh density.
 41. As a viewer, I want terrain-normal shading without geometry displacement initially, so that crater detail is visible while the globe silhouette remains simple.
 42. As a viewer, I want a lunar-phase animation after terrain-normal shading is complete, so that the elevation detail can be observed under changing illumination.
-43. As a viewer, I want a complete lunar-phase cycle to last twenty seconds, so that lighting transitions are easy to inspect.
+43. As a viewer, I want a complete lunar-phase cycle to last ten seconds, so that lighting transitions remain lively while features stay inspectable.
 44. As a viewer, I want the phase animation to keep the camera and globe fixed while changing Sun direction, so that the animation demonstrates illumination rather than object motion.
 45. As a native user, I want each retained milestone to be a separate binary, so that triangle, cube, and lunar-globe behavior remain independently runnable.
 46. As a native user, I want every animation frame's scene time derived from its sequence index and requested frame rate, so that native animation output is deterministic without a separate single-frame CLI mode.
@@ -138,7 +138,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - The smooth lunar globe rotates once every ten seconds. Rendering is a pure function of explicit elapsed scene time rather than accumulated frame steps.
 - Terrain-normal shading leaves octasphere geometry spherical. Per-fragment terrain normals are derived from lunar elevation gradients using the source's physical units and lunar reference radius.
 - Geometry displacement is deferred. The silhouette remains spherical in this spec.
-- The lunar-phase animation follows terrain-normal shading. The camera and globe remain fixed while Sun direction completes one cycle every twenty seconds.
+- The lunar-phase animation follows terrain-normal shading. The camera and globe remain fixed while Sun direction completes one cycle every ten seconds.
 - The native package will retain separate binaries for the triangle, cube, and lunar-globe milestones. Shared native-host behavior may live behind the package's library interface.
 - Native animation binaries produce numbered PNG sequences rather than exposing a separate single-frame CLI mode. Each frame is deterministic from its sequence index and requested frame rate. A project shell script may invoke `ffmpeg` to turn a sequence into WebM; Rust code does not perform video encoding.
 - The WebAssembly host will be one evolving webpage rather than a demo selector. Earlier visual milestones remain available through native binaries and tests.
@@ -207,7 +207,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 
 ## Further Notes
 
-- Milestone order is: workspace and framebuffer; flat 2D triangle; barycentric vertex-color triangle; orthographic rotating cube with depth and culling; native and browser smoke coverage; smooth level-5 octasphere; per-fragment lunar color-map lookup; public static deployment; linear-light gibbous lighting and ten-second globe rotation; terrain normals from lunar elevation; twenty-second lunar-phase animation; realistic canonical goldens; six-plane clipping; then separate performance exploration.
+- Milestone order is: workspace and framebuffer; flat 2D triangle; barycentric vertex-color triangle; orthographic rotating cube with depth and culling; native and browser smoke coverage; smooth level-5 octasphere; per-fragment lunar color-map lookup; public static deployment; linear-light gibbous lighting and ten-second globe rotation; terrain normals from lunar elevation; ten-second lunar-phase animation; realistic canonical goldens; six-plane clipping; then separate performance exploration.
 - Golden tests should be introduced alongside the milestone they protect rather than postponed until the final lunar render.
 - The NASA CGI Moon Kit describes the selected color data as optimized for aesthetics rather than science. This matches Apollo 18's visually compelling but data-grounded goal.
 - Elevation exaggeration is not part of the physical baseline in this spec. Any future artistic exaggeration must be explicit and documented.
