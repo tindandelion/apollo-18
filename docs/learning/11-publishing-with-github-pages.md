@@ -96,6 +96,32 @@ The deployed page also carries its own provenance boundary: NASA lunar data and
 its usage guidance are credited separately from Apollo 18's `MIT OR
 Apache-2.0` source-code license.
 
+## Publishing the native animation with a version
+
+Website deployment and project releases have different lifecycles. Pushes to
+`main` continue to update GitHub Pages, while a stable semantic-version tag such
+as `0.1.0` starts the release workflow. Keeping these paths separate avoids
+encoding a large animation for an ordinary website update and limits release
+permissions to the tag-triggered workflow.
+
+Before publishing, the release workflow checks that the tag has exact
+`MAJOR.MINOR.PATCH` form, is newer than every published release, and passes the
+same formatting, linting, test, and release web-build gate as deployment. It
+then invokes the reusable deployment script to render the native lunar-globe
+sequence and encode it with FFmpeg as a lossless animated WebP. The normal,
+published GitHub Release uses the tag as its name, carries generated release
+notes, and retains the animation as `lunar-globe.webp`.
+
+The current rotating showcase lasts ten seconds. Its 300 frames sample scene
+time at 30 frames per second from zero through `299 / 30` seconds. Omitting the
+frame at exactly ten seconds avoids repeating the initial pose at the loop
+boundary. The WebP itself loops indefinitely.
+
+The repository README contains only an image reference through GitHub's stable
+latest-release download URL. Each newer release therefore updates the visible
+animation without committing a generated binary or rewriting the README. The
+URL does not resolve until the first versioned release has been published.
+
 ## Further reading
 
 - [Using custom workflows with GitHub Pages](https://docs.github.com/en/pages/getting-started-with-github-pages/using-custom-workflows-with-github-pages)

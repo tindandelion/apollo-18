@@ -1,0 +1,43 @@
+name: Run Apollo 18 quality gate
+description: Install pinned build tools and validate the native and web workspace
+
+inputs:
+  public-url:
+    description: Optional public URL passed to the Trunk release build
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Install Rust components and Wasm target
+      shell: bash
+      run: |
+        rustup component add rustfmt clippy --toolchain 1.97.1
+        rustup target add wasm32-unknown-unknown --toolchain 1.97.1
+
+    - name: Install Trunk
+      uses: taiki-e/install-action@v2.84.0
+      with:
+        tool: trunk@0.21.14
+        fallback: none
+
+    - name: Check formatting, lint, and tests
+      shell: bash
+      run: |
+        cargo fmt --check
+        cargo clippy --workspace --all-targets -- -D warnings
+        cargo test --workspace
+
+    - name: Build web release
+      shell: bash
+      env:
+        NO_COLOR: "true"
+        PUBLIC_URL: ${{ inputs.public-url }}
+      run: |
+        arguments=(index.html --release --locked)
+        if [[ -n "${PUBLIC_URL}" ]]; then
+          arguments+=(--public-url "${PUBLIC_URL}")
+        fi
+        cd crates/web
+        trunk build "${arguments[@]}"

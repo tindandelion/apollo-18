@@ -1,0 +1,71 @@
+name: Release Apollo 18
+
+on:
+  push:
+    tags:
+      - "*.*.*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Validate release version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          published_tags="$(
+            gh api --paginate "repos/${GITHUB_REPOSITORY}/releases?per_page=100" \
+              --jq '.[] | select(.draft == false) | .tag_name'
+          )"
+          PUBLISHED_TAGS="${published_tags}" python3 - <<'PY'
+          import os
+          import re
+          import sys
+
+          pattern = re.compile(r"^(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)\.(0|[1-9][0-9]*)$")
+
+          def version(tag):
+              match = pattern.fullmatch(tag)
+              if match is None:
+                  raise ValueError(f"published release has a non-semantic tag: {tag}")
+              return tuple(int(component) for component in match.groups())
+
+          release_tag = os.environ["RELEASE_TAG"]
+          try:
+              release_version = version(release_tag)
+              published_tags = os.environ["PUBLISHED_TAGS"].splitlines()
+              published_versions = [(version(tag), tag) for tag in published_tags]
+          except ValueError as error:
+              print(f"error: {error}", file=sys.stderr)
+              sys.exit(1)
+
+          newer_or_equal = [tag for existing, tag in published_versions if release_version <= existing]
+          if newer_or_equal:
+              print(
+                  f"error: release {release_tag} is not newer than published release "
+                  f"{max(newer_or_equal, key=version)}",
+                  file=sys.stderr,
+              )
+              sys.exit(1)
+          PY
+
+      - name: Check out repository
+        uses: actions/checkout@v6
+
+      - name: Run quality gate
+        uses: ./.github/actions/quality-gate
+
+      - name: Render lossless lunar globe animation
+        run: scripts/deploy/globe-webp-animation.sh
+
+      - name: Publish GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: target/apollo18/deploy/lunar-globe.webp
+          name: ${{ github.ref_name }}
+          generate_release_notes: true

@@ -4,18 +4,18 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] A reusable deployment script renders 300 deterministic native lunar-globe frames at 800×800 and 30 frames per second.
-- [ ] The deployment script encodes the frames as a lossless WebP using FFmpeg's maximum compression effort, with an infinite loop and no duplicated endpoint frame.
-- [ ] The deployment script lives under the repository's deployment-script area, removes stale frame output before rendering, fails clearly when FFmpeg is unavailable, and writes the release-ready animation under ignored build output.
-- [ ] Pushing a tag in strict stable `MAJOR.MINOR.PATCH` form, without a `v` prefix or prerelease suffix, triggers release automation; unrelated tags do not publish releases.
-- [ ] Release automation rejects a version that is not semantically greater than every existing published release.
-- [ ] Release automation runs the complete repository quality gate before rendering the animation.
-- [ ] A successful run publishes a normal, non-draft, non-prerelease GitHub Release named after the tag, uses GitHub-generated release notes, and attaches the animation as `lunar-globe.webp`.
-- [ ] A failed quality gate, render, encode, or upload does not report a successful release; rerunning a tag that already has a published release fails rather than replacing its asset.
-- [ ] Release automation uses the runner-provided FFmpeg, has no manual-dispatch trigger, and adds no release concurrency policy.
-- [ ] The existing `main`-based GitHub Pages deployment behavior remains unchanged and does not render the release animation.
-- [ ] `README.md` contains only an embedded lunar globe image whose stable URL resolves to `lunar-globe.webp` from GitHub's latest published release.
-- [ ] Deployment documentation explains the version-tag release path, permanent animation asset, README indirection, and the current ten-second frame-count convention.
-- [ ] The local quality gate passes.
+- [x] A reusable deployment script renders 300 deterministic native lunar-globe frames at 800×800 and 30 frames per second.
+- [x] The deployment script encodes the frames as a lossless WebP using FFmpeg's maximum compression effort, with an infinite loop and no duplicated endpoint frame.
+- [x] The deployment script lives under the repository's deployment-script area, removes stale frame output before rendering, fails clearly when FFmpeg is unavailable, and writes the release-ready animation under ignored build output.
+- [x] Pushing a tag in strict stable `MAJOR.MINOR.PATCH` form, without a `v` prefix or prerelease suffix, triggers release automation; unrelated tags do not publish releases.
+- [x] Release automation rejects a version that is not semantically greater than every existing published release.
+- [x] Release automation runs the complete repository quality gate before rendering the animation.
+- [x] A successful run publishes a normal, non-draft, non-prerelease GitHub Release named after the tag, uses GitHub-generated release notes, and attaches the animation as `lunar-globe.webp`.
+- [x] A failed quality gate, render, encode, or upload does not report a successful release; rerunning a tag that already has a published release fails rather than replacing its asset.
+- [x] Release automation uses the runner-provided FFmpeg, has no manual-dispatch trigger, and adds no release concurrency policy.
+- [x] The existing `main`-based GitHub Pages deployment behavior remains unchanged and does not render the release animation.
+- [x] `README.md` contains only an embedded lunar globe image whose stable URL resolves to `lunar-globe.webp` from GitHub's latest published release.
+- [x] Deployment documentation explains the version-tag release path, permanent animation asset, README indirection, and the current ten-second frame-count convention.
+- [x] The local quality gate passes.

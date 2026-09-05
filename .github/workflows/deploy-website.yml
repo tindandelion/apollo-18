@@ -21,36 +21,14 @@ jobs:
       - name: Check out repository
         uses: actions/checkout@v6
 
-      - name: Install Rust components and Wasm target
-        run: |
-          rustup component add rustfmt clippy --toolchain 1.97.1
-          rustup target add wasm32-unknown-unknown --toolchain 1.97.1
-
-      - name: Install Trunk
-        uses: taiki-e/install-action@v2.84.0
-        with:
-          tool: trunk@0.21.14
-          fallback: none
-
-      - name: Run quality gate
-        run: |
-          cargo fmt --check
-          cargo clippy --workspace --all-targets -- -D warnings
-          cargo test --workspace
-
       - name: Configure GitHub Pages
         id: pages
         uses: actions/configure-pages@v6
 
-      - name: Build web release
-        working-directory: crates/web
-        env:
-          NO_COLOR: "true"
-        run: >
-          trunk build index.html
-          --release
-          --locked
-          --public-url "${{ steps.pages.outputs.base_path }}/"
+      - name: Run quality gate
+        uses: ./.github/actions/quality-gate
+        with:
+          public-url: "${{ steps.pages.outputs.base_path }}/"
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5
