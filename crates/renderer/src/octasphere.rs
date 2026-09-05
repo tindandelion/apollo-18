@@ -341,11 +341,9 @@ mod tests {
     fn generated_vertices_are_unit_globe_locations() {
         let mesh = generate(5);
 
-        assert!(
-            mesh.positions
-                .iter()
-                .all(|position| (position.length() - 1.0).abs() < 1.0e-6)
-        );
+        for position in mesh.positions {
+            approx::assert_relative_eq!(position.length(), 1.0, epsilon = 1.0e-6);
+        }
     }
 
     #[test]
@@ -390,8 +388,8 @@ mod tests {
             let pixel_height = (top.y - bottom.y) * height as f32 / 2.0;
             let expected = width.min(height) as f32 * FRAME_OCCUPANCY;
 
-            assert!((pixel_width - expected).abs() < 1.0e-4);
-            assert!((pixel_height - expected).abs() < 1.0e-4);
+            approx::assert_relative_eq!(pixel_width, expected, epsilon = 1.0e-4);
+            approx::assert_relative_eq!(pixel_height, expected, epsilon = 1.0e-4);
         }
     }
 

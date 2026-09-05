@@ -114,9 +114,9 @@ the changing software inventory of GitHub-hosted runner images. The normal,
 published GitHub Release uses the tag as its name, carries generated release
 notes, and retains the animation as `lunar-globe.webp`.
 
-The current rotating showcase lasts ten seconds. Its 300 frames sample scene
+The current lunar-phase showcase lasts ten seconds. Its 300 frames sample scene
 time at 30 frames per second from zero through `299 / 30` seconds. Omitting the
-frame at exactly ten seconds avoids repeating the initial pose at the loop
+frame at exactly ten seconds avoids repeating the initial full Moon at the loop
 boundary. The WebP itself loops indefinitely.
 
 The repository README contains only an image reference through GitHub's stable

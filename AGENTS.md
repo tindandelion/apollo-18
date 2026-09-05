@@ -37,6 +37,10 @@ The [public web showcase](https://www.tindandelion.com/apollo-18/) is hosted on 
 
 Native artifact encoding and golden-fixture encoding are separate responsibilities that may diverge. Similar PNG-writing code across those boundaries is intentional, not duplicated code to extract.
 
+## Branches
+
+Start development of each new feature by creating and switching to a dedicated feature branch.
+
 ## Commits
 
 Before creating a Git commit, propose the exact commit message and wait for the user's confirmation.

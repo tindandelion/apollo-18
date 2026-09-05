@@ -156,7 +156,7 @@ mod tests {
         let transform = object_transform(90.0_f32.to_radians(), 90.0_f32.to_radians());
         let transformed = transform.transform_point3(Vec3::Z);
 
-        assert!(transformed.abs_diff_eq(Vec3::X, 1.0e-6));
+        approx::assert_relative_eq!(transformed, Vec3::X, epsilon = 1.0e-6);
     }
 
     #[test]

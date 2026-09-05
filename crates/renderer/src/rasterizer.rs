@@ -143,7 +143,8 @@ mod tests {
         );
 
         let depth = rasterizer.depth_buffer[7];
-        assert!((depth - 0.15).abs() < f32::EPSILON);
+
+        approx::assert_relative_eq!(depth, 0.15, epsilon = f32::EPSILON);
     }
 
     #[test]

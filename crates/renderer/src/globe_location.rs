@@ -134,8 +134,8 @@ mod tests {
 
         let (east, north) = location.tangent_frame();
 
-        assert!((east - Vec3::X).length() < 1.0e-6);
-        assert!((north - Vec3::Y).length() < 1.0e-6);
+        approx::assert_relative_eq!(east, Vec3::X, epsilon = 1.0e-6);
+        approx::assert_relative_eq!(north, Vec3::Y, epsilon = 1.0e-6);
     }
 
     /// A general globe location has an orthonormal tangent frame.
@@ -145,11 +145,11 @@ mod tests {
 
         let (east, north) = location.tangent_frame();
 
-        assert!((east.length() - 1.0).abs() < 1.0e-6);
-        assert!((north.length() - 1.0).abs() < 1.0e-6);
-        assert!(east.dot(location.as_vec3()).abs() < 1.0e-6);
-        assert!(north.dot(location.as_vec3()).abs() < 1.0e-6);
-        assert!(east.dot(north).abs() < 1.0e-6);
+        approx::assert_relative_eq!(east.length(), 1.0, epsilon = 1.0e-6);
+        approx::assert_relative_eq!(north.length(), 1.0, epsilon = 1.0e-6);
+        approx::assert_relative_eq!(east.dot(location.as_vec3()), 0.0, epsilon = 1.0e-6);
+        approx::assert_relative_eq!(north.dot(location.as_vec3()), 0.0, epsilon = 1.0e-6);
+        approx::assert_relative_eq!(east.dot(north), 0.0, epsilon = 1.0e-6);
     }
 
     /// Exact poles use the antimeridian's east direction and opposite meridional north tangents.
@@ -173,7 +173,7 @@ mod tests {
             GlobeLocation::new(Vec3::new(0.1, 0.1, -1.0)).expect("nonzero direction");
 
         assert_eq!(scaled, GlobeLocation::new(Vec3::X).expect("unit X"));
-        assert!((unnormalized.0.length() - 1.0).abs() < 1.0e-6);
+        approx::assert_relative_eq!(unnormalized.0.length(), 1.0, epsilon = 1.0e-6);
         assert_eq!(unnormalized.0, Vec3::new(0.1, 0.1, -1.0).normalize());
     }
 
@@ -199,7 +199,7 @@ mod tests {
             .expect("nonzero interpolated globe location");
 
         let expected = (Vec3::X + Vec3::NEG_Z).normalize();
-        assert!((interpolated.0.length() - 1.0).abs() < 1.0e-6);
-        assert!((interpolated.0 - expected).length() < 1.0e-6);
+        approx::assert_relative_eq!(interpolated.0.length(), 1.0, epsilon = 1.0e-6);
+        approx::assert_relative_eq!(interpolated.0, expected, epsilon = 1.0e-6);
     }
 }

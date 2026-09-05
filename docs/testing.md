@@ -69,7 +69,7 @@ Golden replacement is intentionally separate from normal test runs:
 
 ```bash
 APOLLO18_UPDATE_GOLDENS=1 cargo test -p apollo18-renderer --lib \
-  tests::terrain_shaded_lunar_globe_matches_golden_pixels
+  phase_matches_golden_pixels
 ```
 
 The replacement should be reviewed as a visible behavior change before it is

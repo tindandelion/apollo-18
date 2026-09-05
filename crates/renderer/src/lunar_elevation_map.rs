@@ -89,7 +89,7 @@ mod tests {
         for direction in [Vec3::NEG_Z, Vec3::X, Vec3::Y, Vec3::NEG_Y] {
             let perturbed_radial = map.perturbed_radial(geo_coords(direction));
 
-            assert!((perturbed_radial - direction).length() < 1.0e-6);
+            approx::assert_relative_eq!(perturbed_radial, direction, epsilon = 1.0e-6);
         }
     }
 
@@ -105,7 +105,7 @@ mod tests {
 
         let perturbed_radial = map.perturbed_radial(geo_coords(Vec3::NEG_Z));
 
-        assert!((perturbed_radial - expected).length() < 1.0e-5);
+        approx::assert_relative_eq!(perturbed_radial, expected, epsilon = 1.0e-5);
     }
 
     /// Longitude neighbors wrap so a ramp across the antimeridian still uses the opposite column.
@@ -120,7 +120,7 @@ mod tests {
 
         let perturbed_radial = map.perturbed_radial(geo_coords(Vec3::Z));
 
-        assert!((perturbed_radial - expected).length() < 1.0e-5);
+        approx::assert_relative_eq!(perturbed_radial, expected, epsilon = 1.0e-5);
     }
 
     /// Polar rows ignore longitude differences so a huge east-west jump cannot explode the eastward tilt.
@@ -133,7 +133,7 @@ mod tests {
 
         let perturbed_radial = map.perturbed_radial(geo_coords(Vec3::Y));
 
-        assert!(perturbed_radial.x.abs() < 1.0e-6);
+        approx::assert_relative_eq!(perturbed_radial.x, 0.0, epsilon = 1.0e-6);
     }
 
     /// Polar-row texels use a one-sided latitude difference in the local meridian.
@@ -152,6 +152,6 @@ mod tests {
 
         let perturbed_radial = map.perturbed_radial(geo_coords(location));
 
-        assert!((perturbed_radial - expected).length() < 1.0e-5);
+        approx::assert_relative_eq!(perturbed_radial, expected, epsilon = 1.0e-5);
     }
 }
