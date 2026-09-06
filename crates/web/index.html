@@ -25,10 +25,13 @@
       }
 
       main {
-        width: min(100vw, 100vh);
-        max-width: 800px;
+        width: 100vw;
+        height: 100vh;
+        height: 100dvh;
         padding: 1rem;
         box-sizing: border-box;
+        display: grid;
+        grid-template-rows: auto auto minmax(0, 1fr) auto;
         text-align: center;
       }
 
@@ -42,10 +45,18 @@
         color: #cccccc;
       }
 
+      .canvas-stage {
+        min-height: 0;
+        container-type: size;
+        display: grid;
+        place-items: center;
+      }
+
       canvas {
         display: block;
-        width: 100%;
-        height: auto;
+        width: 100cqmin;
+        height: 100cqmin;
+        aspect-ratio: 1;
         image-rendering: pixelated;
       }
 
@@ -68,7 +79,9 @@
     <main>
       <h1>Apollo 18</h1>
       <p>A NASA elevation-shaded lunar globe drawn by the shared Rust software renderer.</p>
-      <canvas id="apollo18-canvas" width="800" height="800" aria-label="Lunar globe render"></canvas>
+      <div class="canvas-stage">
+        <canvas id="apollo18-canvas" width="800" height="800" aria-label="Lunar globe render"></canvas>
+      </div>
       <footer aria-label="Credits and licensing">
         <p>
           Surface data: NASA CGI Moon Kit December 2025 lunar color map (LROC) and

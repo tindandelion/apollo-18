@@ -6,6 +6,32 @@ function isFaviconRequest(url) {
   return new URL(url).pathname === "/favicon.ico";
 }
 
+test("release web host fits its square presentation within the viewport", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+
+  await page.goto("/");
+
+  const layout = await page.evaluate(() => {
+    const canvasBounds = document
+      .querySelector("#apollo18-canvas")
+      .getBoundingClientRect();
+
+    return {
+      canvasWidth: canvasBounds.width,
+      canvasHeight: canvasBounds.height,
+      viewportWidth: window.innerWidth,
+      viewportHeight: window.innerHeight,
+      pageWidth: document.documentElement.scrollWidth,
+      pageHeight: document.documentElement.scrollHeight,
+    };
+  });
+  expect(layout.pageWidth).toBeLessThanOrEqual(layout.viewportWidth);
+  expect(layout.pageHeight).toBeLessThanOrEqual(layout.viewportHeight);
+  expect(layout.canvasWidth).toBe(layout.canvasHeight);
+});
+
 test("release web host presents the software-rendered framebuffer", async ({
   page,
 }) => {
