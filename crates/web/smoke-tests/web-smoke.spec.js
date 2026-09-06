@@ -32,6 +32,50 @@ test("release web host fits its square presentation within the viewport", async 
   expect(layout.canvasWidth).toBe(layout.canvasHeight);
 });
 
+test("footer aligns credits across wide screens and stacks them on small screens", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1280, height: 720 });
+  await page.goto("/");
+
+  const wideFooter = await page.locator("footer p").evaluateAll((paragraphs) =>
+    paragraphs.map((paragraph) => {
+      const bounds = paragraph.getBoundingClientRect();
+      return {
+        left: bounds.left,
+        right: bounds.right,
+        bottom: bounds.bottom,
+        textAlign: getComputedStyle(paragraph).textAlign,
+      };
+    }),
+  );
+
+  expect(wideFooter).toHaveLength(2);
+  expect(wideFooter[0].left).toBe(16);
+  expect(wideFooter[1].right).toBe(1264);
+  expect(wideFooter[0].bottom).toBe(wideFooter[1].bottom);
+  expect(wideFooter[0].textAlign).toBe("left");
+  expect(wideFooter[1].textAlign).toBe("right");
+
+  await page.setViewportSize({ width: 900, height: 1000 });
+
+  const narrowFooter = await page.locator("footer p").evaluateAll((paragraphs) =>
+    paragraphs.map((paragraph) => {
+      const bounds = paragraph.getBoundingClientRect();
+      return {
+        top: bounds.top,
+        bottom: bounds.bottom,
+        textAlign: getComputedStyle(paragraph).textAlign,
+      };
+    }),
+  );
+
+  expect(narrowFooter).toHaveLength(2);
+  expect(narrowFooter[0].bottom).toBeLessThanOrEqual(narrowFooter[1].top);
+  expect(narrowFooter[0].textAlign).toBe("center");
+  expect(narrowFooter[1].textAlign).toBe("center");
+});
+
 test("release web host presents the software-rendered framebuffer", async ({
   page,
 }) => {
