@@ -4,7 +4,7 @@
 
 **Blocked by:** 15: Animate the lunar phases
 
-**Status:** ready-for-agent
+**Status:** wontfix
 
 **Scheduling note:** Clipping is deferred until after the complete lunar showcase because the canonical centered orthographic lunar globe remains entirely inside the view volume.
 
@@ -17,3 +17,7 @@
 - [ ] Golden coverage protects representative clipped-cube frames.
 - [ ] Learning documentation explains homogeneous clipping and polygon re-triangulation.
 - [ ] The local quality gate passes.
+
+## Comments
+
+The maintainer removed this ticket from the implementation frontier. Apollo 18's canonical scenes remain inside the view volume, so homogeneous view-volume clipping will not be implemented as part of this effort.
