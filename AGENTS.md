@@ -14,13 +14,10 @@ For every graphics stage, add or update a concise guide under `docs/learning/` t
 
 ## Quality gate
 
-Run these checks before completing every implementation ticket:
+Run the canonical quality gate from the repository root before completing every implementation ticket:
 
 ```bash
-cargo fmt --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
-cd crates/web && NO_COLOR=true trunk build index.html --release
+./scripts/dev/quality-gate.sh
 ```
 
 Also run every ticket-specific golden, native-output, browser, asset-provenance, and deterministic-animation check required by its acceptance criteria.

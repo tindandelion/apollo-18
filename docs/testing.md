@@ -1,12 +1,9 @@
 # Testing Apollo 18
 
-The workspace quality gate covers Rust formatting, linting, tests, and the release web build:
+The workspace quality gate covers Rust formatting, linting, tests, and the release web build. Run its canonical script from the repository root:
 
 ```bash
-cargo fmt --check
-cargo clippy --workspace --all-targets -- -D warnings
-cargo test --workspace
-cd crates/web && trunk build index.html --release
+./scripts/dev/quality-gate.sh
 ```
 
 ## Native smoke tests
@@ -34,7 +31,7 @@ npx playwright install chromium
 Then run the smoke test from the repository root:
 
 ```bash
-scripts/web-smoke-test.sh
+scripts/dev/web-smoke-test.sh
 ```
 
 The script forwards additional Playwright arguments, such as `--headed`, after `npm test`. Playwright starts and stops a release-mode Trunk server automatically. Trunk output, Playwright results, and installed Node packages are written only to ignored directories.
@@ -50,7 +47,7 @@ performance target.
 Run it from the repository root:
 
 ```bash
-scripts/web-performance-test.sh
+scripts/dev/web-performance-test.sh
 ```
 
 The test prints its measured FPS. Results are specific to the executing machine
