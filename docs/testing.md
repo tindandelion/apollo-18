@@ -18,7 +18,7 @@ cargo test -p apollo18-native --test native_smoke
 
 ## Browser smoke test
 
-The browser smoke test uses Playwright and headless Chromium to build, serve, and load the release web host. It verifies that the Wasm application initializes without runtime or resource errors, requests Canvas 2D rather than a GPU context, retains the canonical 800×800 canvas resolution, and presents non-background framebuffer pixels.
+The browser smoke test uses Playwright and headless Chromium to build, serve, and load the release web host. It verifies that the Wasm application initializes without runtime or resource errors, requests Canvas 2D rather than a GPU context, selects a backing resolution from the canvas CSS dimensions and device pixel ratio, and presents non-background framebuffer pixels. Its high-density scenario uses a 1440×900 CSS-pixel viewport at device pixel ratio 2 and verifies the 1152×1152 cap, framebuffer presentation at that same resolution, responsive resizing, and a device-pixel-ratio change.
 
 Install its Node dependencies and Chromium once:
 
@@ -39,10 +39,12 @@ The script forwards additional Playwright arguments, such as `--headed`, after `
 ## Browser performance test
 
 The browser performance test measures completed `requestAnimationFrame`
-callbacks while the release web host renders the canonical 800×800 lunar
-globe. After a two-second warmup, it measures eight seconds of animation and
-requires at least 30 FPS, matching the project's sustained desktop Wasm
-performance target.
+callbacks while the release web host renders the representative lunar globe at
+the capped high-density backing resolution. It uses a 1440×900 CSS-pixel
+viewport at device pixel ratio 2, verifies the 1152×1152 backing resolution,
+warms up for two seconds, and measures eight seconds of animation. Ticket 13
+records the baseline without a minimum frame-rate gate; Ticket 19 will restore
+the sustained 30 FPS target at this resolution.
 
 Run it from the repository root:
 
@@ -50,9 +52,19 @@ Run it from the repository root:
 scripts/dev/web-performance-test.sh
 ```
 
-The test prints its measured FPS. Results are specific to the executing machine
-and bundled Chromium version; use the same environment when comparing changes.
-Additional Playwright arguments such as `--headed` are forwarded by the script.
+The test prints its measured FPS and browser environment. Results are specific
+to the executing machine and bundled Chromium version; use the same environment
+when comparing changes. Additional Playwright arguments such as `--headed` are
+forwarded by the script.
+
+The Ticket 13 baseline was measured on 2026-09-06 with:
+
+- Apple Mac15,7 with an Apple M3 Pro (`arm64`)
+- macOS 15.7.7
+- Playwright Chromium 151.0.7922.34 in headless mode
+- 1440×900 CSS-pixel viewport at device pixel ratio 2
+- 730.625×730.625 CSS-pixel canvas and 1152×1152 backing resolution
+- 15.42 FPS over 7.98 measured seconds after the two-second warmup
 
 ## Golden images
 

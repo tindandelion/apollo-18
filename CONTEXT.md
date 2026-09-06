@@ -12,6 +12,14 @@ _Avoid_: CPU renderer, software rasterizer
 A tightly packed, top-to-bottom array of RGBA pixels produced by the software renderer for image or browser presentation.
 _Avoid_: Image buffer, canvas buffer
 
+**Canvas backing resolution**:
+The width and height of the HTML canvas's stored pixel grid, which matches the presented framebuffer dimensions independently of the canvas's displayed size.
+_Avoid_: Canvas internal resolution, canvas size
+
+**Canvas CSS dimensions**:
+The displayed width and height of the HTML canvas in CSS pixels, independently of its backing resolution.
+_Avoid_: Displayed resolution, canvas size
+
 **Scene time**:
 Non-negative finite elapsed seconds supplied explicitly to a scene render, used to derive deterministic animation state independently of frame rate or host clock.
 _Avoid_: Current time, frame time

@@ -69,7 +69,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 49. As a web viewer, I want the renderer to appear on a single static webpage, so that Apollo 18 can be published without an application server.
 50. As a web viewer, I want animation time based on the browser's monotonic clock, so that rotation speed does not depend on rendering frame rate.
 51. As a web viewer, I want the framebuffer displayed through Canvas 2D `ImageData`, so that Apollo 18's graphics pipeline remains CPU/Wasm-owned.
-52. As a web viewer, I want the page to scale an 800×800 canvas visually without increasing its internal resolution, so that high-DPI displays do not silently multiply rendering cost.
+52. As a web viewer, I want the page to derive a bounded canvas backing resolution from its CSS dimensions and device pixel ratio, so that high-density displays look sharper without multiplying rendering cost beyond the lunar maps' useful detail.
 53. As a web viewer, I want the initial page to animate automatically without controls, so that the first showcase remains focused.
 54. As a project maintainer, I want local web output beginning with the first triangle, so that Wasm compatibility is continuously validated.
 55. As a project maintainer, I want public static deployment immediately after the lunar color map milestone, so that the project becomes shareable as soon as it has a compelling lunar image.
@@ -96,7 +96,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 76. As a mobile viewer, I want the page not to break on a small screen, even if performance is initially best-effort, so that the showcase degrades gracefully.
 77. As a graphics learner, I want phase one to remain single-threaded, so that concurrency does not obscure renderer correctness.
 78. As a graphics learner, I want performance exploration to begin only after the complete lunar result exists, so that optimization is driven by a real workload.
-79. As a graphics learner, I want the performance phase to target sustained 30 FPS at 800×800 in desktop Wasm, so that “satisfactory” has an observable meaning.
+79. As a graphics learner, I want the performance phase to target sustained 30 FPS at the capped 1152×1152 backing resolution in desktop Wasm, so that “satisfactory” has an observable meaning for the high-density showcase.
 80. As a graphics learner, I want the reference machine and browser documented with performance results, so that measurements remain interpretable.
 81. As a graphics learner, I want profiling and reasonable CPU/Wasm optimization attempted before GPU migration, so that the GPU decision is evidence-based.
 82. As a future maintainer, I want scene and lunar data concepts kept independent from rasterization internals, so that later renderer changes do not require rewriting project data handling.
@@ -110,7 +110,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - The shared library will present one high-leverage deterministic frame-rendering seam. A caller selects a milestone scene and supplies explicit dimensions, scene time, and required assets; the result is an RGBA framebuffer.
 - Native and web hosts are adapters at the presentation seam. They own clocks, filesystem or browser loading, command-line handling, PNG output, Canvas 2D display, and deployment concerns; they do not implement rendering behavior.
 - The shared image module will decode JPEG and floating-point TIFF bytes into renderer-consumable image data. File-format handling will remain separate from rasterization modules.
-- The canonical public render size will be 800×800. Smaller dimensions may be supplied to focused tests.
+- Canonical native and golden lunar renders use 800×800. The web host selects display-derived dimensions independently, and smaller dimensions may be supplied to focused tests.
 - The framebuffer will be tightly packed, row-major, top-to-bottom, 8-bit RGBA. Alpha is `255` in phase one.
 - The fixed background will be sRGB `#181818` with alpha `255`.
 - Triangle rasterization will begin in 2D screen space using bounded traversal and direct pixel-center edge-function tests. The same three edge values used for coverage will be normalized by the triangle area to become barycentric weights for affine interpolation.
@@ -143,7 +143,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - Native animation binaries produce numbered PNG sequences rather than exposing a separate single-frame CLI mode. Each frame is deterministic from its sequence index and requested frame rate. Deployment tooling invokes `ffmpeg` to turn the lunar sequence into the release WebP; Rust code does not perform animation encoding.
 - The WebAssembly host will be one evolving webpage rather than a demo selector. Earlier visual milestones remain available through native binaries and tests.
 - The web host will use `requestAnimationFrame` for elapsed time and Canvas 2D `ImageData` for display. It will not use WebGL or WebGPU.
-- The canvas has a fixed 800×800 internal resolution and may scale responsively through CSS without following device-pixel ratio.
+- The web host derives the canvas backing resolution from its CSS dimensions and device pixel ratio. It applies one uniform scale factor when necessary so neither backing dimension exceeds the lunar-color-map-derived 1152-pixel cap, then renders a framebuffer at exactly those selected dimensions.
 - The initial webpage has no interaction controls beyond responsive presentation.
 - Trunk, `wasm-bindgen`, and `web-sys` will provide web build and browser plumbing.
 - Local web rendering begins with the first framebuffer milestone. Public static deployment begins immediately after the lunar color-map milestone.
@@ -154,9 +154,9 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - Learning documentation will explain the mathematics and rationale of each graphics stage, including edge functions, barycentric interpolation, clipping, depth, spherical lookup, linear light, and terrain-normal derivation.
 - Phase one will be single-threaded in native and Wasm builds.
 - The local quality gate consists of formatting checks, Clippy with warnings denied, all workspace tests, and a release Trunk build.
-- Performance exploration is a follow-up task after functional completion. Its baseline is the canonical 800×800, level-5 lunar scene in a release desktop-browser build.
+- Performance exploration is a follow-up task after functional completion. Its high-density baseline is the level-5 lunar scene at the capped 1152×1152 backing resolution in a release desktop-browser build.
 - Satisfactory follow-up performance is sustained 30 FPS on a documented reference machine and browser; 60 FPS is a stretch goal.
-- Performance profiling should measure the cost of the opaque RGBA framebuffer. RGB would save 640,000 bytes at 800×800, but Canvas 2D `ImageData` requires RGBA, so a compact framebuffer would add a conversion buffer and could separate native and web representations. Keep RGBA unless measurements show its memory use or bandwidth to be a bottleneck.
+- Performance profiling should measure the cost of the opaque RGBA framebuffer. RGB would save 1,327,104 bytes at the capped 1152×1152 backing resolution, but Canvas 2D `ImageData` requires RGBA, so a compact framebuffer would add a conversion buffer and could separate native and web representations. Keep RGBA unless measurements show its memory use or bandwidth to be a bottleneck.
 - A GPU renderer will be considered only after profiling and reasonable CPU/Wasm algorithm, memory-access, SIMD, and threading investigations fail to meet the target. No generalized rendering-backend seam will be created in this spec.
 
 ## Testing Decisions
@@ -173,7 +173,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - Color tests will cover the piecewise sRGB transfer function and prove linear-light interpolation with a half-intensity channel that encodes near sRGB byte `188` rather than `128`. Interpolated linear channels are clamped only at the framebuffer encoding boundary and quantized by rounding to the nearest 8-bit value.
 - Focused tests should validate behavior and invariants, not private call structure or algorithm decomposition.
 - Native host smoke tests will verify that milestone binaries can produce valid PNG output without duplicating renderer golden suites.
-- One browser smoke test will verify that the Wasm host initializes and presents a framebuffer through Canvas 2D. Browser tests will not duplicate all visual assertions.
+- Browser smoke coverage will verify that the Wasm host initializes, selects a bounded backing resolution from real CSS dimensions and device pixel ratio, responds to display changes, and presents a matching framebuffer through Canvas 2D. Browser tests will not duplicate all visual assertions.
 - The first browser compatibility target is current desktop Chrome, Firefox, and Safari.
 - Animation tests will use explicit timestamps rather than real clocks.
 - Asset provenance checks will verify expected checksums so accidental source-data replacement is visible.

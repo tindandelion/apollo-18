@@ -1,6 +1,23 @@
 const { test, expect } = require("@playwright/test");
 
 const backgroundChannel = 0x18;
+const maximumBackingDimension = 1152;
+
+test.use({ deviceScaleFactor: 2 });
+
+function selectedBackingResolution(cssWidth, cssHeight, devicePixelRatio) {
+  const desiredWidth = cssWidth * devicePixelRatio;
+  const desiredHeight = cssHeight * devicePixelRatio;
+  const scale = Math.min(
+    1,
+    maximumBackingDimension / Math.max(desiredWidth, desiredHeight),
+  );
+
+  return {
+    width: Math.max(1, Math.round(desiredWidth * scale)),
+    height: Math.max(1, Math.round(desiredHeight * scale)),
+  };
+}
 
 function isFaviconRequest(url) {
   return new URL(url).pathname === "/favicon.ico";
@@ -76,6 +93,136 @@ test("footer aligns credits across wide screens and stacks them on small screens
   expect(narrowFooter[1].textAlign).toBe("center");
 });
 
+test("release web host updates its high-density backing resolution", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.addInitScript(() => {
+    const putImageData = CanvasRenderingContext2D.prototype.putImageData;
+    CanvasRenderingContext2D.prototype.putImageData = function (
+      imageData,
+      ...arguments_
+    ) {
+      window.apollo18PresentedResolution = {
+        width: imageData.width,
+        height: imageData.height,
+      };
+      return putImageData.call(this, imageData, ...arguments_);
+    };
+  });
+
+  await page.goto("/");
+  const canvas = page.locator("#apollo18-canvas");
+  await expect(canvas).toHaveJSProperty("width", maximumBackingDimension);
+  await expect(canvas).toHaveJSProperty("height", maximumBackingDimension);
+
+  const cappedLayout = await canvas.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return {
+      cssWidth: bounds.width,
+      cssHeight: bounds.height,
+      backingWidth: element.width,
+      backingHeight: element.height,
+      devicePixelRatio: window.devicePixelRatio,
+      imageRendering: getComputedStyle(element).imageRendering,
+      presentedResolution: window.apollo18PresentedResolution,
+    };
+  });
+  expect(cappedLayout.cssWidth).toBe(cappedLayout.cssHeight);
+  expect(cappedLayout.devicePixelRatio).toBe(2);
+  expect(cappedLayout.imageRendering).not.toBe("pixelated");
+  expect(cappedLayout.cssWidth * cappedLayout.devicePixelRatio).toBeGreaterThan(
+    maximumBackingDimension,
+  );
+  expect(cappedLayout.presentedResolution).toEqual({
+    width: cappedLayout.backingWidth,
+    height: cappedLayout.backingHeight,
+  });
+
+  await page.setViewportSize({ width: 500, height: 700 });
+  await expect
+    .poll(() =>
+      canvas.evaluate((element, maximumBackingDimension) => {
+        const bounds = element.getBoundingClientRect();
+        const desiredWidth = bounds.width * window.devicePixelRatio;
+        const desiredHeight = bounds.height * window.devicePixelRatio;
+        const scale = Math.min(
+          1,
+          maximumBackingDimension / Math.max(desiredWidth, desiredHeight),
+        );
+        return (
+          element.width === Math.max(1, Math.round(desiredWidth * scale)) &&
+          element.height === Math.max(1, Math.round(desiredHeight * scale))
+        );
+      }, maximumBackingDimension),
+    )
+    .toBe(true);
+
+  const resizedLayout = await canvas.evaluate(
+    (element, maximumBackingDimension) => {
+      const bounds = element.getBoundingClientRect();
+      const desiredWidth = bounds.width * window.devicePixelRatio;
+      const desiredHeight = bounds.height * window.devicePixelRatio;
+      const scale = Math.min(
+        1,
+        maximumBackingDimension / Math.max(desiredWidth, desiredHeight),
+      );
+      return {
+        actual: { width: element.width, height: element.height },
+        expected: {
+          width: Math.max(1, Math.round(desiredWidth * scale)),
+          height: Math.max(1, Math.round(desiredHeight * scale)),
+        },
+      };
+    },
+    maximumBackingDimension,
+  );
+  expect(resizedLayout.actual).toEqual(resizedLayout.expected);
+  expect(resizedLayout.actual.width).toBeLessThan(maximumBackingDimension);
+
+  await page.evaluate(() => {
+    Object.defineProperty(window, "devicePixelRatio", {
+      configurable: true,
+      value: 1,
+    });
+  });
+  await expect
+    .poll(() =>
+      canvas.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        return (
+          element.width ===
+            Math.max(1, Math.round(bounds.width * window.devicePixelRatio)) &&
+          element.height ===
+            Math.max(1, Math.round(bounds.height * window.devicePixelRatio))
+        );
+      }),
+    )
+    .toBe(true);
+  const changedDensity = await canvas.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return {
+      actual: { width: element.width, height: element.height },
+      expected: {
+        width: Math.max(1, Math.round(bounds.width * window.devicePixelRatio)),
+        height: Math.max(1, Math.round(bounds.height * window.devicePixelRatio)),
+      },
+    };
+  });
+  expect(changedDensity.actual).toEqual(changedDensity.expected);
+  await expect
+    .poll(() =>
+      canvas.evaluate((element) => ({
+        actual: { width: element.width, height: element.height },
+        presented: window.apollo18PresentedResolution,
+      })),
+    )
+    .toEqual({
+      actual: changedDensity.actual,
+      presented: changedDensity.actual,
+    });
+});
+
 test("release web host presents the software-rendered framebuffer", async ({
   page,
 }) => {
@@ -121,8 +268,24 @@ test("release web host presents the software-rendered framebuffer", async ({
     )
     .toContain("2d");
 
-  await expect(canvas).toHaveJSProperty("width", 800);
-  await expect(canvas).toHaveJSProperty("height", 800);
+  const backingResolution = await canvas.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    return {
+      actual: { width: element.width, height: element.height },
+      cssWidth: bounds.width,
+      cssHeight: bounds.height,
+      devicePixelRatio: window.devicePixelRatio,
+    };
+  });
+  expect(backingResolution.actual).toEqual(
+    selectedBackingResolution(
+      backingResolution.cssWidth,
+      backingResolution.cssHeight,
+      backingResolution.devicePixelRatio,
+    ),
+  );
+  expect(backingResolution.actual.width).toBeGreaterThan(800);
+  expect(backingResolution.actual.height).toBeGreaterThan(800);
 
   await expect
     .poll(() =>
