@@ -1,4 +1,4 @@
-# 17: Support sharp rendering on Retina displays
+# 13: Support sharp rendering on Retina displays
 
 **What to build:** Make the web lunar globe materially sharper on high-density displays by choosing its framebuffer and Canvas 2D backing resolution from the displayed canvas size and device pixel ratio, without giving up the sustained 30 FPS desktop WebAssembly target.
 
