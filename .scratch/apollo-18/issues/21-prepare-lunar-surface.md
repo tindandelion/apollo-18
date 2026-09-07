@@ -2,7 +2,7 @@
 
 **What to build:** Let the shared software renderer prepare a fixed view of the lunar surface for a selected framebuffer resolution and globe pose, then render deterministic lunar-phase frames from that prepared state without making the fixed-pose optimization the renderer's only path or changing existing native or web behavior yet.
 
-**Blocked by:** None (can start immediately)
+**Blocked by:** 28: Start lunar animations from current UTC
 
 **Status:** ready-for-agent
 

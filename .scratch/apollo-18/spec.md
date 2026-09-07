@@ -59,11 +59,11 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 39. As a graphics learner, I want terrain normals derived from the physical units in NASA's 4-pixels-per-degree floating-point lunar elevation map, so that elevation shading has a meaningful baseline.
 40. As a graphics learner, I want neighboring elevation samples used to estimate local gradients, so that small-scale terrain affects lighting without increasing mesh density.
 41. As a viewer, I want terrain-normal shading without geometry displacement initially, so that crater detail is visible while the globe silhouette remains simple.
-42. As a viewer, I want a lunar-phase animation after terrain-normal shading is complete, so that the elevation detail can be observed under changing illumination.
-43. As a viewer, I want a complete lunar-phase cycle to last ten seconds, so that lighting transitions remain lively while features stay inspectable.
-44. As a viewer, I want the phase animation to keep the camera and globe fixed while changing Sun direction, so that the animation demonstrates illumination rather than object motion.
+42. As a viewer, I want the lunar-phase animation to follow NASA's date-dependent lunar ephemeris data, so that illumination and apparent orientation resemble the Moon at a real UTC instant.
+43. As a viewer, I want ten seconds to present one mean synodic month of 29.530588853 days, so that a complete lunar-phase cycle remains lively while features stay inspectable.
+44. As a viewer, I want the animation to use the geocentric sub-Earth point, subsolar point, and lunar position angle, so that it presents libration, geographically correct illumination, and apparent roll relative to celestial north.
 45. As a native user, I want each retained milestone to be a separate binary, so that triangle, cube, and lunar-globe behavior remain independently runnable.
-46. As a native user, I want every animation frame's scene time derived from its sequence index and requested frame rate, so that native animation output is deterministic without a separate single-frame CLI mode.
+46. As a native user, I want every animation frame's scene time derived from its sequence index and requested frame rate relative to one captured animation epoch, so that a sequence presents one coherent astronomical timeline without accumulated frame steps.
 47. As a native user, I want a binary to render a numbered PNG sequence at a requested frame rate and frame count, so that external tools can encode an animation.
 48. As a project maintainer, I want deployment tooling to encode native frame sequences through `ffmpeg`, so that release publishing is convenient while codec complexity stays outside Apollo 18's Rust code.
 49. As a web viewer, I want the renderer to appear on a single static webpage, so that Apollo 18 can be published without an application server.
@@ -80,7 +80,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 60. As a project maintainer, I want NASA assets versioned with the project, so that builds and golden renders are reproducible and do not depend on runtime network access.
 61. As a project maintainer, I want source URL, retrieval date, and checksum recorded for each NASA asset, so that its provenance is auditable.
 62. As a project maintainer, I want NASA assets distinguished from the project's code license, so that provenance and reuse terms are not misrepresented.
-63. As a project maintainer, I want milestone scenes rendered deterministically from explicit time and inputs, so that regressions can be reproduced.
+63. As a project maintainer, I want milestone scenes rendered deterministically from explicit scene time, animation epoch, and assets, so that regressions can be reproduced independently of production wall clocks.
 64. As a project maintainer, I want small exact golden images for triangle and cube behavior, so that rasterization changes are caught precisely.
 65. As a project maintainer, I want realistic lunar golden images, so that changes to mapping, lighting, and terrain normals are reviewed visually.
 66. As a project maintainer, I want failed lunar comparisons to produce amplified difference images, so that regressions are easy to locate.
@@ -108,7 +108,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - The project will use Rust edition 2024 with the stable `1.97.1` toolchain pinned for reproducibility.
 - `glam` will provide vector and matrix arithmetic. Apollo 18 will implement transforms, clipping, rasterization, interpolation, depth buffering, map sampling, and lighting itself.
 - The shared library will present one high-leverage deterministic frame-rendering seam. A caller selects a milestone scene and supplies explicit dimensions, scene time, and required assets; the result is an RGBA framebuffer.
-- Native and web hosts are adapters at the presentation seam. They own clocks, filesystem or browser loading, command-line handling, PNG output, Canvas 2D display, and deployment concerns; they do not implement rendering behavior.
+- Native and web hosts are adapters at the presentation seam. They capture one current UTC animation epoch at startup and own monotonic clocks, filesystem or browser loading, command-line handling, PNG output, Canvas 2D display, and deployment concerns; they do not implement rendering behavior.
 - The shared image module will decode JPEG and floating-point TIFF bytes into renderer-consumable image data. File-format handling will remain separate from rasterization modules.
 - Canonical native and golden lunar renders use 800×800. The web host selects display-derived dimensions independently, and smaller dimensions may be supplied to focused tests.
 - The framebuffer will be tightly packed, row-major, top-to-bottom, 8-bit RGBA. Alpha is `255` in phase one.
@@ -138,17 +138,22 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - The smooth lunar globe rotates once every ten seconds. Rendering is a pure function of explicit elapsed scene time rather than accumulated frame steps.
 - Terrain-normal shading leaves octasphere geometry spherical. Per-fragment terrain normals are derived from lunar elevation gradients using the source's physical units and lunar reference radius.
 - Geometry displacement is deferred. The silhouette remains spherical in this spec.
-- The lunar-phase animation follows terrain-normal shading. The camera and globe remain fixed while Sun direction completes one cycle every ten seconds.
+- The final lunar-phase animation follows terrain-normal shading and replaces the synthetic fixed-globe Sun orbit. Scene time maps each ten-second cycle from one captured animation epoch across a mean synodic month of 29.530588853 days.
+- NASA's hourly subsolar point determines Sun direction. The geocentric sub-Earth point determines the lunar location at the center of the visible disk, and lunar position angle rolls the disk counterclockwise from celestial north.
+- Hourly latitude values are interpolated linearly. Longitude and lunar position angle are interpolated along their shortest angular paths across wrap boundaries.
+- The globe remains centered at its existing apparent size. Right ascension, declination, Earth-Moon distance, topocentric parallax, and eclipse shadows do not affect this tracked Earth-centered presentation.
+- Real ephemeris state need not match at the endpoints of a mean synodic month. The animation resets without blending or fabricating a seamless endpoint.
 - The native package will retain separate binaries for the triangle, cube, and lunar-globe milestones. Shared native-host behavior may live behind the package's library interface.
-- Native animation binaries produce numbered PNG sequences rather than exposing a separate single-frame CLI mode. Each frame is deterministic from its sequence index and requested frame rate. Deployment tooling invokes `ffmpeg` to turn the lunar sequence into the release WebP; Rust code does not perform animation encoding.
+- Native animation binaries produce numbered PNG sequences rather than exposing a separate single-frame CLI mode. The lunar binary always captures the current UTC animation epoch, exposes no epoch override, and writes no epoch sidecar; each frame's scene time remains deterministic from its sequence index and requested frame rate. Deployment tooling invokes `ffmpeg` to turn the lunar sequence into the release WebP; Rust code does not perform animation encoding.
 - The WebAssembly host will be one evolving webpage rather than a demo selector. Earlier visual milestones remain available through native binaries and tests.
-- The web host will use `requestAnimationFrame` for elapsed time and Canvas 2D `ImageData` for display. It will not use WebGL or WebGPU.
+- The web host will capture current UTC once, use `requestAnimationFrame` for elapsed scene time, and use Canvas 2D `ImageData` for display. It will not use WebGL or WebGPU.
 - The web host derives the canvas backing resolution from its CSS dimensions and device pixel ratio. It applies one uniform scale factor when necessary so neither backing dimension exceeds the lunar-color-map-derived 1152-pixel cap, then renders a framebuffer at exactly those selected dimensions.
 - The initial webpage has no interaction controls beyond responsive presentation.
 - Trunk, `wasm-bindgen`, and `web-sys` will provide web build and browser plumbing.
 - Local web rendering begins with the first framebuffer milestone. Public static deployment begins immediately after the lunar color-map milestone.
 - The deployment provider remains undecided until a remote exists. GitHub Pages is preferred if the eventual remote is GitHub.
-- NASA data will be committed as project assets rather than fetched at render time. Each asset will carry source URL, retrieval date, and checksum provenance.
+- NASA data will be committed as project assets rather than fetched at render time. This includes the original annual Scientific Visualization Studio Moon Phase and Libration JSON used for ephemeris sampling. Each asset will carry source URL, retrieval date, and checksum provenance.
+- A lunar animation starts only when committed annual data covers its animation epoch through one complete mean synodic month. The native host fails before writing frames when coverage is insufficient; the web host replaces the canvas with a visible actionable message.
 - The code will be dual-licensed under MIT OR Apache-2.0. NASA data provenance and usage terms will be documented separately.
 - Current desktop Chrome, Firefox, and Safari are required browser targets. Mobile layout must remain usable, but mobile rendering performance is best-effort.
 - Learning documentation will explain the mathematics and rationale of each graphics stage, including edge functions, barycentric interpolation, clipping, depth, spherical lookup, linear light, and terrain-normal derivation.
@@ -164,7 +169,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - Tests will assert externally observable behavior through the highest practical seam: deterministic scene inputs produce a framebuffer.
 - The same shared-library frame-rendering interface used by native and web hosts will drive golden-image tests. This provides leverage without a parallel test-only interface.
 - Small triangle and cube fixtures will use exact decoded-pixel comparisons.
-- Canonical lunar fixtures will use fixed dimensions, scene times, map versions, subdivision, camera, Sun direction, and background.
+- Canonical lunar fixtures will use fixed dimensions, scene times, the `2026-01-01T00:00:00Z` animation epoch, map and ephemeris versions, subdivision, camera, and background.
 - Realistic lunar golden images will compare decoded framebuffer pixels with a very small documented tolerance for platform floating-point differences.
 - A failed realistic comparison will emit an amplified visual diff artifact and useful numerical difference statistics.
 - Golden images can only be replaced through an explicit update command. Expected-image changes must be reviewed as behavior changes.
@@ -175,7 +180,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - Native host smoke tests will verify that milestone binaries can produce valid PNG output without duplicating renderer golden suites.
 - Browser smoke coverage will verify that the Wasm host initializes, selects a bounded backing resolution from real CSS dimensions and device pixel ratio, responds to display changes, and presents a matching framebuffer through Canvas 2D. Browser tests will not duplicate all visual assertions.
 - The first browser compatibility target is current desktop Chrome, Firefox, and Safari.
-- Animation tests will use explicit timestamps rather than real clocks.
+- Animation tests will use the fixed canonical animation epoch and explicit scene times rather than real clocks. Browser smoke tests will control wall-clock time explicitly.
 - Asset provenance checks will verify expected checksums so accidental source-data replacement is visible.
 - No prior rendering tests exist in the current repository; these seams establish the project's initial testing convention.
 
@@ -200,6 +205,9 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - Implementing animated-image or video encoding in Rust; deployment tooling may invoke external tools such as `ffmpeg`
 - Scientific-analysis claims or scientifically validated visualization output
 - Runtime downloading of NASA source data
+- Topocentric lunar parallax and location-dependent views
+- Moving or scaling the tracked globe from right ascension, declination, or Earth-Moon distance
+- Earth-shadow modeling for lunar eclipses
 - A literal single-file HTML artifact
 - Selecting a public hosting provider before the color-map deployment milestone
 - Mobile performance guarantees
@@ -212,4 +220,5 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - The NASA CGI Moon Kit describes the selected color data as optimized for aesthetics rather than science. This matches Apollo 18's visually compelling but data-grounded goal.
 - Elevation exaggeration is not part of the physical baseline in this spec. Any future artistic exaggeration must be explicit and documented.
 - The existing coordinate ADR remains authoritative. Imported right-handed assets, if introduced later, must convert at their import seam.
+- The original 2026 NASA annual ephemeris file is the first supported date range. Additional annual files can extend coverage without changing the sampling model.
 - The project glossary distinguishes software renderer, lunar globe, lunar color map, lunar elevation map, octasphere, globe location, terrain normal, and lunar phase. Implementation and documentation should use those canonical terms.

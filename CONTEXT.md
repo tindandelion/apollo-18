@@ -24,6 +24,10 @@ _Avoid_: Displayed resolution, canvas size
 Non-negative finite elapsed seconds supplied explicitly to a scene render, used to derive deterministic animation state independently of frame rate or host clock.
 _Avoid_: Current time, frame time
 
+**Animation epoch**:
+The UTC instant captured once when a lunar animation starts. Together with scene time, it identifies the astronomical instant presented by a frame.
+_Avoid_: Scene time, current time
+
 **Normalized device coordinates (NDC)**:
 The post-projection coordinate space where the visible horizontal and vertical ranges are `[-1, 1]`, `+Y` points up, and normalized depth ranges from near `0` to far `1`.
 _Avoid_: Normalized framebuffer coordinates, screen coordinates
@@ -59,6 +63,18 @@ _Avoid_: Radial direction, surface direction, normal
 **Lunar phase**:
 The visible pattern of illumination determined by the angle between the viewing direction and the Sun direction.
 _Avoid_: Lighting phase
+
+**Sub-Earth point**:
+The location on the lunar globe directly facing Earth's center at a given UTC instant, expressed as lunar longitude and latitude. Its motion presents geocentric lunar libration without depending on an observer's location on Earth.
+_Avoid_: Moon center position, observer position
+
+**Lunar position angle**:
+The apparent counterclockwise angle from celestial north to the Moon's north-pole axis at a given UTC instant. It describes the lunar disk's apparent roll in an Earth-centered view.
+_Avoid_: Libration angle, globe yaw
+
+**Synodic month**:
+The interval over which the Moon returns to the same phase relative to the Sun and Earth. Apollo 18 uses its mean duration of 29.530588853 days when presenting one lunar-phase cycle.
+_Avoid_: Lunar rotation period, sidereal month
 
 **Sun direction**:
 The unit direction from the lunar globe toward the Sun, used as the incoming-light direction for lunar illumination.
