@@ -1,7 +1,7 @@
 use apollo18_native::run_frame_sequence;
 use apollo18_renderer::{
     LunarColorMap, LunarElevationMap, image::decode_float_tiff, image::decode_jpeg,
-    render_lunar_globe,
+    render_lunar_globe, synthetic_lunar_appearance,
 };
 use std::error::Error;
 use std::path::Path;
@@ -23,7 +23,7 @@ fn main() -> Result<(), Box<dyn Error>> {
             render_lunar_globe(
                 CANONICAL_WIDTH,
                 CANONICAL_HEIGHT,
-                scene_time,
+                synthetic_lunar_appearance(scene_time),
                 &color_map,
                 &elevation_map,
             )

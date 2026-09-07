@@ -3,6 +3,7 @@ mod cube;
 mod framebuffer;
 mod globe_location;
 pub mod image;
+mod lunar_appearance;
 mod lunar_color_map;
 mod lunar_elevation_map;
 mod octasphere;
@@ -12,6 +13,7 @@ mod scene_time;
 use color::Srgb8;
 pub use framebuffer::{Framebuffer, RenderError};
 use glam::Vec3;
+pub use lunar_appearance::{InvalidSunDirection, LunarAppearance, SunDirection};
 pub use lunar_color_map::LunarColorMap;
 pub use lunar_elevation_map::LunarElevationMap;
 pub use scene_time::{InvalidSceneTime, SceneTime};
@@ -20,24 +22,27 @@ const CUBE_ROTATION_PERIOD_SECONDS: f64 = 10.0;
 const LUNAR_PHASE_PERIOD_SECONDS: f64 = 10.0;
 const BACKGROUND: Srgb8 = Srgb8::from_hex(0x18_18_18);
 
+pub fn synthetic_lunar_appearance(scene_time: SceneTime) -> LunarAppearance {
+    let sun_direction = SunDirection::new(lunar_phase_sun_direction(scene_time))
+        .expect("lunar phase Sun direction should be finite and nonzero");
+
+    LunarAppearance::new(sun_direction)
+}
+
 pub fn render_lunar_globe(
     width: u32,
     height: u32,
-    scene_time: SceneTime,
+    appearance: LunarAppearance,
     color_map: &LunarColorMap,
     elevation_map: &LunarElevationMap,
 ) -> Result<Framebuffer, RenderError> {
-    let sun_direction = octasphere::SunDirection::new(lunar_phase_sun_direction(scene_time))
-        .expect("lunar phase Sun direction should be finite and nonzero");
-
     octasphere::render(
         width,
         height,
         BACKGROUND,
-        0.0,
         color_map,
         elevation_map,
-        sun_direction,
+        appearance,
     )
 }
 
@@ -393,8 +398,9 @@ mod tests {
             let color_map = lunar_color_map();
             let elevation_map = lunar_elevation_map();
 
-            let empty_width = render_lunar_globe(0, 800, scene_time, color_map, elevation_map);
-            let empty_height = render_lunar_globe(800, 0, scene_time, color_map, elevation_map);
+            let appearance = synthetic_lunar_appearance(scene_time);
+            let empty_width = render_lunar_globe(0, 800, appearance, color_map, elevation_map);
+            let empty_height = render_lunar_globe(800, 0, appearance, color_map, elevation_map);
 
             assert_eq!(
                 empty_width,
@@ -574,7 +580,7 @@ mod tests {
             render_lunar_globe(
                 width,
                 height,
-                scene_time,
+                synthetic_lunar_appearance(scene_time),
                 lunar_color_map(),
                 lunar_elevation_map(),
             )

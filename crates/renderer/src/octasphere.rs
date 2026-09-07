@@ -1,28 +1,12 @@
 use crate::color::{LinearRgb, Srgb8};
 use crate::framebuffer::{Framebuffer, RenderError};
 use crate::globe_location::GlobeLocation;
+use crate::lunar_appearance::{LunarAppearance, SunDirection};
 use crate::lunar_color_map::LunarColorMap;
 use crate::lunar_elevation_map::LunarElevationMap;
 use crate::rasterizer::{FragmentShader, NdcVertex, Rasterizer};
 use glam::{Mat4, Vec3};
 use std::collections::HashMap;
-
-#[derive(Debug, Clone, Copy)]
-pub(crate) struct SunDirection(Vec3);
-
-impl SunDirection {
-    pub(crate) fn new(direction: Vec3) -> Option<Self> {
-        if direction.is_finite() && direction.length_squared() > 0.0 {
-            Some(Self(direction.normalize()))
-        } else {
-            None
-        }
-    }
-
-    fn diffuse_intensity(self, lighting_normal: Vec3) -> f32 {
-        lighting_normal.dot(self.0).max(0.0)
-    }
-}
 
 type SphereNdcVertex = NdcVertex<GlobeLocation>;
 
@@ -78,13 +62,13 @@ pub(crate) fn render(
     width: u32,
     height: u32,
     background: Srgb8,
-    yaw_radians: f32,
     color_map: &LunarColorMap,
     elevation_map: &LunarElevationMap,
-    sun_direction: SunDirection,
+    appearance: LunarAppearance,
 ) -> Result<Framebuffer, RenderError> {
     let mut rasterizer = Rasterizer::new(width, height, background)?;
-    let object_rotation = Mat4::from_rotation_y(yaw_radians);
+    let object_rotation = appearance.object_to_world();
+    let sun_direction = appearance.sun_direction();
     let object_to_ndc = projection_transform(width, height)
         * Mat4::from_translation(-CAMERA_POSITION)
         * object_rotation

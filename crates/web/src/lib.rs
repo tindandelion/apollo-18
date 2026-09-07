@@ -1,6 +1,6 @@
 use apollo18_renderer::{
     LunarColorMap, LunarElevationMap, SceneTime, image::decode_float_tiff, image::decode_jpeg,
-    render_lunar_globe,
+    render_lunar_globe, synthetic_lunar_appearance,
 };
 use std::cell::RefCell;
 use std::fmt;
@@ -207,7 +207,7 @@ impl LunarAnimation {
         let frame = render_lunar_globe(
             resolution.width,
             resolution.height,
-            scene_time,
+            synthetic_lunar_appearance(scene_time),
             &self.color_map,
             &self.elevation_map,
         )

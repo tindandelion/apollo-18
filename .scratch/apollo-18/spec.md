@@ -136,6 +136,8 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - Lighting uses one neutral directional Sun light and Lambertian diffuse response. Ambient and specular contributions are zero.
 - The first lit showcase uses a gibbous configuration with the Sun direction approximately 30 degrees from the viewing direction.
 - The smooth lunar globe rotates once every ten seconds. Rendering is a pure function of explicit elapsed scene time rather than accumulated frame steps.
+- Lunar globe rendering accepts an explicit lunar appearance with a world-space Sun direction while retaining identity lunar globe pose. Animation policy derives that appearance from scene time separately, so lunar rasterization has no clock, date, NASA-file, or astronomical-period knowledge.
+- Caller-selectable lunar globe pose is deferred until ephemeris behavior requires it. Pose operations are introduced only with that behavior; callers do not supply arbitrary matrices.
 - Terrain-normal shading leaves octasphere geometry spherical. Per-fragment terrain normals are derived from lunar elevation gradients using the source's physical units and lunar reference radius.
 - Geometry displacement is deferred. The silhouette remains spherical in this spec.
 - The final lunar-phase animation follows terrain-normal shading and replaces the synthetic fixed-globe Sun orbit. Scene time maps each ten-second cycle from one captured animation epoch across a mean synodic month of 29.530588853 days.

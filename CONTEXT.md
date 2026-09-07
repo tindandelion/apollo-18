@@ -64,6 +64,14 @@ _Avoid_: Radial direction, surface direction, normal
 The visible pattern of illumination determined by the angle between the viewing direction and the Sun direction.
 _Avoid_: Lighting phase
 
+**Lunar globe pose**:
+The rotation from lunar-globe object space into world space.
+_Avoid_: Globe transform, object rotation
+
+**Lunar appearance**:
+The rendering state that combines lunar globe pose and world-space Sun direction for one lunar globe frame.
+_Avoid_: Lunar scene, phase settings
+
 **Sub-Earth point**:
 The location on the lunar globe directly facing Earth's center at a given UTC instant, expressed as lunar longitude and latitude. Its motion presents geocentric lunar libration without depending on an observer's location on Earth.
 _Avoid_: Moon center position, observer position
@@ -77,7 +85,7 @@ The interval over which the Moon returns to the same phase relative to the Sun a
 _Avoid_: Lunar rotation period, sidereal month
 
 **Sun direction**:
-The unit direction from the lunar globe toward the Sun, used as the incoming-light direction for lunar illumination.
+The world-space unit direction from the lunar globe toward the Sun, used as the incoming-light direction for lunar illumination.
 _Avoid_: Light direction, direction of light travel
 
 **Terrain normal**:
