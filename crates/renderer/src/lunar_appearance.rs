@@ -38,6 +38,10 @@ impl SunDirection {
         Ok(Self((direction / largest_component).normalize()))
     }
 
+    pub const fn as_vec3(self) -> Vec3 {
+        self.0
+    }
+
     pub(crate) fn diffuse_intensity(self, lighting_normal: Vec3) -> f32 {
         lighting_normal.dot(self.0).max(0.0)
     }
@@ -58,9 +62,7 @@ impl Error for InvalidSunDirection {}
 mod tests {
     use super::*;
     use crate::image::{ElevationImage, SrgbImage};
-    use crate::{
-        LunarColorMap, LunarElevationMap, SceneTime, render_lunar_globe, synthetic_lunar_appearance,
-    };
+    use crate::{LunarColorMap, LunarElevationMap, render_lunar_globe};
 
     /// A Sun direction normalizes finite nonzero input.
     #[test]
@@ -103,19 +105,6 @@ mod tests {
         let appearance = LunarAppearance::new(sun_direction);
 
         assert_eq!(appearance.sun_direction(), sun_direction);
-    }
-
-    /// Equal scene times produce equal synthetic lunar appearances at a known phase.
-    #[test]
-    fn synthetic_lunar_appearance_is_deterministic() {
-        let first_scene_time = SceneTime::from_seconds(2.5).expect("scene time should be valid");
-        let second_scene_time = SceneTime::from_seconds(2.5).expect("scene time should be valid");
-
-        let first = synthetic_lunar_appearance(first_scene_time);
-        let second = synthetic_lunar_appearance(second_scene_time);
-
-        assert_eq!(first, second);
-        assert!(first.sun_direction().0.abs_diff_eq(Vec3::NEG_X, 1.0e-6));
     }
 
     /// Equal explicit lunar rendering inputs produce equal framebuffers.

@@ -1,68 +1,52 @@
-# Animating lunar phases
+# Animating lunar phases from the subsolar point
 
-A **lunar phase** is the visible pattern of illumination set by the angle between the viewing direction and the **Sun direction**. Apollo 18 keeps the camera and lunar globe fixed for this stage. Only the Sun direction changes, so the animation demonstrates illumination rather than object motion.
+A **lunar phase** is the visible pattern of illumination set by the angle between the viewing direction and the **Sun direction**. Apollo 18 now gets that direction from NASA's hourly **subsolar point** rather than moving the Sun through a synthetic circle. The camera and **lunar globe pose** remain fixed in this stage, isolating date-dependent illumination from the libration and apparent-roll stages that follow.
 
-Rendering and animation policy are separate. At this stage the lunar rendering seam receives a **lunar appearance** with an explicit world-space Sun direction and retains the identity **lunar globe pose** internally. It has no clock or astronomical-period knowledge. The temporary synthetic-phase policy below converts scene time into that appearance before native or web code requests a framebuffer. Caller-selectable pose remains deferred until libration requires it.
+## Scene time and astronomical time
 
-## Sun–Moon–viewer geometry
-
-The camera sits on the world `-Z` side of the lunar globe and looks toward `+Z`. The center of the visible lunar disk therefore has an outward terrain normal near `-Z`. Recall that Apollo 18 defines Sun direction as the unit direction from the lunar globe toward the Sun.
-
-At full Moon, the Sun is on the viewer's side:
+The animation uses the fixed **animation epoch** `2026-01-01T00:00:00Z`. Let `t` be explicit scene time and let `T = 10 seconds`. One display cycle advances through the mean **synodic month** `M = 29.530588853 days`:
 
 ```text
-Sun direction = (0, 0, -1)
+cycle_fraction(t) = (t mod T) / T
+astronomy_time(t) = animation_epoch + cycle_fraction(t) × M
 ```
 
-Visible terrain normals point generally toward the Sun, so Lambert's dot product illuminates almost the entire disk. At new Moon, the Sun is on the far side:
+The mapping is derived directly from scene time, never from accumulated frame steps. Native and web requests at equal scene times therefore sample the same astronomical instant regardless of frame rate. A real ephemeris does not repeat after exactly one mean synodic month, so the reset at ten seconds can have a small deliberate discontinuity.
+
+## Interpolating hourly samples
+
+For an astronomical time between adjacent hourly samples, let `u` be its fraction through the hour. Subsolar latitude is ordinary linear interpolation:
 
 ```text
-Sun direction = (0, 0, +1)
+latitude(u) = latitude₀ + u(latitude₁ - latitude₀)
 ```
 
-Visible terrain normals then point generally away from the Sun, leaving the disk dark. Quarter phases place the Sun along the world `X` axis and split the visible disk near its vertical centerline.
-
-## A ten-second cycle
-
-Let `t` be explicit scene time in seconds and `T = 10` seconds. The cycle angle is
+Longitude is periodic. First choose the signed difference in `[-180°, 180°)` and then interpolate:
 
 ```text
-θ = 2π · ((t mod T) / T)
+delta = wrap(longitude₁ - longitude₀, -180°, 180°)
+longitude(u) = wrap(longitude₀ + u × delta, -180°, 180°)
 ```
 
-The Sun moves at constant angular speed around lunar north (`+Y`) in the world `XZ` plane:
+This takes the short path across the antimeridian. For example, halfway from `179°` to `-179°` is `±180°`, not `0°`.
+
+## Converting a subsolar point to Sun direction
+
+Apollo 18's globe coordinates put lunar north on `+Y`, zero-degree longitude on `-Z`, and east on `+X`. For subsolar longitude `λ` and latitude `φ`, the unit direction from the lunar globe toward the Sun is:
 
 ```text
-s(t) = (-sin θ, 0, -cos θ)
+sun_direction = (cos φ sin λ, sin φ, -cos φ cos λ)
 ```
 
-This gives the canonical north-up progression:
+At `(0°, 0°)` this gives `-Z`, placing the Sun on the viewer's side and producing a full Moon for the current identity pose. The shared lunar-phase animation policy asks the ephemeris for that astronomical instant and packages its direction into a **lunar appearance**. The ephemeris knows only how to sample UTC instants; lunar rasterization knows only the explicit appearance.
 
-| Scene time | Sun direction | Appearance |
-| --- | --- | --- |
-| `0s` | `-Z` | full |
-| `1.25s` | between `-Z` and `-X` | waning gibbous |
-| `2.5s` | `-X` | left-lit quarter |
-| `3.75s` | between `-X` and `+Z` | waning crescent |
-| `5s` | `+Z` | new |
-| `7.5s` | `+X` | right-lit quarter |
-| `10s` | `-Z` | full again |
+## Terrain shading and scope
 
-The lunar globe pose remains the identity transformation. A pose rotates globe object space into world space; identity therefore keeps zero-degree longitude facing the camera and lunar north along world `+Y`. Map lookup stays fixed, and the terrain normal at each geographic location does not move in world space.
-
-## Terrain shading through the cycle
-
-Each fragment retains the terrain-normal Lambertian response from the previous stage:
+Each fragment retains terrain-normal Lambertian shading:
 
 ```text
-diffuse = max(dot(n_terrain, s(t)), 0)
-linear_output = linear_lunar_color · diffuse
+diffuse = max(dot(terrain_normal, sun_direction), 0)
+linear_output = linear_lunar_color × diffuse
 ```
 
-There is no ambient or specular term. Apollo 18 also does not add a separate smooth-sphere illumination mask, so tilted terrain normals can affect the apparent terminator and produce sparse rim highlights even at exact new Moon. Those highlights are an accepted limitation of terrain-normal shading on undisplaced geometry: geometry displacement, self-shadowing, and cast shadows remain outside this renderer stage.
-
-## Deterministic host timing
-
-The shared synthetic-phase policy derives lunar appearance only from scene time. Native sequences derive that time from absolute frame index divided by requested frame rate. The web host converts monotonic `requestAnimationFrame` timestamps into elapsed scene time. Neither host accumulates phase updates, so equal scene times produce equal appearances. Equal dimensions, maps, and appearance then produce equal framebuffers regardless of frame rate.
-
-This boundary lets later ephemeris policy replace the synthetic Sun path and identity pose without adding UTC dates, NASA data, or synodic-month rules to lunar rasterization.
+There is no ambient or specular term. Terrain normals can still create sparse rim highlights where undisplaced spherical geometry would be dark, as recorded in ADR-0005. The hourly source and linear interpolation are appropriate for this visual animation, not scientific analysis. Sub-Earth-point libration and lunar position angle are intentionally deferred, so the familiar near side remains fixed during this stage.

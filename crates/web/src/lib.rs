@@ -1,6 +1,7 @@
 use apollo18_renderer::{
-    LunarColorMap, LunarElevationMap, SceneTime, image::decode_float_tiff, image::decode_jpeg,
-    render_lunar_globe, synthetic_lunar_appearance,
+    CANONICAL_ANIMATION_EPOCH, LunarColorMap, LunarElevationMap, LunarEphemeris,
+    LunarPhaseAnimation, SceneTime, image::decode_float_tiff, image::decode_jpeg,
+    render_lunar_globe,
 };
 use std::cell::RefCell;
 use std::fmt;
@@ -14,6 +15,7 @@ const MAX_BACKING_DIMENSION: u32 = 1152;
 const CANVAS_ID: &str = "apollo18-canvas";
 const LUNAR_COLOR_MAP_JPEG: &[u8] = include_bytes!("../../../assets/nasa/lroc_color_2k.jpg");
 const LUNAR_ELEVATION_MAP_TIFF: &[u8] = include_bytes!("../../../assets/nasa/ldem_4.tif");
+const LUNAR_EPHEMERIS_JSON: &[u8] = include_bytes!("../../../assets/nasa/mooninfo_2026.json");
 
 #[wasm_bindgen(start)]
 pub fn start() -> Result<(), JsValue> {
@@ -48,11 +50,16 @@ fn start_animation(
         decode_float_tiff(LUNAR_ELEVATION_MAP_TIFF)
             .map_err(|error| JsValue::from_str(&error.to_string()))?,
     );
-    let animation = Rc::new(RefCell::new(LunarAnimation::new(
+    let ephemeris = LunarEphemeris::from_nasa_json(LUNAR_EPHEMERIS_JSON)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let lunar_phase_animation = LunarPhaseAnimation::new(ephemeris, CANONICAL_ANIMATION_EPOCH)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let animation = Rc::new(RefCell::new(CanvasAnimation::new(
         canvas,
         context,
         color_map,
         elevation_map,
+        lunar_phase_animation,
     )));
     let callback_slot = Rc::new(RefCell::new(None));
     let callback_slot_for_frame = Rc::clone(&callback_slot);
@@ -156,26 +163,29 @@ fn select_backing_resolution(
     Ok(Some(BackingResolution { width, height }))
 }
 
-struct LunarAnimation {
+struct CanvasAnimation {
     canvas: HtmlCanvasElement,
     context: CanvasRenderingContext2d,
     color_map: LunarColorMap,
     elevation_map: LunarElevationMap,
+    lunar_phase_animation: LunarPhaseAnimation,
     started_at_milliseconds: Option<f64>,
 }
 
-impl LunarAnimation {
+impl CanvasAnimation {
     fn new(
         canvas: HtmlCanvasElement,
         context: CanvasRenderingContext2d,
         color_map: LunarColorMap,
         elevation_map: LunarElevationMap,
+        lunar_phase_animation: LunarPhaseAnimation,
     ) -> Self {
         Self {
             canvas,
             context,
             color_map,
             elevation_map,
+            lunar_phase_animation,
             started_at_milliseconds: None,
         }
     }
@@ -204,10 +214,11 @@ impl LunarAnimation {
         let scene_time =
             SceneTime::from_elapsed_millis(started_at_milliseconds, timestamp_milliseconds)
                 .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        let appearance = self.lunar_phase_animation.lunar_appearance(scene_time);
         let frame = render_lunar_globe(
             resolution.width,
             resolution.height,
-            synthetic_lunar_appearance(scene_time),
+            appearance,
             &self.color_map,
             &self.elevation_map,
         )

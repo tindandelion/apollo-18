@@ -25,8 +25,8 @@ impl SceneTime {
         Self::from_seconds((current_millis - start_millis) / 1000.0)
     }
 
-    pub fn as_seconds(self) -> f64 {
-        self.0
+    pub(crate) fn cycle_fraction(self, period_seconds: f64) -> f64 {
+        self.0.rem_euclid(period_seconds) / period_seconds
     }
 }
 
@@ -50,8 +50,8 @@ mod tests {
         let zero = SceneTime::from_seconds(0.0).expect("zero seconds should be valid");
         let later = SceneTime::from_seconds(2.5).expect("positive seconds should be valid");
 
-        assert_eq!(zero.as_seconds(), 0.0);
-        assert_eq!(later.as_seconds(), 2.5);
+        assert_eq!(zero, SceneTime(0.0));
+        assert_eq!(later, SceneTime(2.5));
     }
 
     #[test]
@@ -59,7 +59,7 @@ mod tests {
         let frames_per_second = NonZeroU32::new(24).expect("frame rate should be nonzero");
         let scene_time = SceneTime::for_frame(60, frames_per_second);
 
-        assert_eq!(scene_time.as_seconds(), 2.5);
+        assert_eq!(scene_time, SceneTime(2.5));
     }
 
     #[test]
@@ -67,9 +67,22 @@ mod tests {
         let scene_time = SceneTime::from_elapsed_millis(1_250.0, 3_750.0)
             .expect("monotonic millisecond timestamps should be valid");
 
-        assert_eq!(scene_time.as_seconds(), 2.5);
+        assert_eq!(scene_time, SceneTime(2.5));
         assert!(SceneTime::from_elapsed_millis(2.0, 1.0).is_err());
         assert!(SceneTime::from_elapsed_millis(f64::NAN, 1.0).is_err());
+    }
+
+    /// Cycle fractions normalize scene time within a repeating positive period.
+    #[test]
+    fn derives_repeating_cycle_fraction() {
+        let within_cycle = SceneTime::from_seconds(2.5).expect("scene time should be valid");
+        let repeated = SceneTime::from_seconds(12.5).expect("scene time should be valid");
+
+        let within_fraction = within_cycle.cycle_fraction(10.0);
+        let repeated_fraction = repeated.cycle_fraction(10.0);
+
+        assert_eq!(within_fraction, 0.25);
+        assert_eq!(repeated_fraction, 0.25);
     }
 
     #[test]

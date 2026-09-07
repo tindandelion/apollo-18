@@ -8,6 +8,6 @@ I continue the exploration of 3D graphics and rasterization through a more focus
 
 #### Render a lunar globe with terrain details
 
-The outcome is an animated lunar globe that uses real NASA surface data to bring the Moon's craters, ridges, and other terrain details into view.
+The outcome is an animated lunar globe that uses NASA surface and ephemeris data to bring the Moon's craters, ridges, terrain details, and date-dependent illumination into view.
 
 ![Apollo 18 lunar globe animation](https://github.com/tindandelion/apollo-18/releases/latest/download/lunar-globe.webp)

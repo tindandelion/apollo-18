@@ -6,28 +6,25 @@ pub mod image;
 mod lunar_appearance;
 mod lunar_color_map;
 mod lunar_elevation_map;
+mod lunar_ephemeris;
+mod lunar_phase_animation;
 mod octasphere;
 mod rasterizer;
 mod scene_time;
 
 use color::Srgb8;
 pub use framebuffer::{Framebuffer, RenderError};
-use glam::Vec3;
 pub use lunar_appearance::{InvalidSunDirection, LunarAppearance, SunDirection};
 pub use lunar_color_map::LunarColorMap;
 pub use lunar_elevation_map::LunarElevationMap;
+pub use lunar_ephemeris::{AstronomicalInstant, EphemerisError, LunarEphemeris};
+pub use lunar_phase_animation::{
+    AnimationCoverageError, CANONICAL_ANIMATION_EPOCH, LunarPhaseAnimation,
+};
 pub use scene_time::{InvalidSceneTime, SceneTime};
 
 const CUBE_ROTATION_PERIOD_SECONDS: f64 = 10.0;
-const LUNAR_PHASE_PERIOD_SECONDS: f64 = 10.0;
 const BACKGROUND: Srgb8 = Srgb8::from_hex(0x18_18_18);
-
-pub fn synthetic_lunar_appearance(scene_time: SceneTime) -> LunarAppearance {
-    let sun_direction = SunDirection::new(lunar_phase_sun_direction(scene_time))
-        .expect("lunar phase Sun direction should be finite and nonzero");
-
-    LunarAppearance::new(sun_direction)
-}
 
 pub fn render_lunar_globe(
     width: u32,
@@ -57,16 +54,8 @@ pub fn render_cube(
     cube::render_at_yaw(width, height, BACKGROUND, yaw)
 }
 
-fn lunar_phase_sun_direction(scene_time: SceneTime) -> Vec3 {
-    let angle = periodic_angle_radians(scene_time, LUNAR_PHASE_PERIOD_SECONDS);
-
-    Vec3::new(-angle.sin(), 0.0, -angle.cos())
-}
-
 fn periodic_angle_radians(scene_time: SceneTime, period_seconds: f64) -> f32 {
-    let loop_time = scene_time.as_seconds().rem_euclid(period_seconds);
-    let loop_fraction = (loop_time / period_seconds) as f32;
-    std::f32::consts::TAU * loop_fraction
+    std::f32::consts::TAU * scene_time.cycle_fraction(period_seconds) as f32
 }
 
 #[cfg(test)]
@@ -307,14 +296,17 @@ mod tests {
 
         const COLOR_MAP_JPEG: &[u8] = include_bytes!("../../../assets/nasa/lroc_color_2k.jpg");
         const ELEVATION_MAP_TIFF: &[u8] = include_bytes!("../../../assets/nasa/ldem_4.tif");
-        const FULL_PHASE_GOLDEN_PATH: &str = "tests/goldens/lunar_phase_full_at_zero_seconds.png";
-        const GIBBOUS_PHASE_GOLDEN_PATH: &str =
-            "tests/goldens/lunar_phase_gibbous_at_one_point_two_five_seconds.png";
-        const QUARTER_PHASE_GOLDEN_PATH: &str =
-            "tests/goldens/lunar_phase_quarter_at_two_point_five_seconds.png";
-        const CRESCENT_PHASE_GOLDEN_PATH: &str =
-            "tests/goldens/lunar_phase_crescent_at_three_point_seven_five_seconds.png";
-        const NEW_PHASE_GOLDEN_PATH: &str = "tests/goldens/lunar_phase_new_at_five_seconds.png";
+        const EPHEMERIS_JSON: &[u8] = include_bytes!("../../../assets/nasa/mooninfo_2026.json");
+        const EPOCH_ZERO_GOLDEN_PATH: &str =
+            "tests/goldens/lunar_2026-01-01t00-00-00z_at_0_seconds.png";
+        const EPOCH_ONE_POINT_TWO_FIVE_GOLDEN_PATH: &str =
+            "tests/goldens/lunar_2026-01-01t00-00-00z_at_1-25_seconds.png";
+        const EPOCH_TWO_POINT_FIVE_GOLDEN_PATH: &str =
+            "tests/goldens/lunar_2026-01-01t00-00-00z_at_2-5_seconds.png";
+        const EPOCH_THREE_POINT_SEVEN_FIVE_GOLDEN_PATH: &str =
+            "tests/goldens/lunar_2026-01-01t00-00-00z_at_3-75_seconds.png";
+        const EPOCH_FIVE_GOLDEN_PATH: &str =
+            "tests/goldens/lunar_2026-01-01t00-00-00z_at_5_seconds.png";
 
         /// A rendered lunar globe has the requested tightly packed RGBA layout.
         #[test]
@@ -338,18 +330,17 @@ mod tests {
             assert!(colors.len() > 16);
         }
 
-        /// Lunar phase rendering repeats after one complete cycle and changes within the cycle.
+        /// Ephemeris-driven rendering repeats after one complete cycle and changes within the cycle.
         #[test]
-        fn phase_is_deterministic_periodic_and_time_driven() {
-            let full = render_test_lunar_globe(96, 96, scene_time(0.0));
-            let repeated_full =
-                render_test_lunar_globe(96, 96, scene_time(LUNAR_PHASE_PERIOD_SECONDS));
-            let quarter = render_test_lunar_globe(96, 96, scene_time(2.5));
-            let repeated_quarter = render_test_lunar_globe(96, 96, scene_time(2.5));
+        fn animation_is_deterministic_periodic_and_time_driven() {
+            let epoch = render_test_lunar_globe(96, 96, scene_time(0.0));
+            let repeated_epoch = render_test_lunar_globe(96, 96, scene_time(10.0));
+            let later = render_test_lunar_globe(96, 96, scene_time(2.5));
+            let repeated_later = render_test_lunar_globe(96, 96, scene_time(2.5));
 
-            assert_eq!(full, repeated_full);
-            assert_eq!(quarter, repeated_quarter);
-            assert_ne!(full, quarter);
+            assert_eq!(epoch, repeated_epoch);
+            assert_eq!(later, repeated_later);
+            assert_ne!(epoch, later);
         }
 
         /// Equal scene times selected at different frame rates render the same lunar phase.
@@ -367,30 +358,6 @@ mod tests {
             assert_eq!(frame_at_thirty_fps, frame_at_sixty_fps);
         }
 
-        /// The phase cycle starts full, wanes across the left side, reaches new, and returns across the right side.
-        #[test]
-        fn scene_time_maps_to_key_phase_sun_directions() {
-            let full = scene_time(0.0);
-            let left_lit_quarter = scene_time(2.5);
-            let new = scene_time(5.0);
-            let right_lit_quarter = scene_time(7.5);
-            let repeated_full = scene_time(10.0);
-
-            let directions = [
-                lunar_phase_sun_direction(full),
-                lunar_phase_sun_direction(left_lit_quarter),
-                lunar_phase_sun_direction(new),
-                lunar_phase_sun_direction(right_lit_quarter),
-                lunar_phase_sun_direction(repeated_full),
-            ];
-
-            approx::assert_relative_eq!(directions[0], Vec3::NEG_Z, epsilon = 1.0e-6);
-            approx::assert_relative_eq!(directions[1], Vec3::NEG_X, epsilon = 1.0e-6);
-            approx::assert_relative_eq!(directions[2], Vec3::Z, epsilon = 1.0e-6);
-            approx::assert_relative_eq!(directions[3], Vec3::X, epsilon = 1.0e-6);
-            approx::assert_relative_eq!(directions[4], Vec3::NEG_Z, epsilon = 1.0e-6);
-        }
-
         /// Empty lunar-globe framebuffer dimensions are rejected.
         #[test]
         fn empty_dimensions_are_rejected() {
@@ -398,7 +365,7 @@ mod tests {
             let color_map = lunar_color_map();
             let elevation_map = lunar_elevation_map();
 
-            let appearance = synthetic_lunar_appearance(scene_time);
+            let appearance = lunar_phase_animation().lunar_appearance(scene_time);
             let empty_width = render_lunar_globe(0, 800, appearance, color_map, elevation_map);
             let empty_height = render_lunar_globe(800, 0, appearance, color_map, elevation_map);
 
@@ -418,44 +385,50 @@ mod tests {
             );
         }
 
-        /// The canonical full Moon render matches its reviewed pixels.
+        /// The canonical epoch render matches its reviewed pixels at zero scene seconds.
         #[test]
-        fn full_phase_matches_golden_pixels() {
+        fn canonical_epoch_at_zero_seconds_matches_golden_pixels() {
             let frame = render_test_lunar_globe(800, 800, scene_time(0.0));
 
-            assert_matches_realistic_golden(&frame, Path::new(FULL_PHASE_GOLDEN_PATH));
+            assert_matches_realistic_golden(&frame, Path::new(EPOCH_ZERO_GOLDEN_PATH));
         }
 
-        /// The canonical gibbous Moon render matches its reviewed pixels.
+        /// The canonical epoch render matches its reviewed pixels at 1.25 scene seconds.
         #[test]
-        fn gibbous_phase_matches_golden_pixels() {
+        fn canonical_epoch_at_one_point_two_five_seconds_matches_golden_pixels() {
             let frame = render_test_lunar_globe(800, 800, scene_time(1.25));
 
-            assert_matches_realistic_golden(&frame, Path::new(GIBBOUS_PHASE_GOLDEN_PATH));
+            assert_matches_realistic_golden(
+                &frame,
+                Path::new(EPOCH_ONE_POINT_TWO_FIVE_GOLDEN_PATH),
+            );
         }
 
-        /// The canonical quarter Moon render matches its reviewed pixels.
+        /// The canonical epoch render matches its reviewed pixels at 2.5 scene seconds.
         #[test]
-        fn quarter_phase_matches_golden_pixels() {
+        fn canonical_epoch_at_two_point_five_seconds_matches_golden_pixels() {
             let frame = render_test_lunar_globe(800, 800, scene_time(2.5));
 
-            assert_matches_realistic_golden(&frame, Path::new(QUARTER_PHASE_GOLDEN_PATH));
+            assert_matches_realistic_golden(&frame, Path::new(EPOCH_TWO_POINT_FIVE_GOLDEN_PATH));
         }
 
-        /// The canonical crescent Moon render matches its reviewed pixels.
+        /// The canonical epoch render matches its reviewed pixels at 3.75 scene seconds.
         #[test]
-        fn crescent_phase_matches_golden_pixels() {
+        fn canonical_epoch_at_three_point_seven_five_seconds_matches_golden_pixels() {
             let frame = render_test_lunar_globe(800, 800, scene_time(3.75));
 
-            assert_matches_realistic_golden(&frame, Path::new(CRESCENT_PHASE_GOLDEN_PATH));
+            assert_matches_realistic_golden(
+                &frame,
+                Path::new(EPOCH_THREE_POINT_SEVEN_FIVE_GOLDEN_PATH),
+            );
         }
 
-        /// The canonical new Moon render matches its reviewed pixels.
+        /// The canonical epoch render matches its reviewed pixels at five scene seconds.
         #[test]
-        fn new_phase_matches_golden_pixels() {
+        fn canonical_epoch_at_five_seconds_matches_golden_pixels() {
             let frame = render_test_lunar_globe(800, 800, scene_time(5.0));
 
-            assert_matches_realistic_golden(&frame, Path::new(NEW_PHASE_GOLDEN_PATH));
+            assert_matches_realistic_golden(&frame, Path::new(EPOCH_FIVE_GOLDEN_PATH));
         }
 
         /// A per-channel RGB difference of one is within tolerance and is not an outlier.
@@ -535,6 +508,22 @@ mod tests {
             );
         }
 
+        /// The committed NASA ephemeris must keep its recorded SHA-256 checksum.
+        #[test]
+        fn canonical_ephemeris_has_recorded_checksum() {
+            use sha2::{Digest, Sha256};
+
+            let digest = Sha256::digest(EPHEMERIS_JSON);
+
+            assert_eq!(
+                digest
+                    .iter()
+                    .map(|byte| format!("{byte:02x}"))
+                    .collect::<String>(),
+                "098ec6434ba4fecb84e66485385816d465b7969f142864bcfc9ffc68311b4a86"
+            );
+        }
+
         /// A committed 1440×720 elevation TIFF must keep the recorded SHA-256 checksum.
         #[test]
         fn canonical_elevation_map_has_recorded_dimensions_and_checksum() {
@@ -576,11 +565,22 @@ mod tests {
             })
         }
 
+        fn lunar_phase_animation() -> &'static LunarPhaseAnimation {
+            static ANIMATION: OnceLock<LunarPhaseAnimation> = OnceLock::new();
+            ANIMATION.get_or_init(|| {
+                let ephemeris = LunarEphemeris::from_nasa_json(EPHEMERIS_JSON)
+                    .expect("canonical NASA lunar ephemeris JSON should decode");
+                LunarPhaseAnimation::new(ephemeris, CANONICAL_ANIMATION_EPOCH)
+                    .expect("canonical NASA lunar ephemeris should cover the animation")
+            })
+        }
+
         fn render_test_lunar_globe(width: u32, height: u32, scene_time: SceneTime) -> Framebuffer {
+            let appearance = lunar_phase_animation().lunar_appearance(scene_time);
             render_lunar_globe(
                 width,
                 height,
-                synthetic_lunar_appearance(scene_time),
+                appearance,
                 lunar_color_map(),
                 lunar_elevation_map(),
             )

@@ -76,6 +76,10 @@ _Avoid_: Lunar scene, phase settings
 The location on the lunar globe directly facing Earth's center at a given UTC instant, expressed as lunar longitude and latitude. Its motion presents geocentric lunar libration without depending on an observer's location on Earth.
 _Avoid_: Moon center position, observer position
 
+**Subsolar point**:
+The location on the lunar globe directly beneath the Sun at a given UTC instant, expressed as lunar longitude and latitude. Its globe location points from the lunar globe toward the Sun.
+_Avoid_: Solar point, Sun position
+
 **Lunar position angle**:
 The apparent counterclockwise angle from celestial north to the Moon's north-pole axis at a given UTC instant. It describes the lunar disk's apparent roll in an Earth-centered view.
 _Avoid_: Libration angle, globe yaw
