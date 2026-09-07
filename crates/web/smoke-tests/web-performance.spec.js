@@ -3,15 +3,14 @@ const { test, expect } = require("@playwright/test");
 const warmupMilliseconds = 2_000;
 const measurementMilliseconds = 8_000;
 const maximumBackingDimension = 1152;
+const minimumFramesPerSecond = 30;
 
 test.use({
   viewport: { width: 1440, height: 900 },
   deviceScaleFactor: 2,
 });
 
-test("release web host records the high-density animation baseline", async ({
-  page,
-}) => {
+test("release web host sustains the high-density animation performance target", async ({ page }) => {
   await page.addInitScript(() => {
     const requestAnimationFrame = window.requestAnimationFrame.bind(window);
     window.apollo18CompletedAnimationFrames = [];
@@ -27,11 +26,7 @@ test("release web host records the high-density animation baseline", async ({
   const canvas = page.locator("#apollo18-canvas");
   await expect(canvas).toHaveJSProperty("width", maximumBackingDimension);
   await expect(canvas).toHaveJSProperty("height", maximumBackingDimension);
-  await expect
-    .poll(() =>
-      page.evaluate(() => window.apollo18CompletedAnimationFrames.length),
-    )
-    .toBeGreaterThan(1);
+  await expect.poll(() => page.evaluate(() => window.apollo18CompletedAnimationFrames.length)).toBeGreaterThan(1);
 
   await page.waitForTimeout(warmupMilliseconds);
   await page.evaluate(() => {
@@ -39,15 +34,11 @@ test("release web host records the high-density animation baseline", async ({
   });
   await page.waitForTimeout(measurementMilliseconds);
 
-  const frameTimestamps = await page.evaluate(() =>
-    window.apollo18CompletedAnimationFrames.slice(),
-  );
+  const frameTimestamps = await page.evaluate(() => window.apollo18CompletedAnimationFrames.slice());
   expect(frameTimestamps.length).toBeGreaterThan(1);
 
-  const elapsedMilliseconds =
-    frameTimestamps.at(-1) - frameTimestamps.at(0);
-  const measuredFramesPerSecond =
-    ((frameTimestamps.length - 1) * 1_000) / elapsedMilliseconds;
+  const elapsedMilliseconds = frameTimestamps.at(-1) - frameTimestamps.at(0);
+  const measuredFramesPerSecond = ((frameTimestamps.length - 1) * 1_000) / elapsedMilliseconds;
 
   const environment = await page.evaluate(() => {
     const canvas = document.querySelector("#apollo18-canvas");
@@ -72,5 +63,5 @@ test("release web host records the high-density animation baseline", async ({
       2,
     ),
   );
-  expect(Number.isFinite(measuredFramesPerSecond)).toBe(true);
+  expect(measuredFramesPerSecond).toBeGreaterThanOrEqual(minimumFramesPerSecond);
 });
