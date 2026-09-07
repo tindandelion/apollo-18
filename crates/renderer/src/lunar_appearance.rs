@@ -20,6 +20,16 @@ impl LunarAppearance {
         self.sun_direction
     }
 
+    pub(crate) const fn with_object_to_world(
+        object_to_world: Mat4,
+        sun_direction: SunDirection,
+    ) -> Self {
+        Self {
+            object_to_world,
+            sun_direction,
+        }
+    }
+
     pub(crate) const fn object_to_world(self) -> Mat4 {
         self.object_to_world
     }

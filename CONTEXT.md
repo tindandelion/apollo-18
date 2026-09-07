@@ -60,6 +60,10 @@ _Avoid_: Icosphere, sphere mesh
 The unit direction from the center of the lunar globe through a surface location, expressed in the globe's object space before rotation. It identifies longitude and latitude independently of elevation and the terrain normal.
 _Avoid_: Radial direction, surface direction, normal
 
+**Lunar coordinates**:
+A longitude and latitude pair identifying one location on the lunar globe. Sub-Earth and subsolar points are distinct roles expressed with lunar coordinates.
+_Avoid_: UV coordinates, texture coordinates
+
 **Lunar phase**:
 The visible pattern of illumination determined by the angle between the viewing direction and the Sun direction.
 _Avoid_: Lighting phase

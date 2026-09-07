@@ -1,6 +1,6 @@
-# Animating lunar phases from the subsolar point
+# Animating lunar phases and geocentric libration
 
-A **lunar phase** is the visible pattern of illumination set by the angle between the viewing direction and the **Sun direction**. Apollo 18 now gets that direction from NASA's hourly **subsolar point** rather than moving the Sun through a synthetic circle. The camera and **lunar globe pose** remain fixed in this stage, isolating date-dependent illumination from the libration and apparent-roll stages that follow.
+A **lunar phase** is the visible pattern of illumination set by the angle between the viewing direction and the **Sun direction**. Apollo 18 gets that direction from NASA's hourly **subsolar point**. NASA's matching **sub-Earth point** determines the **lunar globe pose**, adding geocentric libration while leaving apparent roll for the position-angle stage.
 
 ## Scene time and astronomical time
 
@@ -15,13 +15,13 @@ The mapping is derived directly from scene time, never from accumulated frame st
 
 ## Interpolating hourly samples
 
-For an astronomical time between adjacent hourly samples, let `u` be its fraction through the hour. Subsolar latitude is ordinary linear interpolation:
+For an astronomical time between adjacent hourly samples, let `u` be its fraction through the hour. Subsolar and sub-Earth latitude use ordinary linear interpolation:
 
 ```text
 latitude(u) = latitude₀ + u(latitude₁ - latitude₀)
 ```
 
-Longitude is periodic. First choose the signed difference in `[-180°, 180°)` and then interpolate:
+Both longitudes are periodic. First choose the signed difference in `[-180°, 180°)` and then interpolate:
 
 ```text
 delta = wrap(longitude₁ - longitude₀, -180°, 180°)
@@ -38,7 +38,21 @@ Apollo 18's globe coordinates put lunar north on `+Y`, zero-degree longitude on 
 sun_direction = (cos φ sin λ, sin φ, -cos φ cos λ)
 ```
 
-At `(0°, 0°)` this gives `-Z`, placing the Sun on the viewer's side and producing a full Moon for the current identity pose. The shared lunar-phase animation policy asks the ephemeris for that astronomical instant and packages its direction into a **lunar appearance**. The ephemeris knows only how to sample UTC instants; lunar rasterization knows only the explicit appearance.
+At `(0°, 0°)` this gives `-Z`, placing the direction on the viewer-facing meridian before posing the globe.
+
+## Centering the sub-Earth point
+
+Let the sampled sub-Earth longitude and latitude be `λₑ` and `φₑ`. The same globe-location equation gives the object-space direction toward Earth. The object-to-world rotation is:
+
+```text
+object_to_world = rotate_x(-φₑ) × rotate_y(λₑ)
+```
+
+The rightmost longitude rotation acts first. It moves the sub-Earth point onto the central meridian; the latitude rotation then moves it to world `-Z`, toward the Earth-centered camera. Applied to lunar north `(0, 1, 0)`, this pose produces `(0, cos φₑ, -sin φₑ)`. Its framebuffer projection therefore has no sideways component and still points upward. Lunar position angle is deliberately not applied yet.
+
+The subsolar direction begins in the same object-space lunar coordinates and is rotated by `object_to_world` before becoming the world-space **Sun direction**. Geometry and terrain normals use that same rotation. Lunar color-map and elevation-map lookup continue to use the unrotated **globe location**, so geography moves with the posed globe rather than sliding across it.
+
+The shared lunar-phase animation policy samples both points for one astronomical instant and packages the resulting pose and Sun direction into a **lunar appearance**. The ephemeris sample hides the source coordinates and owns their conversion into the object-to-world rotation and matching world-space Sun direction. Lunar rasterization only consumes the explicit appearance.
 
 ## Terrain shading and scope
 
@@ -49,4 +63,4 @@ diffuse = max(dot(terrain_normal, sun_direction), 0)
 linear_output = linear_lunar_color × diffuse
 ```
 
-There is no ambient or specular term. Terrain normals can still create sparse rim highlights where undisplaced spherical geometry would be dark, as recorded in ADR-0005. The hourly source and linear interpolation are appropriate for this visual animation, not scientific analysis. Sub-Earth-point libration and lunar position angle are intentionally deferred, so the familiar near side remains fixed during this stage.
+There is no ambient or specular term. Terrain normals can still create sparse rim highlights where undisplaced spherical geometry would be dark, as recorded in ADR-0005. The hourly source and linear interpolation are appropriate for this visual animation, not scientific analysis. The sub-Earth point provides an Earth-centered view, not a location-dependent terrestrial view; topocentric parallax remains out of scope. Lunar position angle is deferred, so lunar north remains upright during this stage.

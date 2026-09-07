@@ -13,7 +13,7 @@
 - [x] Each sampled subsolar point produces the corresponding Sun direction without Apollo 18 implementing a solar or lunar position model.
 - [x] The lunar globe remains fixed at this stage while native and web hosts present the same date-dependent illumination.
 - [x] The old synthetic Sun orbit is removed rather than retained as another lunar-animation mode.
-- [x] Canonical lunar goldens use the fixed animation epoch and are identified by epoch and scene time rather than synthetic phase names.
+- [x] Canonical lunar goldens use the fixed animation epoch and are identified by represented UTC astronomical instant at minute precision and scene time rather than synthetic phase names.
 - [x] Focused tests cover exact hourly samples, interpolation, angular wrapping, the mean-synodic-month mapping, deterministic out-of-order frame requests, and malformed source data in Arrange-Act-Assert form.
 - [x] The project specification, asset documentation, ADR, and learning guide record the checked-in annual-data decision, equations, accuracy boundary, and the deliberate possibility of a discontinuity at the ten-second reset.
 - [x] Asset-provenance checks, the canonical local quality gate, native smoke tests, and browser smoke tests pass.

@@ -1,5 +1,5 @@
 use crate::lunar_ephemeris::AstronomicalInstant;
-use crate::{LunarAppearance, LunarEphemeris, SceneTime};
+use crate::{LunarAppearance, LunarEphemeris, SceneTime, SunDirection};
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
@@ -22,8 +22,7 @@ impl LunarPhaseAnimation {
         ephemeris: LunarEphemeris,
         animation_epoch: AstronomicalInstant,
     ) -> Result<Self, AnimationCoverageError> {
-        let end = animation_epoch
-            .seconds_after(MEAN_SYNODIC_MONTH_DAYS * HOURS_PER_DAY * SECONDS_PER_HOUR);
+        let end = animation_epoch.add(MEAN_SYNODIC_MONTH_DAYS * HOURS_PER_DAY * SECONDS_PER_HOUR);
         if !ephemeris.covers(animation_epoch, end) {
             return Err(AnimationCoverageError);
         }
@@ -38,13 +37,17 @@ impl LunarPhaseAnimation {
         let cycle_fraction = scene_time.cycle_fraction(ANIMATION_PERIOD_SECONDS);
         let astronomy_seconds =
             cycle_fraction * MEAN_SYNODIC_MONTH_DAYS * HOURS_PER_DAY * SECONDS_PER_HOUR;
-        let instant = self.animation_epoch.seconds_after(astronomy_seconds);
-        let point = self
+        let instant = self.animation_epoch.add(astronomy_seconds);
+        let sample = self
             .ephemeris
-            .subsolar_point_at(instant)
+            .sample_at(instant)
             .expect("validated ephemeris coverage includes every animation instant");
 
-        LunarAppearance::new(point.sun_direction())
+        let object_to_world = sample.object_to_world();
+        let sun_direction = SunDirection::new(sample.sun_direction())
+            .expect("validated ephemeris coordinates produce a valid Sun direction");
+
+        LunarAppearance::with_object_to_world(object_to_world, sun_direction)
     }
 }
 
@@ -62,8 +65,6 @@ impl Error for AnimationCoverageError {}
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::lunar_ephemeris::SubsolarPoint;
-
     fn scene_time_for_astronomy_hours(hours: f64) -> SceneTime {
         SceneTime::from_seconds(
             hours / (MEAN_SYNODIC_MONTH_DAYS * HOURS_PER_DAY) * ANIMATION_PERIOD_SECONDS,
@@ -82,7 +83,7 @@ mod tests {
                 (second_longitude, 2.0)
             };
             records.push(format!(
-                r#"{{"time":"{day:02} Jan 2026 {hour_of_day:02}:00 UT","subsolar":{{"lon":{longitude},"lat":{latitude}}}}}"#
+                r#"{{"time":"{day:02} Jan 2026 {hour_of_day:02}:00 UT","subsolar":{{"lon":{longitude},"lat":{latitude}}},"subearth":{{"lon":0.0,"lat":0.0}}}}"#
             ));
         }
         format!("[{}]", records.join(",")).into_bytes()
@@ -101,9 +102,7 @@ mod tests {
     fn maps_scene_time_to_astronomical_time() {
         let animation = canonical_animation();
         let scene_time = scene_time_for_astronomy_hours(1.0);
-        let expected = SubsolarPoint::new(32.014, -1.346)
-            .expect("NASA coordinates should be valid")
-            .sun_direction();
+        let expected = glam::Vec3::new(0.547_631_14, 0.072_245_15, -0.833_595_1);
 
         let appearance = animation.lunar_appearance(scene_time);
 
@@ -111,7 +110,7 @@ mod tests {
             appearance
                 .sun_direction()
                 .as_vec3()
-                .abs_diff_eq(expected.as_vec3(), 1.0e-6)
+                .abs_diff_eq(expected, 1.0e-6)
         );
     }
 
@@ -162,8 +161,8 @@ mod tests {
     #[test]
     fn rejects_incomplete_animation_coverage() {
         let source = br#"[
-            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0}},
-            {"time":"01 Jan 2026 01:00 UT","subsolar":{"lon":1.0,"lat":1.0}}
+            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0}},
+            {"time":"01 Jan 2026 01:00 UT","subsolar":{"lon":1.0,"lat":1.0},"subearth":{"lon":0.0,"lat":0.0}}
         ]"#;
         let ephemeris = LunarEphemeris::from_nasa_json(source).expect("source should be valid");
 

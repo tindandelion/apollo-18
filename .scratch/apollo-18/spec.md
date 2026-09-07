@@ -137,7 +137,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - The first lit showcase uses a gibbous configuration with the Sun direction approximately 30 degrees from the viewing direction.
 - The smooth lunar globe rotates once every ten seconds. Rendering is a pure function of explicit elapsed scene time rather than accumulated frame steps.
 - Lunar globe rendering accepts an explicit lunar appearance with a world-space Sun direction while retaining identity lunar globe pose. Animation policy derives that appearance from scene time separately, so lunar rasterization has no clock, date, NASA-file, or astronomical-period knowledge.
-- Caller-selectable lunar globe pose is deferred until ephemeris behavior requires it. Pose operations are introduced only with that behavior; callers do not supply arbitrary matrices.
+- The geocentric sub-Earth point determines lunar globe pose by centering its interpolated longitude and latitude toward the Earth-centered camera while keeping lunar north upright. The matching object-space subsolar direction is rotated by the same pose into the world-space Sun direction. Callers do not supply arbitrary matrices, and position-angle roll remains a separate later behavior.
 - Terrain-normal shading leaves octasphere geometry spherical. Per-fragment terrain normals are derived from lunar elevation gradients using the source's physical units and lunar reference radius.
 - Geometry displacement is deferred. The silhouette remains spherical in this spec.
 - The final lunar-phase animation follows terrain-normal shading and replaces the synthetic fixed-globe Sun orbit. Scene time maps each ten-second cycle from one captured animation epoch across a mean synodic month of 29.530588853 days.
@@ -171,7 +171,7 @@ The first complete renderer will remain CPU-only, single-threaded, orthographic,
 - Tests will assert externally observable behavior through the highest practical seam: deterministic scene inputs produce a framebuffer.
 - The same shared-library frame-rendering interface used by native and web hosts will drive golden-image tests. This provides leverage without a parallel test-only interface.
 - Small triangle and cube fixtures will use exact decoded-pixel comparisons.
-- Canonical lunar fixtures will use fixed dimensions, scene times, the `2026-01-01T00:00:00Z` animation epoch, map and ephemeris versions, subdivision, camera, and background.
+- Canonical lunar fixtures will use fixed dimensions, scene times, the `2026-01-01T00:00:00Z` animation epoch, map and ephemeris versions, subdivision, camera, and background. Their filenames identify the represented UTC astronomical instant at minute precision and the scene time.
 - Realistic lunar golden images will compare decoded framebuffer pixels with a very small documented tolerance for platform floating-point differences.
 - A failed realistic comparison will emit an amplified visual diff artifact and useful numerical difference statistics.
 - Golden images can only be replaced through an explicit update command. Expected-image changes must be reviewed as behavior changes.

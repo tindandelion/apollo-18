@@ -8,7 +8,7 @@ For the first ephemeris-driven stage, the animation epoch is fixed at `2026-01-0
 astronomy_time(t) = epoch + ((t mod 10 seconds) / 10 seconds) × 29.530588853 days
 ```
 
-Latitude is interpolated linearly. Longitude follows the shortest angular path across the antimeridian. A sampled subsolar point becomes the world-space Sun direction through the renderer's established lunar longitude and latitude convention; this is coordinate conversion, not an astronomical position model.
+Latitude is interpolated linearly. Longitude follows the shortest angular path across the antimeridian. An ephemeris sample converts its sub-Earth point into the object-to-world rotation and its matching subsolar point into the world-space Sun direction through the renderer's established lunar longitude and latitude convention; this is coordinate conversion, not an astronomical position model.
 
 ## Considered options
 

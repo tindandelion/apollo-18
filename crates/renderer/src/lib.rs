@@ -298,15 +298,15 @@ mod tests {
         const ELEVATION_MAP_TIFF: &[u8] = include_bytes!("../../../assets/nasa/ldem_4.tif");
         const EPHEMERIS_JSON: &[u8] = include_bytes!("../../../assets/nasa/mooninfo_2026.json");
         const EPOCH_ZERO_GOLDEN_PATH: &str =
-            "tests/goldens/lunar_2026-01-01t00-00-00z_at_0_seconds.png";
+            "tests/goldens/lunar_2026-01-01t00-00z_at_0_seconds.png";
         const EPOCH_ONE_POINT_TWO_FIVE_GOLDEN_PATH: &str =
-            "tests/goldens/lunar_2026-01-01t00-00-00z_at_1-25_seconds.png";
+            "tests/goldens/lunar_2026-01-04t16-35z_at_1-25_seconds.png";
         const EPOCH_TWO_POINT_FIVE_GOLDEN_PATH: &str =
-            "tests/goldens/lunar_2026-01-01t00-00-00z_at_2-5_seconds.png";
+            "tests/goldens/lunar_2026-01-08t09-11z_at_2-5_seconds.png";
         const EPOCH_THREE_POINT_SEVEN_FIVE_GOLDEN_PATH: &str =
-            "tests/goldens/lunar_2026-01-01t00-00-00z_at_3-75_seconds.png";
+            "tests/goldens/lunar_2026-01-12t01-46z_at_3-75_seconds.png";
         const EPOCH_FIVE_GOLDEN_PATH: &str =
-            "tests/goldens/lunar_2026-01-01t00-00-00z_at_5_seconds.png";
+            "tests/goldens/lunar_2026-01-15t18-22z_at_5_seconds.png";
 
         /// A rendered lunar globe has the requested tightly packed RGBA layout.
         #[test]
