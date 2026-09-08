@@ -13,7 +13,9 @@ The representative release test completed **16.46 FPS**, corresponding to roughl
 - **about 6.5 ms** to the remaining rasterization, framebuffer/depth initialization, and host work;
 - **about 0.2 ms** to `putImageData`, with negligible `ImageData` construction time.
 
-The strongest improvement is to exploit an invariant of the completed showcase: the camera and lunar globe are fixed, and only the Sun direction changes. Rasterization, geographic lookup, lunar-map sampling, and terrain-normal construction can be prepared once per backing resolution in the shared renderer. Each animation frame would then only apply the changing Lambertian intensity, encode output pixels, and present the framebuffer. The controlled flat-shader result of about **18.5 ms** gives this direction enough estimated headroom to cross 30 FPS, although it must be implemented and measured before that conclusion is accepted.
+The original analysis proposed caching a fixed screen-space lunar view. That recommendation is superseded by the completed ephemeris orientation work and Ticket 28's realistic timelines: sub-Earth libration and lunar position angle change the globe pose, so screen-space coverage, visible geography, map lookup, and world-space terrain normals are recurring work. Reusing them would freeze or approximate required behavior.
+
+The measurements remain useful, but the next optimization must begin with a repeatable 1152×1152 profile of the ephemeris-span animation. Preparation may retain only measured pose-independent data, such as canonical mesh data or map-derived object-space quantities. The 30 FPS target cannot be predicted from the old fixed-view probe.
 
 No production fixes were made during this analysis.
 
@@ -178,11 +180,13 @@ Output encoding alone is not sufficient. Even with encoding bypassed, the comple
 
 No JavaScript garbage-collection hotspot appeared. JavaScript heap growth was small, and native allocation/initialization symbols were minor. Reuse may still improve locality and remove work, but GC is not the reason the target is missed.
 
-## Proposed improvements
+## Original proposed improvements
 
-### Priority 1: prepare the static lunar surface once per backing resolution
+The priorities below record the conclusions drawn from the fixed-view showcase measured at the time. Their timing evidence remains informative, but the screen-space preparation recommendation is superseded for the ephemeris-span animation because globe pose now changes every frame.
 
-The lunar-phase scene deliberately keeps the camera and globe fixed while only the Sun direction changes. The shared renderer currently discards that fact and repeats geometry generation, rasterization, geographic conversion, map sampling, and terrain-normal derivation every animation frame.
+### Superseded priority 1: prepare the static lunar surface once per backing resolution
+
+The measured lunar-phase scene kept the camera and globe fixed while only the Sun direction changed. The shared renderer repeated geometry generation, rasterization, geographic conversion, map sampling, and terrain-normal derivation every animation frame.
 
 Introduce a deep shared-renderer module that prepares the visible lunar surface for a specific backing resolution and pair of lunar maps. Its small interface should support:
 
@@ -248,14 +252,14 @@ A retained renderer can reuse RGBA/depth allocations and keep the canonical leve
 
 The current module has no Wasm SIMD instructions, but SIMD should follow structural improvements and a new profile. The hot path contains scalar trigonometry and scattered map/table reads, which limit straightforward vectorization. Threading remains outside the phase-one constraints and would require browser workers/shared memory and deployment changes; it should not be used to avoid fixing the single-threaded algorithm first.
 
-## Recommended implementation sequence
+## Revised implementation sequence
 
 1. Add retained timing spans for render and presentation to the performance harness, without putting diagnostic logging in the hot path.
-2. Implement the prepared lunar-surface module in the shared renderer and use it from both animation hosts.
-3. Verify unchanged deterministic pixels at every canonical lunar phase and after a web resize.
-4. Re-run the release browser performance contract in a controlled reference environment.
-5. If the result is still above 33.3 ms, optimize sRGB output encoding and re-profile.
-6. Only then consider elevation-gradient precomputation, incremental edges, allocation reuse beyond the prepared module, or SIMD.
+2. Measure the 1152×1152 ephemeris-span animation across representative pose, phase, and geographic samples.
+3. Prepare only invariant mesh or lunar-map data whose cost is dominant in that realistic profile; do not cache a fixed screen-space view.
+4. Verify unchanged deterministic pixels across representative ephemeris records and after a web resize.
+5. Re-run the release browser performance contract in a controlled reference environment.
+6. Optimize the newly measured dominant recurring cost and re-profile; investigate sRGB encoding, elevation gradients, incremental edges, allocation reuse, or SIMD only when evidence supports the choice.
 
 ## Required validation for any later fix
 
@@ -273,6 +277,8 @@ It must also demonstrate:
 - unchanged backing-resolution policy;
 - unchanged canonical lunar golden output within the documented tolerance;
 - unchanged native dimensions and deterministic sequence behavior;
-- correct cache invalidation and reconstruction after responsive resizing;
+- correct ephemeris-driven libration, roll, illumination, and geographic sampling;
+- no fixed-view cache reused across incompatible poses;
+- correct resolution-dependent storage reconstruction after responsive resizing;
 - no skipped software-render or Canvas 2D presentation work in counted frames;
 - recorded reference environment, baseline, final result, and profile evidence.

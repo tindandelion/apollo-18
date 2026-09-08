@@ -1,5 +1,7 @@
 # Moon orientation and illumination data options
 
+> **Historical research note:** The checked-in NASA source and nearest-record recommendation were adopted. The current-UTC playback proposal below was later rejected; [ADR-0006](../../docs/adr/0006-use-checked-in-nasa-lunar-ephemeris-data.md) records the authoritative data-derived synodic-month and ephemeris-span policies.
+
 ## Recommendation
 
 Use NASA Scientific Visualization Studio's **Dial-A-Moon annual data** as the ephemeris source. Commit the original annual JSON unchanged with provenance rather than calculating positions locally or depending on a runtime service. It already supplies the values the renderer needs:

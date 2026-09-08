@@ -1,25 +1,24 @@
 # 21: Introduce a prepared lunar-surface rendering seam
 
-**What to build:** Let the shared software renderer prepare a fixed view of the lunar surface for a selected framebuffer resolution and globe pose, then render deterministic lunar-phase frames from that prepared state without making the fixed-pose optimization the renderer's only path or changing existing native or web behavior yet.
+**What to build:** Let the shared software renderer prepare pose-independent lunar surface data once from the canonical lunar maps, then use it while rendering deterministic frames whose ephemeris-driven globe pose and Sun direction may both change.
 
-**Blocked by:** 28: Start lunar animations from current UTC
+**Blocked by:** 28: Drive lunar animations from the ephemeris start
 
 **Status:** ready-for-agent
 
 ## Why
 
-The [high-density web performance analysis](../performance-analysis.md) found that recurring lunar fragment shading consumes approximately 39–42 ms of the roughly 60.4 ms frame callback. It recommends preparing the fixed lunar view once because geographic lookup, lunar-map sampling, terrain-normal derivation, and coverage do not change while only the Sun direction animates.
+The [high-density web performance analysis](../performance-analysis.md) found that recurring lunar fragment shading dominates frame time, but its original fixed-view premise no longer holds: sub-Earth libration and lunar position angle change the globe pose throughout both realistic animations. Screen-space coverage, visible geography, map lookup, and world-space terrain normals must therefore be treated as recurring work. Preparation may retain only invariants that remain valid across arbitrary lunar appearances, such as canonical mesh data or map-derived object-space quantities.
 
-- [ ] A small shared-renderer interface prepares a fixed lunar view from framebuffer dimensions, globe pose, and the canonical lunar maps, then renders an RGBA framebuffer from explicit scene time.
-- [ ] The interface and domain naming make the fixed-view invariant explicit rather than presenting the prepared state as valid for arbitrary camera or globe motion.
-- [ ] Preparation performs invariant coverage, lunar-map lookup, and terrain-normal work once so rendering multiple phase frames at the same pose does not repeat that work.
-- [ ] Prepared state records enough of its resolution and pose dependencies to prevent stale reuse; a changed camera or globe pose must rebuild the view or use the general rendering path.
-- [ ] Pose-independent preparation, such as canonical octasphere or lunar-map-derived data, remains separate from screen-space fixed-view data where doing so provides present value without implementing libration prematurely.
-- [ ] Prepared state retains only the data needed for recurring lunar-phase rendering, with its memory representation and expected high-density memory cost documented.
-- [ ] The existing one-shot lunar-globe rendering interface and general rasterization path remain available and preserve their error behavior and deterministic output; fixed-view assumptions do not leak into the general rasterizer or lunar-map modules.
-- [ ] Prepared and one-shot rendering produce matching output across every canonical lunar phase, representative non-square dimensions, and repeated calls in different scene-time orders.
-- [ ] Focused tests prove that prepared state cannot silently render after an incompatible resolution or pose change.
+- [ ] A small shared-renderer interface prepares pose-independent lunar surface data from the canonical lunar color and elevation maps, then renders an RGBA framebuffer for explicit dimensions and lunar appearance.
+- [ ] The interface and domain naming make its invariants explicit; prepared data is not described as a fixed view and does not capture one framebuffer resolution or lunar globe pose.
+- [ ] Profiling of the 1152×1152 ephemeris-span animation identifies which map-derived or mesh-derived recurring calculations can actually move into preparation before a representation is selected.
+- [ ] Preparation performs only measured invariant work, such as reusable octasphere construction, linear lunar albedo preparation, or elevation-gradient preparation; it does not cache screen-space coverage, per-pixel geography, or world-space terrain normals across changing poses.
+- [ ] Prepared state retains only data needed by recurring lunar rendering, with its memory representation and expected high-density memory cost documented.
+- [ ] The existing one-shot lunar-globe rendering interface and general rasterization path remain available and preserve their error behavior and deterministic output.
+- [ ] Prepared and one-shot rendering produce matching output across representative ephemeris records, position angles, phases, square and non-square dimensions, and repeated calls in different scene-time orders.
+- [ ] Focused tests prove prepared data remains correct across pose changes and cannot silently depend on one prior framebuffer resolution or appearance.
 - [ ] Invalid or empty framebuffer dimensions remain rejected without unbounded allocation or panics.
 - [ ] Tests follow Arrange-Act-Assert and verify observable output rather than private cache structure or call counts.
-- [ ] The performance analysis records the settled prepared-state design and any quality or memory tradeoffs discovered during implementation.
+- [ ] The performance analysis records the settled prepared-state design, profile evidence, and quality or memory tradeoffs discovered during implementation.
 - [ ] The canonical local quality gate passes.

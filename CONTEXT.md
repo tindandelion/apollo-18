@@ -25,8 +25,16 @@ Non-negative finite elapsed seconds supplied explicitly to a scene render, used 
 _Avoid_: Current time, frame time
 
 **Animation epoch**:
-The UTC instant captured once when a lunar animation starts. Together with scene time, it identifies the astronomical instant presented by a frame.
-_Avoid_: Scene time, current time
+The astronomical instant represented at scene time zero. Apollo 18 derives it from the first validated ephemeris timestamp rather than a host clock.
+_Avoid_: Scene time, current time, startup time
+
+**Ephemeris-span animation**:
+A lunar animation that maps one fixed-duration display cycle across the complete timestamp range of validated ephemeris data. Apollo 18 uses it for the two-minute web showcase.
+_Avoid_: Annual animation, web animation
+
+**Synodic-month animation**:
+A lunar animation that maps one fixed-duration display cycle across a mean synodic month beginning at the animation epoch. Apollo 18 uses it for the ten-second native sequence.
+_Avoid_: Native animation, phase animation
 
 **Normalized device coordinates (NDC)**:
 The post-projection coordinate space where the visible horizontal and vertical ranges are `[-1, 1]`, `+Y` points up, and normalized depth ranges from near `0` to far `1`.

@@ -4,14 +4,25 @@ A **lunar phase** is the visible pattern of illumination set by the angle betwee
 
 ## Scene time and astronomical time
 
-The animation uses the fixed **animation epoch** `2026-01-01T00:00:00Z`. Let `t` be explicit scene time and let `T = 10 seconds`. One display cycle advances through the mean **synodic month** `M = 29.530588853 days`:
+The **animation epoch** is the first validated ephemeris timestamp: the astronomical instant represented at scene time zero. For the checked-in source it is `2026-01-01T00:00:00Z`. It comes from data rather than a host's UTC wall clock.
+
+Apollo 18 uses two deterministic timeline policies. Native rendering uses a **synodic-month animation**. Let `t` be explicit scene time, `Tₙ = 10 seconds`, and `M = 29.530588853 days` be the mean **synodic month**:
 
 ```text
-cycle_fraction(t) = (t mod T) / T
-astronomy_time(t) = animation_epoch + cycle_fraction(t) × M
+native_fraction(t) = (t mod Tₙ) / Tₙ
+native_astronomy_time(t) = animation_epoch + native_fraction(t) × M
 ```
 
-The mapping is derived directly from scene time, never from accumulated frame steps. Native and web requests at equal scene times therefore sample the same astronomical instant regardless of frame rate. A real ephemeris does not repeat after exactly one mean synodic month, so the reset at ten seconds can have a small deliberate discontinuity.
+The web showcase uses an **ephemeris-span animation**. Let `T_web = 120 seconds`, `first` be the animation epoch, and `last` be the final validated timestamp:
+
+```text
+web_fraction(t) = (t mod T_web) / T_web
+web_astronomy_time(t) = first + web_fraction(t) × (last - first)
+```
+
+The first browser animation callback establishes monotonic scene time zero and presents `first`. Later callbacks derive scene time from that monotonic origin. If rendering stalls, elapsed time continues and astronomical samples are skipped rather than slowing playback. A replacement ephemeris still occupies one 120-second web cycle regardless of its calendar span.
+
+Both mappings derive directly from scene time, never from accumulated frame steps. A real ephemeris does not repeat after exactly one mean synodic month, and its final state need not match its first, so both resets can have deliberate discontinuities.
 
 ## Selecting an hourly sample
 
@@ -22,6 +33,8 @@ sample_index = round(h)
 ```
 
 An exact half-hour tie selects the later record. The subsolar point, sub-Earth point, and lunar position angle always come from that same record, so illumination and pose remain geographically consistent. This deliberately produces small hourly steps in the compressed animation, but avoids inventing intermediate ephemeris values and removes special interpolation rules for longitude and angle wrap boundaries.
+
+Because ephemeris-span time runs from the first timestamp through the last, nearest selection gives the first and last records half the display interval of interior records. The modulo timeline never needs to sample beyond the source. At typical display rates many compressed hourly records are skipped, but playback still traverses the complete astronomical span.
 
 ## Converting a subsolar point to Sun direction
 
@@ -57,7 +70,7 @@ The rightmost transform still acts first. Positive `rotate_z(P)` moves projected
 
 The subsolar direction begins in the same object-space lunar coordinates and is rotated by the complete `object_to_world` rotation before becoming the world-space **Sun direction**. Geometry and terrain normals use that same rotation. Lunar color-map and elevation-map lookup continue to use the unrotated **globe location**, so geography moves with the posed globe rather than sliding across it.
 
-The shared lunar-phase animation policy samples both points and the position angle for one astronomical instant, then packages the resulting pose and Sun direction into a **lunar appearance**. The ephemeris sample hides the source values and owns their conversion into the object-to-world rotation and matching world-space Sun direction. Lunar rasterization only consumes the explicit appearance.
+The shared lunar-phase animation policies select one astronomical instant, then sample both points and the position angle and package the resulting pose and Sun direction into a **lunar appearance**. The ephemeris sample hides the source values and owns their conversion into the object-to-world rotation and matching world-space Sun direction. Lunar rasterization only consumes the explicit appearance.
 
 ## Terrain shading and scope
 

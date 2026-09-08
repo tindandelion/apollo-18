@@ -114,10 +114,12 @@ the changing software inventory of GitHub-hosted runner images. The normal,
 published GitHub Release uses the tag as its name, carries generated release
 notes, and retains the animation as `lunar-globe.webp`.
 
-The current lunar-phase showcase lasts ten seconds. Its 300 frames sample scene
-time at 30 frames per second from zero through `299 / 30` seconds. Omitting the
-frame at exactly ten seconds avoids repeating the initial full Moon at the loop
-boundary. The WebP itself loops indefinitely.
+The canonical native synodic-month animation lasts ten seconds from the first
+ephemeris timestamp. Its 300 frames sample scene time at 30 frames per second
+from zero through `299 / 30` seconds. Omitting the frame at exactly ten seconds
+avoids repeating the initial ephemeris record at the loop boundary. The WebP
+itself loops indefinitely. The website independently presents the complete
+ephemeris in a 120-second ephemeris-span loop.
 
 The repository README contains only an image reference through GitHub's stable
 latest-release download URL. Each newer release therefore updates the visible
