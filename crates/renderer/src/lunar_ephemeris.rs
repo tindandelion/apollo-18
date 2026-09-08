@@ -42,10 +42,13 @@ impl LunarEphemeris {
                 .map_err(|reason| EphemerisError::InvalidRecord { index, reason })?;
             let subearth_point = LunarCoordinates::new(record.subearth.lon, record.subearth.lat)
                 .map_err(|reason| EphemerisError::InvalidRecord { index, reason })?;
+            let position_angle = LunarPositionAngle::new(record.posangle)
+                .map_err(|reason| EphemerisError::InvalidRecord { index, reason })?;
             timestamps.push(timestamp);
             samples.push(EphemerisSample {
                 subsolar_point,
                 subearth_point,
+                position_angle,
             });
         }
 
@@ -101,6 +104,7 @@ impl LunarEphemeris {
 pub(crate) struct EphemerisSample {
     subsolar_point: LunarCoordinates,
     subearth_point: LunarCoordinates,
+    position_angle: LunarPositionAngle,
 }
 
 impl EphemerisSample {
@@ -109,8 +113,10 @@ impl EphemerisSample {
             Mat4::from_rotation_y(self.subearth_point.longitude_degrees.to_radians() as f32);
         let center_latitude =
             Mat4::from_rotation_x(-self.subearth_point.latitude_degrees.to_radians() as f32);
+        let align_with_celestial_north =
+            Mat4::from_rotation_z(self.position_angle.degrees.to_radians() as f32);
 
-        center_latitude * center_longitude
+        align_with_celestial_north * center_latitude * center_longitude
     }
 
     pub(crate) fn sun_direction(self) -> Vec3 {
@@ -126,7 +132,32 @@ impl EphemerisSample {
             subearth_point: self
                 .subearth_point
                 .interpolate(other.subearth_point, fraction),
+            position_angle: self
+                .position_angle
+                .interpolate(other.position_angle, fraction),
         }
+    }
+}
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+struct LunarPositionAngle {
+    degrees: f64,
+}
+
+impl LunarPositionAngle {
+    fn new(degrees: f64) -> Result<Self, &'static str> {
+        if !degrees.is_finite() || !(0.0..360.0).contains(&degrees) {
+            return Err("lunar position angle must be finite and in the range [0, 360) degrees");
+        }
+
+        Ok(Self { degrees })
+    }
+
+    fn interpolate(self, other: Self, fraction: f64) -> Self {
+        let delta = shortest_angular_delta(self.degrees, other.degrees);
+        let degrees = (self.degrees + delta * fraction).rem_euclid(360.0);
+
+        Self { degrees }
     }
 }
 
@@ -153,7 +184,7 @@ impl LunarCoordinates {
 
     fn interpolate(self, other: Self, fraction: f64) -> Self {
         let longitude_delta =
-            (other.longitude_degrees - self.longitude_degrees + 180.0).rem_euclid(360.0) - 180.0;
+            shortest_angular_delta(self.longitude_degrees, other.longitude_degrees);
         let longitude_degrees =
             (self.longitude_degrees + longitude_delta * fraction + 180.0).rem_euclid(360.0) - 180.0;
 
@@ -224,12 +255,17 @@ struct NasaRecord {
     time: String,
     subsolar: NasaCoordinates,
     subearth: NasaCoordinates,
+    posangle: f64,
 }
 
 #[derive(Deserialize)]
 struct NasaCoordinates {
     lon: f64,
     lat: f64,
+}
+
+fn shortest_angular_delta(from_degrees: f64, to_degrees: f64) -> f64 {
+    (to_degrees - from_degrees + 180.0).rem_euclid(360.0) - 180.0
 }
 
 fn parse_timestamp(source: &str) -> Result<i64, &'static str> {
@@ -253,8 +289,8 @@ mod tests {
     fn two_sample_json(first_longitude: f64, second_longitude: f64) -> Vec<u8> {
         format!(
             r#"[
-                {{"time":"01 Jan 2026 00:00 UT","subsolar":{{"lon":{first_longitude},"lat":-2.0}},"subearth":{{"lon":-10.0,"lat":-4.0}}}},
-                {{"time":"01 Jan 2026 01:00 UT","subsolar":{{"lon":{second_longitude},"lat":2.0}},"subearth":{{"lon":10.0,"lat":4.0}}}}
+                {{"time":"01 Jan 2026 00:00 UT","subsolar":{{"lon":{first_longitude},"lat":-2.0}},"subearth":{{"lon":-10.0,"lat":-4.0}},"posangle":0.0}},
+                {{"time":"01 Jan 2026 01:00 UT","subsolar":{{"lon":{second_longitude},"lat":2.0}},"subearth":{{"lon":10.0,"lat":4.0}},"posangle":0.0}}
             ]"#
         )
         .into_bytes()
@@ -268,6 +304,7 @@ mod tests {
         let sample = EphemerisSample {
             subsolar_point: LunarCoordinates::new(0.0, 0.0).expect("coordinates should be valid"),
             subearth_point,
+            position_angle: LunarPositionAngle::new(45.0).expect("position angle should be valid"),
         };
 
         let centered = sample
@@ -284,6 +321,7 @@ mod tests {
             subsolar_point: LunarCoordinates::new(0.0, 0.0).expect("coordinates should be valid"),
             subearth_point: LunarCoordinates::new(-30.0, -10.0)
                 .expect("coordinates should be valid"),
+            position_angle: LunarPositionAngle::new(0.0).expect("position angle should be valid"),
         };
 
         let lunar_north = sample.object_to_world().transform_vector3(Vec3::Y);
@@ -292,13 +330,28 @@ mod tests {
         assert!(lunar_north.y > 0.0);
     }
 
-    /// Sun direction and globe pose use the same sampled lunar coordinates.
+    /// Positive position angle rolls lunar north counterclockwise from framebuffer up.
     #[test]
-    fn transforms_subsolar_direction_with_subearth_pose() {
+    fn positive_position_angle_rolls_lunar_north_counterclockwise() {
+        let sample = EphemerisSample {
+            subsolar_point: LunarCoordinates::new(0.0, 0.0).expect("coordinates should be valid"),
+            subearth_point: LunarCoordinates::new(0.0, 0.0).expect("coordinates should be valid"),
+            position_angle: LunarPositionAngle::new(90.0).expect("position angle should be valid"),
+        };
+
+        let lunar_north = sample.object_to_world().transform_vector3(Vec3::Y);
+
+        assert!(lunar_north.abs_diff_eq(Vec3::NEG_X, 1.0e-6));
+    }
+
+    /// Sun direction and globe pose use the same sampled lunar orientation.
+    #[test]
+    fn transforms_subsolar_direction_with_lunar_globe_pose() {
         let coordinates = LunarCoordinates::new(30.0, 10.0).expect("coordinates should be valid");
         let sample = EphemerisSample {
             subsolar_point: coordinates,
             subearth_point: coordinates,
+            position_angle: LunarPositionAngle::new(45.0).expect("position angle should be valid"),
         };
 
         let sun_direction = sample.sun_direction();
@@ -338,6 +391,24 @@ mod tests {
         assert!((point.latitude_degrees - 4.0).abs() < 1.0e-9);
     }
 
+    /// NASA's exact hourly lunar position angle is returned without interpolation.
+    #[test]
+    fn samples_exact_hourly_position_angle() {
+        let source = br#"[
+            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0},"posangle":350.0},
+            {"time":"01 Jan 2026 01:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0},"posangle":10.0}
+        ]"#;
+        let ephemeris = LunarEphemeris::from_nasa_json(source).expect("source should be valid");
+        let instant = EPOCH.add(SECONDS_PER_HOUR as f64);
+
+        let position_angle = ephemeris
+            .sample_at(instant)
+            .expect("hour should be covered")
+            .position_angle;
+
+        assert!((position_angle.degrees - 10.0).abs() < 1.0e-9);
+    }
+
     /// Latitude and longitude are interpolated halfway between adjacent hourly samples.
     #[test]
     fn interpolates_between_hourly_subsolar_points() {
@@ -374,8 +445,8 @@ mod tests {
     #[test]
     fn interpolates_subearth_longitude_across_its_wrap_boundary() {
         let source = br#"[
-            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":179.0,"lat":0.0}},
-            {"time":"01 Jan 2026 01:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":-179.0,"lat":0.0}}
+            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":179.0,"lat":0.0},"posangle":0.0},
+            {"time":"01 Jan 2026 01:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":-179.0,"lat":0.0},"posangle":0.0}
         ]"#;
         let ephemeris = LunarEphemeris::from_nasa_json(source).expect("source should be valid");
         let instant = EPOCH.add(SECONDS_PER_HOUR as f64 / 2.0);
@@ -403,12 +474,30 @@ mod tests {
         assert!((point.longitude_degrees.abs() - 180.0).abs() < 1.0e-9);
     }
 
+    /// Position-angle interpolation follows the short path across zero degrees.
+    #[test]
+    fn interpolates_position_angle_across_its_wrap_boundary() {
+        let source = br#"[
+            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0},"posangle":359.0},
+            {"time":"01 Jan 2026 01:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0},"posangle":1.0}
+        ]"#;
+        let ephemeris = LunarEphemeris::from_nasa_json(source).expect("source should be valid");
+        let instant = EPOCH.add(SECONDS_PER_HOUR as f64 / 2.0);
+
+        let position_angle = ephemeris
+            .sample_at(instant)
+            .expect("half hour should be covered")
+            .position_angle;
+
+        assert!(position_angle.degrees.abs() < 1.0e-9);
+    }
+
     /// Out-of-range sub-Earth coordinates are rejected during ephemeris construction.
     #[test]
     fn rejects_invalid_subearth_coordinates() {
         let source = br#"[
-            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":181.0,"lat":0.0}},
-            {"time":"01 Jan 2026 01:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0}}
+            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":181.0,"lat":0.0},"posangle":0.0},
+            {"time":"01 Jan 2026 01:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0},"posangle":0.0}
         ]"#;
 
         let result = LunarEphemeris::from_nasa_json(source);
@@ -417,6 +506,39 @@ mod tests {
             result,
             Err(EphemerisError::InvalidRecord { index: 0, reason })
                 if reason.contains("lunar longitude")
+        ));
+    }
+
+    /// Lunar position angle rejects non-finite and out-of-range degrees.
+    #[test]
+    fn position_angle_rejects_invalid_degrees() {
+        let below_range = -1.0;
+        let upper_bound = 360.0;
+        let non_finite = f64::NAN;
+
+        let below_range_result = LunarPositionAngle::new(below_range);
+        let upper_bound_result = LunarPositionAngle::new(upper_bound);
+        let non_finite_result = LunarPositionAngle::new(non_finite);
+
+        assert!(below_range_result.is_err());
+        assert!(upper_bound_result.is_err());
+        assert!(non_finite_result.is_err());
+    }
+
+    /// Out-of-range lunar position angles are rejected during ephemeris construction.
+    #[test]
+    fn rejects_invalid_position_angle() {
+        let source = br#"[
+            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0},"posangle":360.0},
+            {"time":"01 Jan 2026 01:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0},"posangle":0.0}
+        ]"#;
+
+        let result = LunarEphemeris::from_nasa_json(source);
+
+        assert!(matches!(
+            result,
+            Err(EphemerisError::InvalidRecord { index: 0, reason })
+                if reason.contains("position angle")
         ));
     }
 
@@ -434,7 +556,7 @@ mod tests {
     #[test]
     fn rejects_incomplete_data() {
         let source = br#"[
-            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0}}
+            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0},"posangle":0.0}
         ]"#;
 
         let result = LunarEphemeris::from_nasa_json(source);
@@ -446,8 +568,8 @@ mod tests {
     #[test]
     fn rejects_duplicate_timestamps() {
         let source = br#"[
-            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0}},
-            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":1.0,"lat":1.0},"subearth":{"lon":1.0,"lat":1.0}}
+            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0},"posangle":0.0},
+            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":1.0,"lat":1.0},"subearth":{"lon":1.0,"lat":1.0},"posangle":0.0}
         ]"#;
 
         let result = LunarEphemeris::from_nasa_json(source);
@@ -462,8 +584,8 @@ mod tests {
     #[test]
     fn rejects_non_hourly_timestamps() {
         let source = br#"[
-            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0}},
-            {"time":"01 Jan 2026 02:00 UT","subsolar":{"lon":1.0,"lat":1.0},"subearth":{"lon":1.0,"lat":1.0}}
+            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0},"posangle":0.0},
+            {"time":"01 Jan 2026 02:00 UT","subsolar":{"lon":1.0,"lat":1.0},"subearth":{"lon":1.0,"lat":1.0},"posangle":0.0}
         ]"#;
 
         let result = LunarEphemeris::from_nasa_json(source);

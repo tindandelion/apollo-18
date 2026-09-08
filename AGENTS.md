@@ -12,6 +12,16 @@ When implementing the renderer, native binaries, web showcase, lunar assets, or 
 
 For every graphics stage, add or update a concise guide under `docs/learning/` that explains the stage's reasoning and equations. Keep tutorial material in these guides and reserve code comments for local implementation reasoning.
 
+## Lunar Globe: Ground Truth
+
+Use NASA SVS's north-up 2026 lunar frames as the visual ground truth for ephemeris-driven phase, libration, and position angle:
+
+- Source page: <https://svs.gsfc.nasa.gov/5587/>
+- Hourly 730×730 frame set: <https://svs.gsfc.nasa.gov/vis/a000000/a005500/a005587/frames/730x730_1x1_30p/>
+- Direct frame pattern: `https://svs.gsfc.nasa.gov/vis/a000000/a005500/a005587/frames/730x730_1x1_30p/moon.NNNN.jpg`
+
+Frames are chronological hourly samples. `moon.0001.jpg` is `2026-01-01T00:00Z`; calculate later frame numbers as hours since that instant plus one, padded to four digits. Compare phase, terminator, central lunar location, and landmark roll visually. Apollo 18 uses different surface assets and rendering, so these frames are orientation references rather than pixel-comparison fixtures.
+
 ## Quality gate
 
 Run the canonical quality gate from the repository root before completing every implementation ticket:

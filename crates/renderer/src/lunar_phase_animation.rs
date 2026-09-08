@@ -83,7 +83,7 @@ mod tests {
                 (second_longitude, 2.0)
             };
             records.push(format!(
-                r#"{{"time":"{day:02} Jan 2026 {hour_of_day:02}:00 UT","subsolar":{{"lon":{longitude},"lat":{latitude}}},"subearth":{{"lon":0.0,"lat":0.0}}}}"#
+                r#"{{"time":"{day:02} Jan 2026 {hour_of_day:02}:00 UT","subsolar":{{"lon":{longitude},"lat":{latitude}}},"subearth":{{"lon":0.0,"lat":0.0}},"posangle":0.0}}"#
             ));
         }
         format!("[{}]", records.join(",")).into_bytes()
@@ -102,7 +102,7 @@ mod tests {
     fn maps_scene_time_to_astronomical_time() {
         let animation = canonical_animation();
         let scene_time = scene_time_for_astronomy_hours(1.0);
-        let expected = glam::Vec3::new(0.547_631_14, 0.072_245_15, -0.833_595_1);
+        let expected = glam::Vec3::new(0.551_907_2, -0.022_753_18, -0.833_595_1);
 
         let appearance = animation.lunar_appearance(scene_time);
 
@@ -161,8 +161,8 @@ mod tests {
     #[test]
     fn rejects_incomplete_animation_coverage() {
         let source = br#"[
-            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0}},
-            {"time":"01 Jan 2026 01:00 UT","subsolar":{"lon":1.0,"lat":1.0},"subearth":{"lon":0.0,"lat":0.0}}
+            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0},"posangle":0.0},
+            {"time":"01 Jan 2026 01:00 UT","subsolar":{"lon":1.0,"lat":1.0},"subearth":{"lon":0.0,"lat":0.0},"posangle":0.0}
         ]"#;
         let ephemeris = LunarEphemeris::from_nasa_json(source).expect("source should be valid");
 

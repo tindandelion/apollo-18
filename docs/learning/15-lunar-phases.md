@@ -1,6 +1,6 @@
-# Animating lunar phases and geocentric libration
+# Animating lunar phases and geocentric orientation
 
-A **lunar phase** is the visible pattern of illumination set by the angle between the viewing direction and the **Sun direction**. Apollo 18 gets that direction from NASA's hourly **subsolar point**. NASA's matching **sub-Earth point** determines the **lunar globe pose**, adding geocentric libration while leaving apparent roll for the position-angle stage.
+A **lunar phase** is the visible pattern of illumination set by the angle between the viewing direction and the **Sun direction**. Apollo 18 gets that direction from NASA's hourly **subsolar point**. NASA's matching **sub-Earth point** determines geocentric libration, while the **lunar position angle** determines the disk's apparent roll relative to celestial north. Together they define the **lunar globe pose**.
 
 ## Scene time and astronomical time
 
@@ -21,14 +21,14 @@ For an astronomical time between adjacent hourly samples, let `u` be its fractio
 latitude(u) = latitude₀ + u(latitude₁ - latitude₀)
 ```
 
-Both longitudes are periodic. First choose the signed difference in `[-180°, 180°)` and then interpolate:
+Both longitudes and lunar position angle are periodic. First choose the signed difference in `[-180°, 180°)` and then interpolate:
 
 ```text
 delta = wrap(longitude₁ - longitude₀, -180°, 180°)
 longitude(u) = wrap(longitude₀ + u × delta, -180°, 180°)
 ```
 
-This takes the short path across the antimeridian. For example, halfway from `179°` to `-179°` is `±180°`, not `0°`.
+This takes the short path across a wrap boundary. For example, halfway from `179°` to `-179°` is `±180°`, not `0°`; halfway from a position angle of `359°` to `1°` is `0°`, not `180°`.
 
 ## Converting a subsolar point to Sun direction
 
@@ -48,11 +48,23 @@ Let the sampled sub-Earth longitude and latitude be `λₑ` and `φₑ`. The sam
 object_to_world = rotate_x(-φₑ) × rotate_y(λₑ)
 ```
 
-The rightmost longitude rotation acts first. It moves the sub-Earth point onto the central meridian; the latitude rotation then moves it to world `-Z`, toward the Earth-centered camera. Applied to lunar north `(0, 1, 0)`, this pose produces `(0, cos φₑ, -sin φₑ)`. Its framebuffer projection therefore has no sideways component and still points upward. Lunar position angle is deliberately not applied yet.
+The rightmost longitude rotation acts first. It moves the sub-Earth point onto the central meridian; the latitude rotation then moves it to world `-Z`, toward the Earth-centered camera. Before roll, lunar north `(0, 1, 0)` becomes `(0, cos φₑ, -sin φₑ)`. Its framebuffer projection has no sideways component and points upward.
 
-The subsolar direction begins in the same object-space lunar coordinates and is rotated by `object_to_world` before becoming the world-space **Sun direction**. Geometry and terrain normals use that same rotation. Lunar color-map and elevation-map lookup continue to use the unrotated **globe location**, so geography moves with the posed globe rather than sliding across it.
+## Aligning lunar north with celestial north
 
-The shared lunar-phase animation policy samples both points for one astronomical instant and packages the resulting pose and Sun direction into a **lunar appearance**. The ephemeris sample hides the source coordinates and owns their conversion into the object-to-world rotation and matching world-space Sun direction. Lunar rasterization only consumes the explicit appearance.
+The sub-Earth point fixes the disk center but leaves rotation around the viewing axis unspecified. NASA's lunar position angle `P` supplies that final rotational degree of freedom: it is the apparent counterclockwise angle from celestial north to the Moon's north-pole axis. Apollo 18 makes framebuffer up represent celestial north.
+
+The camera looks along world `+Z`, so the viewing axis is `Z`. The complete object-to-world rotation is:
+
+```text
+object_to_world = rotate_z(P) × rotate_x(-φₑ) × rotate_y(λₑ)
+```
+
+The rightmost transform still acts first. Positive `rotate_z(P)` moves projected lunar north from up toward framebuffer left, which is counterclockwise despite framebuffer pixel rows increasing downward. Rolling after centering leaves the sub-Earth direction on world `-Z`, so the globe remains centered and keeps the same apparent size.
+
+The subsolar direction begins in the same object-space lunar coordinates and is rotated by the complete `object_to_world` rotation before becoming the world-space **Sun direction**. Geometry and terrain normals use that same rotation. Lunar color-map and elevation-map lookup continue to use the unrotated **globe location**, so geography moves with the posed globe rather than sliding across it.
+
+The shared lunar-phase animation policy samples both points and the position angle for one astronomical instant, then packages the resulting pose and Sun direction into a **lunar appearance**. The ephemeris sample hides the source values and owns their conversion into the object-to-world rotation and matching world-space Sun direction. Lunar rasterization only consumes the explicit appearance.
 
 ## Terrain shading and scope
 
@@ -63,4 +75,4 @@ diffuse = max(dot(terrain_normal, sun_direction), 0)
 linear_output = linear_lunar_color × diffuse
 ```
 
-There is no ambient or specular term. Terrain normals can still create sparse rim highlights where undisplaced spherical geometry would be dark, as recorded in ADR-0005. The hourly source and linear interpolation are appropriate for this visual animation, not scientific analysis. The sub-Earth point provides an Earth-centered view, not a location-dependent terrestrial view; topocentric parallax remains out of scope. Lunar position angle is deferred, so lunar north remains upright during this stage.
+There is no ambient or specular term. Terrain normals can still create sparse rim highlights where undisplaced spherical geometry would be dark, as recorded in ADR-0005. The hourly source and linear interpolation are appropriate for this visual animation, not scientific analysis. The sub-Earth point provides an Earth-centered view, not a location-dependent terrestrial view; topocentric parallax remains out of scope.

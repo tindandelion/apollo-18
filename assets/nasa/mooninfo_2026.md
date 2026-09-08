@@ -8,11 +8,11 @@
 - SHA-256: `098ec6434ba4fecb84e66485385816d465b7969f142864bcfc9ffc68311b4a86`
 
 This is NASA Scientific Visualization Studio's original annual Moon Phase and
-Libration JSON, committed unchanged. Apollo 18 currently consumes each record's
-UTC timestamp and `subsolar.lon` / `subsolar.lat` coordinates. The source also
-contains phase, distance, geocentric sub-Earth coordinates, and lunar position
-angle for later animation stages. NASA describes the data and visualization as
-geocentric and sampled hourly.
+Libration JSON, committed unchanged. Apollo 18 consumes each record's UTC
+timestamp, `subsolar` and geocentric `subearth` coordinates, and `posangle`
+lunar position angle. The source also contains phase, distance, and J2000
+coordinates outside the current rendering scope. NASA describes the data and
+visualization as geocentric and sampled hourly.
 
 ## Usage and credit
 
