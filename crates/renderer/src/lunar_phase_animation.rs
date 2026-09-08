@@ -1,5 +1,5 @@
 use crate::lunar_ephemeris::AstronomicalInstant;
-use crate::{LunarAppearance, LunarEphemeris, SceneTime, SunDirection};
+use crate::{LunarAppearance, LunarEphemeris, SceneTime};
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
@@ -38,16 +38,9 @@ impl LunarPhaseAnimation {
         let astronomy_seconds =
             cycle_fraction * MEAN_SYNODIC_MONTH_DAYS * HOURS_PER_DAY * SECONDS_PER_HOUR;
         let instant = self.animation_epoch.add(astronomy_seconds);
-        let sample = self
-            .ephemeris
-            .sample_at(instant)
-            .expect("validated ephemeris coverage includes every animation instant");
-
-        let object_to_world = sample.object_to_world();
-        let sun_direction = SunDirection::new(sample.sun_direction())
-            .expect("validated ephemeris coordinates produce a valid Sun direction");
-
-        LunarAppearance::new(object_to_world, sun_direction)
+        self.ephemeris
+            .lunar_appearance_at(instant)
+            .expect("validated ephemeris coverage includes every animation instant")
     }
 }
 
@@ -142,19 +135,21 @@ mod tests {
         assert_ne!(later_appearance, first_earlier);
     }
 
-    /// A subsolar point becomes a world-space Sun direction in lunar globe coordinates.
+    /// A half-hour animation instant derives Sun direction from the later nearest record.
     #[test]
-    fn derives_sun_direction_from_subsolar_point() {
+    fn half_hour_uses_later_subsolar_point() {
         let source = covered_json(0.0, 0.0);
         let ephemeris = LunarEphemeris::from_nasa_json(&source).expect("source should be valid");
         let animation = LunarPhaseAnimation::new(ephemeris, CANONICAL_ANIMATION_EPOCH)
             .expect("source should cover the animation");
         let scene_time = scene_time_for_astronomy_hours(0.5);
+        let latitude = 2.0_f32.to_radians();
+        let expected = glam::Vec3::new(0.0, latitude.sin(), -latitude.cos());
 
         let appearance = animation.lunar_appearance(scene_time);
         let direction = appearance.sun_direction().as_vec3();
 
-        assert!(direction.abs_diff_eq(glam::Vec3::NEG_Z, 1.0e-6));
+        assert!(direction.abs_diff_eq(expected, 1.0e-6));
     }
 
     /// Animation construction rejects ephemeris data that cannot cover the complete cycle.

@@ -1,3 +1,4 @@
+use crate::lunar_appearance::{LunarAppearance, SunDirection};
 use glam::{Mat4, Vec3};
 use serde::Deserialize;
 use std::error::Error;
@@ -29,8 +30,8 @@ impl LunarEphemeris {
     pub fn from_nasa_json(source: &[u8]) -> Result<Self, EphemerisError> {
         let records: Vec<NasaRecord> = serde_json::from_slice(source)
             .map_err(|error| EphemerisError::InvalidJson(error.to_string()))?;
-        if records.len() < 2 {
-            return Err(EphemerisError::IncompleteData);
+        if records.is_empty() {
+            return Err(EphemerisError::EmptyData);
         }
 
         let mut timestamps = Vec::with_capacity(records.len());
@@ -76,39 +77,34 @@ impl LunarEphemeris {
         first_timestamp <= start.0 && last_timestamp >= end.0
     }
 
-    pub(crate) fn sample_at(&self, instant: AstronomicalInstant) -> Option<EphemerisSample> {
+    pub(crate) fn lunar_appearance_at(
+        &self,
+        instant: AstronomicalInstant,
+    ) -> Option<LunarAppearance> {
+        self.nearest_sample_at(instant)
+            .map(EphemerisSample::lunar_appearance)
+    }
+
+    fn nearest_sample_at(&self, instant: AstronomicalInstant) -> Option<EphemerisSample> {
         let target_hours = (instant.0 - self.first_timestamp as f64) / SECONDS_PER_HOUR as f64;
-        if target_hours < 0.0 {
+        let last_index = (self.samples.len() - 1) as f64;
+        if !(0.0..=last_index).contains(&target_hours) {
             return None;
         }
 
-        let rounded_hours = target_hours.round();
-        let target_hours = if (target_hours - rounded_hours).abs() < 1.0e-9 {
-            rounded_hours
-        } else {
-            target_hours
-        };
-        let lower_index = target_hours.floor() as usize;
-        let fraction = target_hours - lower_index as f64;
-        let lower = self.samples.get(lower_index).copied()?;
-        if fraction == 0.0 {
-            return Some(lower);
-        }
-        let upper = self.samples.get(lower_index + 1).copied()?;
-
-        Some(lower.interpolate(upper, fraction))
+        self.samples.get(target_hours.round() as usize).copied()
     }
 }
 
 #[derive(Debug, Clone, Copy, PartialEq)]
-pub(crate) struct EphemerisSample {
+struct EphemerisSample {
     subsolar_point: LunarCoordinates,
     subearth_point: LunarCoordinates,
     position_angle: LunarPositionAngle,
 }
 
 impl EphemerisSample {
-    pub(crate) fn object_to_world(self) -> Mat4 {
+    fn object_to_world(self) -> Mat4 {
         let center_longitude =
             Mat4::from_rotation_y(self.subearth_point.longitude_degrees.to_radians() as f32);
         let center_latitude =
@@ -119,23 +115,13 @@ impl EphemerisSample {
         align_with_celestial_north * center_latitude * center_longitude
     }
 
-    pub(crate) fn sun_direction(self) -> Vec3 {
-        self.object_to_world()
-            .transform_vector3(self.subsolar_point.globe_location())
-    }
+    fn lunar_appearance(self) -> LunarAppearance {
+        let object_to_world = self.object_to_world();
+        let sun_direction = object_to_world.transform_vector3(self.subsolar_point.globe_location());
+        let sun_direction = SunDirection::new(sun_direction)
+            .expect("validated ephemeris coordinates produce a valid Sun direction");
 
-    fn interpolate(self, other: Self, fraction: f64) -> Self {
-        Self {
-            subsolar_point: self
-                .subsolar_point
-                .interpolate(other.subsolar_point, fraction),
-            subearth_point: self
-                .subearth_point
-                .interpolate(other.subearth_point, fraction),
-            position_angle: self
-                .position_angle
-                .interpolate(other.position_angle, fraction),
-        }
+        LunarAppearance::new(object_to_world, sun_direction)
     }
 }
 
@@ -151,13 +137,6 @@ impl LunarPositionAngle {
         }
 
         Ok(Self { degrees })
-    }
-
-    fn interpolate(self, other: Self, fraction: f64) -> Self {
-        let delta = shortest_angular_delta(self.degrees, other.degrees);
-        let degrees = (self.degrees + delta * fraction).rem_euclid(360.0);
-
-        Self { degrees }
     }
 }
 
@@ -182,19 +161,6 @@ impl LunarCoordinates {
         })
     }
 
-    fn interpolate(self, other: Self, fraction: f64) -> Self {
-        let longitude_delta =
-            shortest_angular_delta(self.longitude_degrees, other.longitude_degrees);
-        let longitude_degrees =
-            (self.longitude_degrees + longitude_delta * fraction + 180.0).rem_euclid(360.0) - 180.0;
-
-        Self {
-            longitude_degrees,
-            latitude_degrees: self.latitude_degrees
-                + (other.latitude_degrees - self.latitude_degrees) * fraction,
-        }
-    }
-
     pub(crate) fn globe_location(self) -> Vec3 {
         let longitude = self.longitude_degrees.to_radians();
         let latitude = self.latitude_degrees.to_radians();
@@ -211,7 +177,7 @@ impl LunarCoordinates {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum EphemerisError {
     InvalidJson(String),
-    IncompleteData,
+    EmptyData,
     InvalidRecord { index: usize, reason: &'static str },
     DuplicateTimestamp { index: usize },
     NonHourlyTimestamp { index: usize },
@@ -223,9 +189,7 @@ impl Display for EphemerisError {
             Self::InvalidJson(reason) => {
                 write!(formatter, "invalid NASA lunar ephemeris JSON: {reason}")
             }
-            Self::IncompleteData => {
-                formatter.write_str("NASA lunar ephemeris needs at least two hourly records")
-            }
+            Self::EmptyData => formatter.write_str("NASA lunar ephemeris has no hourly records"),
             Self::InvalidRecord { index, reason } => {
                 write!(
                     formatter,
@@ -264,10 +228,6 @@ struct NasaCoordinates {
     lat: f64,
 }
 
-fn shortest_angular_delta(from_degrees: f64, to_degrees: f64) -> f64 {
-    (to_degrees - from_degrees + 180.0).rem_euclid(360.0) - 180.0
-}
-
 fn parse_timestamp(source: &str) -> Result<i64, &'static str> {
     let format =
         format_description!("[day padding:zero] [month repr:short] [year] [hour]:[minute] UT");
@@ -289,11 +249,28 @@ mod tests {
     fn two_sample_json(first_longitude: f64, second_longitude: f64) -> Vec<u8> {
         format!(
             r#"[
-                {{"time":"01 Jan 2026 00:00 UT","subsolar":{{"lon":{first_longitude},"lat":-2.0}},"subearth":{{"lon":-10.0,"lat":-4.0}},"posangle":0.0}},
-                {{"time":"01 Jan 2026 01:00 UT","subsolar":{{"lon":{second_longitude},"lat":2.0}},"subearth":{{"lon":10.0,"lat":4.0}},"posangle":0.0}}
+                {{"time":"01 Jan 2026 00:00 UT","subsolar":{{"lon":{first_longitude},"lat":-2.0}},"subearth":{{"lon":-10.0,"lat":-4.0}},"posangle":350.0}},
+                {{"time":"01 Jan 2026 01:00 UT","subsolar":{{"lon":{second_longitude},"lat":2.0}},"subearth":{{"lon":10.0,"lat":4.0}},"posangle":10.0}}
             ]"#
         )
         .into_bytes()
+    }
+
+    fn test_sample(
+        subsolar_longitude: f64,
+        subsolar_latitude: f64,
+        subearth_longitude: f64,
+        subearth_latitude: f64,
+        position_angle: f64,
+    ) -> EphemerisSample {
+        EphemerisSample {
+            subsolar_point: LunarCoordinates::new(subsolar_longitude, subsolar_latitude)
+                .expect("coordinates should be valid"),
+            subearth_point: LunarCoordinates::new(subearth_longitude, subearth_latitude)
+                .expect("coordinates should be valid"),
+            position_angle: LunarPositionAngle::new(position_angle)
+                .expect("position angle should be valid"),
+        }
     }
 
     /// A sampled sub-Earth point is rotated to the center of the visible disk.
@@ -354,142 +331,74 @@ mod tests {
             position_angle: LunarPositionAngle::new(45.0).expect("position angle should be valid"),
         };
 
-        let sun_direction = sample.sun_direction();
+        let appearance = sample.lunar_appearance();
 
-        assert!(sun_direction.abs_diff_eq(Vec3::NEG_Z, 1.0e-6));
+        assert!(
+            appearance
+                .sun_direction()
+                .as_vec3()
+                .abs_diff_eq(Vec3::NEG_Z, 1.0e-6)
+        );
     }
 
-    /// NASA's exact hourly subsolar coordinates are returned without interpolation.
+    /// An exact hourly instant returns the complete matching NASA record unchanged.
     #[test]
-    fn samples_exact_hourly_subsolar_points() {
+    fn samples_exact_hourly_record() {
         let source = two_sample_json(30.0, 20.0);
         let ephemeris = LunarEphemeris::from_nasa_json(&source).expect("source should be valid");
         let instant = EPOCH.add(SECONDS_PER_HOUR as f64);
+        let expected = test_sample(20.0, 2.0, 10.0, 4.0, 10.0);
 
-        let point = ephemeris
-            .sample_at(instant)
-            .expect("hour should be covered")
-            .subsolar_point;
+        let sample = ephemeris
+            .nearest_sample_at(instant)
+            .expect("hour should be covered");
 
-        assert!((point.longitude_degrees - 20.0).abs() < 1.0e-9);
-        assert!((point.latitude_degrees - 2.0).abs() < 1.0e-9);
+        assert_eq!(sample, expected);
     }
 
-    /// NASA's exact hourly sub-Earth coordinates are returned without interpolation.
+    /// An instant before the half-hour boundary uses the earlier hourly record unchanged.
     #[test]
-    fn samples_exact_hourly_subearth_points() {
+    fn samples_earlier_record_before_half_hour() {
         let source = two_sample_json(30.0, 20.0);
         let ephemeris = LunarEphemeris::from_nasa_json(&source).expect("source should be valid");
-        let instant = EPOCH.add(SECONDS_PER_HOUR as f64);
+        let instant = EPOCH.add(29.0 * 60.0);
+        let expected = test_sample(30.0, -2.0, -10.0, -4.0, 350.0);
 
-        let point = ephemeris
-            .sample_at(instant)
-            .expect("hour should be covered")
-            .subearth_point;
+        let sample = ephemeris
+            .nearest_sample_at(instant)
+            .expect("instant should be covered");
 
-        assert!((point.longitude_degrees - 10.0).abs() < 1.0e-9);
-        assert!((point.latitude_degrees - 4.0).abs() < 1.0e-9);
+        assert_eq!(sample, expected);
     }
 
-    /// NASA's exact hourly lunar position angle is returned without interpolation.
+    /// An instant after the half-hour boundary uses the later hourly record unchanged.
     #[test]
-    fn samples_exact_hourly_position_angle() {
-        let source = br#"[
-            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0},"posangle":350.0},
-            {"time":"01 Jan 2026 01:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0},"posangle":10.0}
-        ]"#;
-        let ephemeris = LunarEphemeris::from_nasa_json(source).expect("source should be valid");
-        let instant = EPOCH.add(SECONDS_PER_HOUR as f64);
+    fn samples_later_record_after_half_hour() {
+        let source = two_sample_json(30.0, 20.0);
+        let ephemeris = LunarEphemeris::from_nasa_json(&source).expect("source should be valid");
+        let instant = EPOCH.add(31.0 * 60.0);
+        let expected = test_sample(20.0, 2.0, 10.0, 4.0, 10.0);
 
-        let position_angle = ephemeris
-            .sample_at(instant)
-            .expect("hour should be covered")
-            .position_angle;
+        let sample = ephemeris
+            .nearest_sample_at(instant)
+            .expect("instant should be covered");
 
-        assert!((position_angle.degrees - 10.0).abs() < 1.0e-9);
+        assert_eq!(sample, expected);
     }
 
-    /// Latitude and longitude are interpolated halfway between adjacent hourly samples.
+    /// An instant exactly between records resolves deterministically to the later record.
     #[test]
-    fn interpolates_between_hourly_subsolar_points() {
+    fn resolves_half_hour_tie_to_later_record() {
         let source = two_sample_json(30.0, 20.0);
         let ephemeris = LunarEphemeris::from_nasa_json(&source).expect("source should be valid");
         let instant = EPOCH.add(SECONDS_PER_HOUR as f64 / 2.0);
+        let expected = test_sample(20.0, 2.0, 10.0, 4.0, 10.0);
 
-        let point = ephemeris
-            .sample_at(instant)
-            .expect("half hour should be covered")
-            .subsolar_point;
+        let sample = ephemeris
+            .nearest_sample_at(instant)
+            .expect("half hour should be covered");
 
-        assert!((point.longitude_degrees - 25.0).abs() < 1.0e-9);
-        assert!(point.latitude_degrees.abs() < 1.0e-9);
-    }
-
-    /// Sub-Earth latitude and longitude are interpolated between adjacent hourly samples.
-    #[test]
-    fn interpolates_between_hourly_subearth_points() {
-        let source = two_sample_json(30.0, 20.0);
-        let ephemeris = LunarEphemeris::from_nasa_json(&source).expect("source should be valid");
-        let instant = EPOCH.add(SECONDS_PER_HOUR as f64 / 2.0);
-
-        let point = ephemeris
-            .sample_at(instant)
-            .expect("half hour should be covered")
-            .subearth_point;
-
-        assert!(point.longitude_degrees.abs() < 1.0e-9);
-        assert!(point.latitude_degrees.abs() < 1.0e-9);
-    }
-
-    /// Sub-Earth longitude interpolation follows the short path across the antimeridian.
-    #[test]
-    fn interpolates_subearth_longitude_across_its_wrap_boundary() {
-        let source = br#"[
-            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":179.0,"lat":0.0},"posangle":0.0},
-            {"time":"01 Jan 2026 01:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":-179.0,"lat":0.0},"posangle":0.0}
-        ]"#;
-        let ephemeris = LunarEphemeris::from_nasa_json(source).expect("source should be valid");
-        let instant = EPOCH.add(SECONDS_PER_HOUR as f64 / 2.0);
-
-        let point = ephemeris
-            .sample_at(instant)
-            .expect("half hour should be covered")
-            .subearth_point;
-
-        assert!((point.longitude_degrees.abs() - 180.0).abs() < 1.0e-9);
-    }
-
-    /// Longitude interpolation follows the short path across the antimeridian.
-    #[test]
-    fn interpolates_longitude_across_its_wrap_boundary() {
-        let source = two_sample_json(179.0, -179.0);
-        let ephemeris = LunarEphemeris::from_nasa_json(&source).expect("source should be valid");
-        let instant = EPOCH.add(SECONDS_PER_HOUR as f64 / 2.0);
-
-        let point = ephemeris
-            .sample_at(instant)
-            .expect("half hour should be covered")
-            .subsolar_point;
-
-        assert!((point.longitude_degrees.abs() - 180.0).abs() < 1.0e-9);
-    }
-
-    /// Position-angle interpolation follows the short path across zero degrees.
-    #[test]
-    fn interpolates_position_angle_across_its_wrap_boundary() {
-        let source = br#"[
-            {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0},"posangle":359.0},
-            {"time":"01 Jan 2026 01:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0},"posangle":1.0}
-        ]"#;
-        let ephemeris = LunarEphemeris::from_nasa_json(source).expect("source should be valid");
-        let instant = EPOCH.add(SECONDS_PER_HOUR as f64 / 2.0);
-
-        let position_angle = ephemeris
-            .sample_at(instant)
-            .expect("half hour should be covered")
-            .position_angle;
-
-        assert!(position_angle.degrees.abs() < 1.0e-9);
+        assert_eq!(sample, expected);
     }
 
     /// Out-of-range sub-Earth coordinates are rejected during ephemeris construction.
@@ -552,16 +461,26 @@ mod tests {
         assert!(matches!(result, Err(EphemerisError::InvalidJson(_))));
     }
 
-    /// Fewer than two hourly records are rejected as incomplete ephemeris data.
+    /// One complete hourly record is valid ephemeris data for nearest-record sampling.
     #[test]
-    fn rejects_incomplete_data() {
+    fn accepts_single_record() {
         let source = br#"[
             {"time":"01 Jan 2026 00:00 UT","subsolar":{"lon":0.0,"lat":0.0},"subearth":{"lon":0.0,"lat":0.0},"posangle":0.0}
         ]"#;
 
         let result = LunarEphemeris::from_nasa_json(source);
 
-        assert!(matches!(result, Err(EphemerisError::IncompleteData)));
+        assert!(result.is_ok());
+    }
+
+    /// An empty record list is rejected because it cannot be sampled.
+    #[test]
+    fn rejects_empty_data() {
+        let source = br#"[]"#;
+
+        let result = LunarEphemeris::from_nasa_json(source);
+
+        assert!(matches!(result, Err(EphemerisError::EmptyData)));
     }
 
     /// Adjacent records with the same timestamp are rejected as duplicates.

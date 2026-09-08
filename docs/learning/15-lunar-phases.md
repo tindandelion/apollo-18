@@ -13,22 +13,15 @@ astronomy_time(t) = animation_epoch + cycle_fraction(t) × M
 
 The mapping is derived directly from scene time, never from accumulated frame steps. Native and web requests at equal scene times therefore sample the same astronomical instant regardless of frame rate. A real ephemeris does not repeat after exactly one mean synodic month, so the reset at ten seconds can have a small deliberate discontinuity.
 
-## Interpolating hourly samples
+## Selecting an hourly sample
 
-For an astronomical time between adjacent hourly samples, let `u` be its fraction through the hour. Subsolar and sub-Earth latitude use ordinary linear interpolation:
-
-```text
-latitude(u) = latitude₀ + u(latitude₁ - latitude₀)
-```
-
-Both longitudes and lunar position angle are periodic. First choose the signed difference in `[-180°, 180°)` and then interpolate:
+For an astronomical time between adjacent hourly NASA records, Apollo 18 uses the nearer complete record. If `h` is the number of hours since the first record, the selected record index is:
 
 ```text
-delta = wrap(longitude₁ - longitude₀, -180°, 180°)
-longitude(u) = wrap(longitude₀ + u × delta, -180°, 180°)
+sample_index = round(h)
 ```
 
-This takes the short path across a wrap boundary. For example, halfway from `179°` to `-179°` is `±180°`, not `0°`; halfway from a position angle of `359°` to `1°` is `0°`, not `180°`.
+An exact half-hour tie selects the later record. The subsolar point, sub-Earth point, and lunar position angle always come from that same record, so illumination and pose remain geographically consistent. This deliberately produces small hourly steps in the compressed animation, but avoids inventing intermediate ephemeris values and removes special interpolation rules for longitude and angle wrap boundaries.
 
 ## Converting a subsolar point to Sun direction
 
@@ -75,4 +68,4 @@ diffuse = max(dot(terrain_normal, sun_direction), 0)
 linear_output = linear_lunar_color × diffuse
 ```
 
-There is no ambient or specular term. Terrain normals can still create sparse rim highlights where undisplaced spherical geometry would be dark, as recorded in ADR-0005. The hourly source and linear interpolation are appropriate for this visual animation, not scientific analysis. The sub-Earth point provides an Earth-centered view, not a location-dependent terrestrial view; topocentric parallax remains out of scope.
+There is no ambient or specular term. Terrain normals can still create sparse rim highlights where undisplaced spherical geometry would be dark, as recorded in ADR-0005. Nearest-record sampling of the hourly source is appropriate for this visual animation, not scientific analysis. The sub-Earth point provides an Earth-centered view, not a location-dependent terrestrial view; topocentric parallax remains out of scope.

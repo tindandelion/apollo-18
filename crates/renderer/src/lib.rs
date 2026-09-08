@@ -299,16 +299,16 @@ mod tests {
         const EPHEMERIS_JSON: &[u8] = include_bytes!("../../../assets/nasa/mooninfo_2026.json");
         const EPOCH_ZERO_GOLDEN_PATH: &str =
             "tests/goldens/lunar_2026-01-01t00-00z_at_0_seconds.png";
-        const POSITION_ANGLE_WRAP_GOLDEN_PATH: &str =
-            "tests/goldens/lunar_2026-01-02t15-30z_at_0-5573317_seconds.png";
+        const NEAREST_SAMPLE_BOUNDARY_GOLDEN_PATH: &str =
+            "tests/goldens/lunar_2026-01-02t16-00z_at_0-5573317_seconds.png";
         const EPOCH_ONE_POINT_TWO_FIVE_GOLDEN_PATH: &str =
-            "tests/goldens/lunar_2026-01-04t16-35z_at_1-25_seconds.png";
+            "tests/goldens/lunar_2026-01-04t17-00z_at_1-25_seconds.png";
         const EPOCH_TWO_POINT_FIVE_GOLDEN_PATH: &str =
-            "tests/goldens/lunar_2026-01-08t09-11z_at_2-5_seconds.png";
+            "tests/goldens/lunar_2026-01-08t09-00z_at_2-5_seconds.png";
         const EPOCH_THREE_POINT_SEVEN_FIVE_GOLDEN_PATH: &str =
-            "tests/goldens/lunar_2026-01-12t01-46z_at_3-75_seconds.png";
+            "tests/goldens/lunar_2026-01-12t02-00z_at_3-75_seconds.png";
         const EPOCH_FIVE_GOLDEN_PATH: &str =
-            "tests/goldens/lunar_2026-01-15t18-22z_at_5_seconds.png";
+            "tests/goldens/lunar_2026-01-15t18-00z_at_5_seconds.png";
 
         /// A rendered lunar globe has the requested tightly packed RGBA layout.
         #[test]
@@ -395,14 +395,14 @@ mod tests {
             assert_matches_realistic_golden(&frame, Path::new(EPOCH_ZERO_GOLDEN_PATH));
         }
 
-        /// The canonical render follows the short path across a position-angle wrap boundary.
+        /// The canonical half-hour boundary resolves to the later hourly record.
         #[test]
-        fn canonical_position_angle_wrap_matches_golden_pixels() {
-            let wrap_boundary_scene_time = scene_time(0.557_331_701_553_974_8);
+        fn canonical_nearest_sample_boundary_matches_golden_pixels() {
+            let half_hour_boundary_scene_time = scene_time(0.557_331_701_553_974_8);
 
-            let frame = render_test_lunar_globe(800, 800, wrap_boundary_scene_time);
+            let frame = render_test_lunar_globe(800, 800, half_hour_boundary_scene_time);
 
-            assert_matches_realistic_golden(&frame, Path::new(POSITION_ANGLE_WRAP_GOLDEN_PATH));
+            assert_matches_realistic_golden(&frame, Path::new(NEAREST_SAMPLE_BOUNDARY_GOLDEN_PATH));
         }
 
         /// The canonical epoch render matches its reviewed pixels at 1.25 scene seconds.

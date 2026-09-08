@@ -8,7 +8,7 @@ For the first ephemeris-driven stage, the animation epoch is fixed at `2026-01-0
 astronomy_time(t) = epoch + ((t mod 10 seconds) / 10 seconds) × 29.530588853 days
 ```
 
-Latitude is interpolated linearly. Longitude follows the shortest angular path across the antimeridian. An ephemeris sample converts its sub-Earth point into the object-to-world rotation and its matching subsolar point into the world-space Sun direction through the renderer's established lunar longitude and latitude convention; this is coordinate conversion, not an astronomical position model.
+Each astronomical instant uses the nearest hourly NASA record without interpolating its sub-Earth point, subsolar point, or lunar position angle. An instant exactly halfway between records selects the later record. An ephemeris sample converts its sub-Earth point into the object-to-world rotation and its matching subsolar point into the world-space Sun direction through the renderer's established lunar longitude and latitude convention; this is coordinate conversion, not an astronomical position model.
 
 ## Considered options
 
@@ -16,4 +16,4 @@ Runtime NASA requests were rejected because they would make rendering depend on 
 
 ## Consequences
 
-The animation is reproducible and inspectable, but inherits NASA's hourly precision, has bounded annual coverage, and adds approximately 2 MB to project assets and compiled hosts. Interpolation is sufficient for the 300-frame presentation but is not intended for scientific analysis. A mean synodic month is not exactly periodic in the source data, so the ten-second reset deliberately permits a small discontinuity rather than blending or inventing ephemeris values. Later stages may select a current animation epoch only when committed data covers the complete cycle.
+The animation is reproducible and inspectable, but inherits NASA's hourly precision, changes pose and illumination in discrete hourly steps, has bounded annual coverage, and adds approximately 2 MB to project assets and compiled hosts. Nearest-record sampling avoids angular wrap handling and keeps Apollo 18 from fabricating values between NASA records; it is intended for visual presentation rather than scientific analysis. A mean synodic month is not exactly periodic in the source data, so the ten-second reset deliberately permits a discontinuity rather than blending or inventing ephemeris values. Later stages may select a current animation epoch only when committed data covers the complete cycle.
