@@ -9,25 +9,15 @@ pub struct LunarAppearance {
 }
 
 impl LunarAppearance {
-    pub const fn new(sun_direction: SunDirection) -> Self {
+    pub const fn new(object_to_world: Mat4, sun_direction: SunDirection) -> Self {
         Self {
-            object_to_world: Mat4::IDENTITY,
+            object_to_world,
             sun_direction,
         }
     }
 
     pub const fn sun_direction(self) -> SunDirection {
         self.sun_direction
-    }
-
-    pub(crate) const fn with_object_to_world(
-        object_to_world: Mat4,
-        sun_direction: SunDirection,
-    ) -> Self {
-        Self {
-            object_to_world,
-            sun_direction,
-        }
     }
 
     pub(crate) const fn object_to_world(self) -> Mat4 {
@@ -112,7 +102,7 @@ mod tests {
     fn lunar_appearance_preserves_sun_direction() {
         let sun_direction = SunDirection::new(Vec3::NEG_Z).expect("Sun direction should be valid");
 
-        let appearance = LunarAppearance::new(sun_direction);
+        let appearance = LunarAppearance::new(Mat4::IDENTITY, sun_direction);
 
         assert_eq!(appearance.sun_direction(), sun_direction);
     }
@@ -127,6 +117,7 @@ mod tests {
             ElevationImage::new(8, 4, vec![0.0; 8 * 4]).expect("elevation map should be valid"),
         );
         let appearance = LunarAppearance::new(
+            Mat4::IDENTITY,
             SunDirection::new(Vec3::NEG_Z).expect("Sun direction should be valid"),
         );
 
@@ -153,7 +144,7 @@ mod tests {
         let baseline = render_lunar_globe(
             32,
             24,
-            LunarAppearance::new(front_sun),
+            LunarAppearance::new(Mat4::IDENTITY, front_sun),
             &color_map,
             &elevation_map,
         )
@@ -161,7 +152,7 @@ mod tests {
         let changed_sun = render_lunar_globe(
             32,
             24,
-            LunarAppearance::new(side_sun),
+            LunarAppearance::new(Mat4::IDENTITY, side_sun),
             &color_map,
             &elevation_map,
         )

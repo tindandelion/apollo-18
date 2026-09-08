@@ -47,7 +47,7 @@ impl LunarPhaseAnimation {
         let sun_direction = SunDirection::new(sample.sun_direction())
             .expect("validated ephemeris coordinates produce a valid Sun direction");
 
-        LunarAppearance::with_object_to_world(object_to_world, sun_direction)
+        LunarAppearance::new(object_to_world, sun_direction)
     }
 }
 
