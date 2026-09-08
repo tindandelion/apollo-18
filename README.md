@@ -6,8 +6,12 @@ I continue the exploration of 3D graphics and rasterization through a more focus
 
 ## Our current progress
 
-#### Render a lunar globe with terrain details
+#### From a triangle to a terrain-shaded Moon
 
-The outcome is an animated lunar globe that uses NASA surface and ephemeris data to bring the Moon's craters, ridges, terrain details, and date-dependent illumination into view.
+Apollo 18 began with a single flat triangle and a question: how much of the graphics pipeline could we build ourselves before drawing the Moon? We added barycentric color interpolation, depth buffering and culling, transformed a rotating cube, and then shaped an octasphere into our first globe.
 
-![Apollo 18 lunar globe animation](https://github.com/tindandelion/apollo-18/releases/latest/download/lunar-globe.webp)
+From there, NASA's [CGI Moon Kit](https://svs.gsfc.nasa.gov/4720/) supplied the lunar color and elevation maps that gave the globe its familiar geography and terrain detail. Lambertian lighting revealed craters and ridges, and NASA's [2026 Moon Phase and Libration data](https://svs.gsfc.nasa.gov/5587/) brought the Moon's changing phase, libration, and apparent roll into the animation.
+
+The result of that journey is the [published lunar globe showcase](https://www.tindandelion.com/apollo-18/) and the [rendered WebP animation](https://github.com/tindandelion/apollo-18/releases/latest/download/lunar-globe.webp) shown below.
+
+[![Apollo 18 lunar globe animation](https://github.com/tindandelion/apollo-18/releases/latest/download/lunar-globe.webp)](https://www.tindandelion.com/apollo-18/)
