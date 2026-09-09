@@ -17,7 +17,7 @@
 
 The reference development machine currently has the following local tools. These are investigation aids, not project build dependencies:
 
-- Playwright 1.63.0 and its bundled Chrome for Testing 153.0.8010.12 can run the release performance contract and collect Chrome DevTools Protocol CPU profiles, timeline traces, long tasks, garbage-collection events, and runtime metrics.
+- The project-local Playwright 1.62.1 installation and its bundled Chrome for Testing 151.0.7922.34 can run the release performance contract and collect Chrome DevTools Protocol CPU profiles, timeline traces, long tasks, garbage-collection events, and runtime metrics.
 - Browser User Timing and `performance.now()` can measure the software render, `ImageData` construction, `putImageData`, and complete animation-frame boundaries without changing the counted work.
 - Rust 1.97.1 and Cargo can run a focused native harness for the same 1152×1152 `render_lunar_globe` workload, separating shared-renderer cost from Wasm transfer and Canvas 2D presentation.
 - `cargo-flamegraph` 0.6.14 can produce native sampling flame graphs; `cargo-instruments` 0.4.10 and macOS `sample` provide alternative native profiling paths.
