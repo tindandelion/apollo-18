@@ -1,4 +1,4 @@
-use crate::globe_location::GeoCoords;
+use super::globe_location::GeoCoords;
 use crate::image::SrgbImage;
 use crate::rasterizer::LinearRgb;
 
@@ -44,8 +44,8 @@ impl LunarColorMap {
 
 #[cfg(test)]
 mod tests {
+    use super::super::globe_location::GlobeLocation;
     use super::*;
-    use crate::globe_location::GlobeLocation;
     use crate::rasterizer::Srgb8;
     use glam::Vec3;
 

@@ -1,5 +1,6 @@
-use crate::lunar_ephemeris::AstronomicalInstant;
-use crate::{LunarAppearance, LunarEphemeris, SceneTime};
+use super::lunar_ephemeris::AstronomicalInstant;
+use super::{LunarAppearance, LunarEphemeris};
+use crate::SceneTime;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 
@@ -110,7 +111,7 @@ mod tests {
     }
 
     fn canonical_animation() -> SynodicMonthAnimation {
-        let source = include_bytes!("../../../assets/nasa/mooninfo_2026.json");
+        let source = include_bytes!("../../../../assets/nasa/mooninfo_2026.json");
         let ephemeris =
             LunarEphemeris::from_nasa_json(source).expect("NASA source should be valid");
         SynodicMonthAnimation::new(ephemeris)

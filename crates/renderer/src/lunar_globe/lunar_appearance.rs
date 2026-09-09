@@ -62,7 +62,7 @@ impl Error for InvalidSunDirection {}
 mod tests {
     use super::*;
     use crate::image::{ElevationImage, SrgbImage};
-    use crate::{LunarColorMap, LunarElevationMap, render_lunar_globe};
+    use crate::lunar_globe::{LunarColorMap, LunarElevationMap, render_lunar_globe};
 
     /// A Sun direction normalizes finite nonzero input.
     #[test]

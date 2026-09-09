@@ -1,7 +1,7 @@
-use crate::globe_location::GlobeLocation;
-use crate::lunar_appearance::{LunarAppearance, SunDirection};
-use crate::lunar_color_map::LunarColorMap;
-use crate::lunar_elevation_map::LunarElevationMap;
+use super::globe_location::GlobeLocation;
+use super::lunar_appearance::{LunarAppearance, SunDirection};
+use super::lunar_color_map::LunarColorMap;
+use super::lunar_elevation_map::LunarElevationMap;
 use crate::rasterizer::{
     FragmentShader, Framebuffer, LinearRgb, NdcVertex, Rasterizer, RenderError, Srgb8,
 };

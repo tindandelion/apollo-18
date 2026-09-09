@@ -68,7 +68,8 @@ The Ticket 13 baseline was measured on 2026-09-06 with:
 
 ## Golden images
 
-Triangle and cube goldens require exact decoded RGBA pixels. Realistic lunar
+Golden render tests exercise the renderer's public scene interfaces from
+`crates/renderer/tests/golden_renders.rs`. Triangle and cube goldens require exact decoded RGBA pixels. Realistic lunar
 goldens allow a maximum absolute difference of one per RGB channel, and up to
 sixteen pixels may exceed that RGB tolerance to absorb rare platform
 floating-point texel-boundary hits. Alpha must match exactly. A failure writes
@@ -77,8 +78,8 @@ an amplified PNG and numerical summary to `target/apollo18/golden-diffs/`.
 Golden replacement is intentionally separate from normal test runs:
 
 ```bash
-APOLLO18_UPDATE_GOLDENS=1 cargo test -p apollo18-renderer --lib \
-  phase_matches_golden_pixels
+APOLLO18_UPDATE_GOLDENS=1 cargo test -p apollo18-renderer \
+  --test golden_renders golden_pixels
 ```
 
 The replacement should be reviewed as a visible behavior change before it is

@@ -1,7 +1,9 @@
 use crate::run_frame_sequence;
 use apollo18_renderer::{
-    LunarColorMap, LunarElevationMap, LunarEphemeris, SynodicMonthAnimation,
-    image::decode_float_tiff, image::decode_jpeg, render_lunar_globe,
+    image::{decode_float_tiff, decode_jpeg},
+    lunar_globe::{
+        LunarColorMap, LunarElevationMap, LunarEphemeris, SynodicMonthAnimation, render_lunar_globe,
+    },
 };
 use std::error::Error;
 use std::ffi::OsString;

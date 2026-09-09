@@ -1,4 +1,4 @@
-use crate::lunar_appearance::{LunarAppearance, SunDirection};
+use super::lunar_appearance::{LunarAppearance, SunDirection};
 use glam::{Mat4, Vec3};
 use serde::Deserialize;
 use std::error::Error;

@@ -1,6 +1,10 @@
 use apollo18_renderer::{
-    EphemerisSpanAnimation, LunarColorMap, LunarElevationMap, LunarEphemeris, SceneTime,
-    image::decode_float_tiff, image::decode_jpeg, render_lunar_globe,
+    SceneTime,
+    image::{decode_float_tiff, decode_jpeg},
+    lunar_globe::{
+        EphemerisSpanAnimation, LunarColorMap, LunarElevationMap, LunarEphemeris,
+        render_lunar_globe,
+    },
 };
 use std::cell::RefCell;
 use std::fmt;

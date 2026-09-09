@@ -1,4 +1,4 @@
-use crate::globe_location::GeoCoords;
+use super::globe_location::GeoCoords;
 use crate::image::ElevationImage;
 use glam::Vec3;
 
@@ -64,8 +64,8 @@ impl LunarElevationMap {
 
 #[cfg(test)]
 mod tests {
+    use super::super::globe_location::GlobeLocation;
     use super::*;
-    use crate::globe_location::GlobeLocation;
     use crate::image::ElevationImage;
     use glam::Vec3;
 
