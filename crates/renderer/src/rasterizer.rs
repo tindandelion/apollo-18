@@ -1,9 +1,11 @@
+mod color;
+mod framebuffer;
 mod shader;
 mod triangle;
 mod vertex;
 
-use crate::color::LinearRgb;
-use crate::framebuffer::Framebuffer;
+pub(crate) use color::{LinearRgb, Srgb8};
+pub use framebuffer::{Framebuffer, RenderError};
 pub(crate) use shader::FragmentShader;
 use triangle::rasterize_fragments;
 pub(crate) use vertex::NdcVertex;
@@ -15,11 +17,7 @@ pub(crate) struct Rasterizer {
 }
 
 impl Rasterizer {
-    pub(crate) fn new(
-        width: u32,
-        height: u32,
-        background: crate::color::Srgb8,
-    ) -> Result<Self, crate::framebuffer::RenderError> {
+    pub(crate) fn new(width: u32, height: u32, background: Srgb8) -> Result<Self, RenderError> {
         let framebuffer = Framebuffer::new(width, height, background)?;
         let depth_buffer = vec![f32::INFINITY; framebuffer.pixels().len() / 4];
         Ok(Self {
@@ -71,7 +69,6 @@ impl Rasterizer {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::color::Srgb8;
     use glam::{Vec2, Vec3};
 
     const BACKGROUND: Srgb8 = Srgb8::from_hex(0x18_18_18);

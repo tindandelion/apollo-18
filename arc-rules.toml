@@ -1,0 +1,32 @@
+[config]
+version = 1
+default_severity = "error"
+
+[[rules]]
+type = "no-cycles"
+name = "production modules remain acyclic"
+scope = "**"
+
+[[rules]]
+type = "forbidden-dependency"
+name = "renderer must not depend on native host"
+from = "apollo18-renderer"
+to = "apollo18-native"
+
+[[rules]]
+type = "forbidden-dependency"
+name = "renderer must not depend on web host"
+from = "apollo18-renderer"
+to = "apollo18-web"
+
+[[rules]]
+type = "forbidden-dependency"
+name = "rasterizer facade must not depend on sibling modules"
+from = "apollo18-renderer::rasterizer"
+to = "apollo18-renderer::*"
+
+[[rules]]
+type = "forbidden-dependency"
+name = "rasterizer internals must not depend on sibling modules"
+from = "apollo18-renderer::rasterizer::**"
+to = "apollo18-renderer::*"

@@ -1,4 +1,4 @@
-use crate::color::Srgb8;
+use crate::rasterizer::Srgb8;
 use std::error::Error;
 use std::fmt;
 

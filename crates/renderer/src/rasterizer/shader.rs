@@ -1,4 +1,4 @@
-use crate::color::LinearRgb;
+use super::LinearRgb;
 
 pub(crate) trait FragmentShader {
     type Attribute: Copy;

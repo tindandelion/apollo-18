@@ -1,6 +1,6 @@
-use crate::color::{LinearRgb, Srgb8};
-use crate::framebuffer::{Framebuffer, RenderError};
-use crate::rasterizer::{FragmentShader, NdcVertex, Rasterizer};
+use crate::rasterizer::{
+    FragmentShader, Framebuffer, LinearRgb, NdcVertex, Rasterizer, RenderError, Srgb8,
+};
 
 use glam::{Mat4, Vec3};
 

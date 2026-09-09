@@ -1,6 +1,6 @@
-use crate::color::LinearRgb;
 use crate::globe_location::GeoCoords;
 use crate::image::SrgbImage;
+use crate::rasterizer::LinearRgb;
 
 #[derive(Debug, Clone, PartialEq)]
 pub struct LunarColorMap {
@@ -45,8 +45,8 @@ impl LunarColorMap {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::color::Srgb8;
     use crate::globe_location::GlobeLocation;
+    use crate::rasterizer::Srgb8;
     use glam::Vec3;
 
     fn geo_coords(direction: Vec3) -> GeoCoords {

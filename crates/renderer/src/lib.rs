@@ -1,6 +1,4 @@
-mod color;
 mod cube;
-mod framebuffer;
 mod globe_location;
 pub mod image;
 mod lunar_appearance;
@@ -12,8 +10,6 @@ mod octasphere;
 mod rasterizer;
 mod scene_time;
 
-use color::Srgb8;
-pub use framebuffer::{Framebuffer, RenderError};
 pub use lunar_appearance::{InvalidSunDirection, LunarAppearance, SunDirection};
 pub use lunar_color_map::LunarColorMap;
 pub use lunar_elevation_map::LunarElevationMap;
@@ -21,6 +17,8 @@ pub use lunar_ephemeris::{AstronomicalInstant, EphemerisError, LunarEphemeris};
 pub use lunar_phase_animation::{
     AnimationCoverageError, EphemerisSpanAnimation, SynodicMonthAnimation,
 };
+use rasterizer::Srgb8;
+pub use rasterizer::{Framebuffer, RenderError};
 pub use scene_time::{InvalidSceneTime, SceneTime};
 
 const CUBE_ROTATION_PERIOD_SECONDS: f64 = 10.0;
@@ -72,8 +70,7 @@ mod tests {
 
     mod triangle {
         use super::*;
-        use crate::color::LinearRgb;
-        use crate::rasterizer::{FragmentShader, NdcVertex, Rasterizer};
+        use crate::rasterizer::{FragmentShader, LinearRgb, NdcVertex, Rasterizer};
 
         const GOLDEN_PATH: &str = "tests/goldens/first_triangle.png";
         const COLORS: [Srgb8; 3] = [Srgb8::RED, Srgb8::GREEN, Srgb8::BLUE];

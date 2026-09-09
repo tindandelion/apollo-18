@@ -62,7 +62,7 @@ impl<T> ScreenVertex<T> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::color::Srgb8;
+    use crate::rasterizer::Srgb8;
 
     #[test]
     fn ndc_vertex_rejects_positions_outside_the_view_volume() {

@@ -1,4 +1,4 @@
-use crate::color::Srgb8;
+use super::Srgb8;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
 

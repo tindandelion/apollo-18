@@ -22,22 +22,14 @@ runs:
         tool: trunk@0.21.14
         fallback: none
 
-    - name: Check formatting, lint, and tests
-      shell: bash
-      run: |
-        cargo fmt --check
-        cargo clippy --workspace --all-targets -- -D warnings
-        cargo test --workspace
+    - name: Install cargo-arc
+      uses: taiki-e/install-action@v2.84.0
+      with:
+        tool: cargo-arc@0.3.1
+        fallback: none
 
-    - name: Build web release
+    - name: Run canonical quality gate
       shell: bash
       env:
-        NO_COLOR: "true"
         PUBLIC_URL: ${{ inputs.public-url }}
-      run: |
-        arguments=(index.html --release --locked)
-        if [[ -n "${PUBLIC_URL}" ]]; then
-          arguments+=(--public-url "${PUBLIC_URL}")
-        fi
-        cd crates/web
-        trunk build "${arguments[@]}"
+      run: scripts/dev/quality-gate.sh

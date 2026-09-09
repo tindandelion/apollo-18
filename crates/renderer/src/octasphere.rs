@@ -1,10 +1,10 @@
-use crate::color::{LinearRgb, Srgb8};
-use crate::framebuffer::{Framebuffer, RenderError};
 use crate::globe_location::GlobeLocation;
 use crate::lunar_appearance::{LunarAppearance, SunDirection};
 use crate::lunar_color_map::LunarColorMap;
 use crate::lunar_elevation_map::LunarElevationMap;
-use crate::rasterizer::{FragmentShader, NdcVertex, Rasterizer};
+use crate::rasterizer::{
+    FragmentShader, Framebuffer, LinearRgb, NdcVertex, Rasterizer, RenderError, Srgb8,
+};
 use glam::{Mat4, Vec3};
 use std::collections::HashMap;
 
