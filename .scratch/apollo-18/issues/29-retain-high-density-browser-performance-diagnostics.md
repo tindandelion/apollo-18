@@ -4,11 +4,11 @@
 
 **Blocked by:** None (can start immediately)
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] The diagnostic verifies the 1152×1152 canvas backing resolution on the reference viewport and device pixel ratio.
-- [ ] Measurements begin after a documented warmup and report medians over enough completed frames to distinguish meaningful changes from noise.
-- [ ] A frame is counted only after software rendering, framebuffer handoff, and Canvas 2D presentation complete.
-- [ ] Output records the machine, operating system, browser and version, viewport, device pixel ratio, canvas CSS dimensions, backing resolution, warmup, sample size, and stage timings.
-- [ ] The current baseline is reproduced and recorded alongside the existing sustained-FPS contract result.
-- [ ] Browser smoke coverage and the local quality gate pass.
+- [x] The diagnostic verifies the 1152×1152 canvas backing resolution on the reference viewport and device pixel ratio.
+- [x] Measurements begin after a documented warmup and report medians over enough completed frames to distinguish meaningful changes from noise.
+- [x] A frame is counted only after software rendering, framebuffer handoff, and Canvas 2D presentation complete.
+- [x] Output records the machine, operating system, browser and version, viewport, device pixel ratio, canvas CSS dimensions, backing resolution, warmup, sample size, and stage timings.
+- [x] The current baseline is reproduced and recorded alongside the existing sustained-FPS contract result.
+- [x] Browser smoke coverage and the local quality gate pass.
