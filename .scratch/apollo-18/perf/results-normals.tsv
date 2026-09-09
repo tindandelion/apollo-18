@@ -1,0 +1,8 @@
+mask0	APOLLO18_PROFILE {"medianFrameMs":63.7,"p25Ms":63.4,"p75Ms":64,"medianPresentationMs":0.2,"impliedFps":15.7,"frames":80}
+mask1	APOLLO18_PROFILE {"medianFrameMs":48.5,"p25Ms":48.3,"p75Ms":48.8,"medianPresentationMs":0.2,"impliedFps":20.62,"frames":80}
+mask2	APOLLO18_PROFILE {"medianFrameMs":58.3,"p25Ms":58,"p75Ms":58.5,"medianPresentationMs":0.2,"impliedFps":17.15,"frames":80}
+mask8	APOLLO18_PROFILE {"medianFrameMs":61.3,"p25Ms":61.1,"p75Ms":61.6,"medianPresentationMs":0.2,"impliedFps":16.31,"frames":80}
+mask4	APOLLO18_PROFILE {"medianFrameMs":59.1,"p25Ms":58.9,"p75Ms":59.4,"medianPresentationMs":0.2,"impliedFps":16.92,"frames":80}
+mask12	APOLLO18_PROFILE {"medianFrameMs":58.6,"p25Ms":58.4,"p75Ms":58.9,"medianPresentationMs":0.2,"impliedFps":17.06,"frames":80}
+mask5	APOLLO18_PROFILE {"medianFrameMs":48.7,"p25Ms":48.4,"p75Ms":48.9,"medianPresentationMs":0.2,"impliedFps":20.53,"frames":80}
+mask6	APOLLO18_PROFILE {"medianFrameMs":53.4,"p25Ms":53.1,"p75Ms":53.7,"medianPresentationMs":0.2,"impliedFps":18.73,"frames":80}
