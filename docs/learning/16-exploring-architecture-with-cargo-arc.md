@@ -26,21 +26,19 @@ cargo +stable install cargo-arc --version 0.3.1 --locked
 
 ## Generate a first diagram
 
-Run the command from the Apollo 18 repository root:
+Run the project script from the Apollo 18 repository root:
 
 ```bash
-mkdir -p target/apollo18/architecture
-
-cargo arc \
-  --expand-level 1 \
-  -o target/apollo18/architecture/dependencies.svg
+./scripts/dev/render-architecture.sh
 ```
 
-Open the result on macOS:
+It expands the graph through nested rasterizer modules, writes `target/apollo18/architecture/dependencies.svg`, and opens the result in the platform's default viewer. Additional arguments are forwarded to `cargo arc`; for example:
 
 ```bash
-open target/apollo18/architecture/dependencies.svg
+./scripts/dev/render-architecture.sh --externals
 ```
+
+Set `ARCHITECTURE_OUTPUT` to override the output path. The script opens the result with macOS `open`.
 
 Files under `target/` are disposable exploration artifacts and do not need to be committed.
 
