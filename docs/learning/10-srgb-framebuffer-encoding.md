@@ -21,9 +21,24 @@ s(l) ~= table[i] + t * (table[i + 1] - table[i])
 ```
 
 The interpolated sRGB value is multiplied by 255 and rounded to the nearest
-integer, preserving the framebuffer's existing quantization rule. Shading and
-interpolation never enter sRGB space. The table is initialized when the
-framebuffer is created, before rasterization can accept a fragment.
+integer, preserving the framebuffer's existing quantization rule. For the
+non-negative display code `x` in `[0, 255]`, Apollo 18 performs that
+quantization without a floating-point rounding operation:
+
+```text
+n = trunc(x)
+q = n + (x - n >= 0.5)
+```
+
+Truncation equals `floor` for a non-negative value. The comparison therefore
+increments exactly at each half-code threshold, making `q` equivalent to
+round-half-away-from-zero throughout the displayable range. Splitting the
+integer and fractional parts also avoids the precision error of the tempting
+`trunc(x + 0.5)` form: for some representable values immediately below a
+half-code threshold, adding `0.5` rounds the sum up to the integer too early.
+
+Shading and interpolation never enter sRGB space. The table is initialized
+when the framebuffer is created, before rasterization can accept a fragment.
 
 ## Choosing the table size
 

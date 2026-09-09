@@ -98,6 +98,26 @@ build measurements.
 The separate sustained-FPS contract measured 15.20 FPS over 7.96 seconds in a
 separate warmed run. Its expected 30 FPS assertion remains open for Ticket 19.
 
+Ticket 30 compared three baseline and three changed runs on the same reference
+environment on 2026-09-09. It replaced per-channel floating-point rounding
+with equivalent non-negative integer-and-fraction quantization:
+
+| Variant | Run | Frames | Completed FPS | Software rendering | Complete frame |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Baseline | 1 | 130 | 16.13 | 61.6 ms | 61.8 ms |
+| Baseline | 2 | 127 | 15.77 | 64.1 ms | 64.3 ms |
+| Baseline | 3 | 121 | 15.07 | 66.7 ms | 66.8 ms |
+| Integer-and-fraction quantization | 1 | 145 | 18.00 | 55.2 ms | 55.4 ms |
+| Integer-and-fraction quantization | 2 | 145 | 18.00 | 55.2 ms | 55.4 ms |
+| Integer-and-fraction quantization | 3 | 144 | 17.97 | 55.3 ms | 55.5 ms |
+
+The median complete-frame time improved from 64.3 ms to 55.4 ms, an 8.9 ms
+(13.8%) reduction. Even the fastest baseline and slowest changed medians are
+separated by 6.3 ms, larger than both this baseline's 5.0 ms run-to-run span
+and Ticket 29's prior 4.2 ms noise bound. The separate sustained-FPS contract
+rerun measured 17.95 FPS over 7.97 seconds. This is a cumulative improvement,
+but the expected 30 FPS assertion remains open for the later Ticket 19 work.
+
 The Ticket 13 baseline was measured on 2026-09-06 with:
 
 - Apple Mac15,7 with an Apple M3 Pro (`arm64`)

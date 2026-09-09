@@ -118,7 +118,7 @@ impl SrgbEncodeTable {
     }
 
     fn encode(&self, linear: f32) -> u8 {
-        (self.interpolate(linear.clamp(0.0, 1.0)) * 255.0).round() as u8
+        quantize_display_code(self.interpolate(linear.clamp(0.0, 1.0)) * 255.0)
     }
 
     fn interpolate(&self, linear: f32) -> f32 {
@@ -129,6 +129,11 @@ impl SrgbEncodeTable {
         let upper = self.samples[lower_index + 1];
         lower + (upper - lower) * fraction
     }
+}
+
+fn quantize_display_code(display_code: f32) -> u8 {
+    let integer = display_code as u8;
+    integer + u8::from(display_code - integer as f32 >= 0.5)
 }
 
 fn srgb_encode_table() -> &'static SrgbEncodeTable {
@@ -162,6 +167,42 @@ mod tests {
         assert!((linear_to_srgb(0.003_130_8) - 0.040_449_936).abs() < 0.000_000_1);
     }
 
+    /// Every exact display code remains unchanged during quantization.
+    #[test]
+    fn exact_display_codes_quantize_to_themselves() {
+        let display_codes = 0_u8..=u8::MAX;
+
+        let quantized: Vec<_> = display_codes
+            .clone()
+            .map(|display_code| quantize_display_code(display_code as f32))
+            .collect();
+
+        assert_eq!(quantized, display_codes.collect::<Vec<_>>());
+    }
+
+    /// Every half-code threshold rounds up while its adjacent values remain separated.
+    #[test]
+    fn half_code_thresholds_round_half_away_from_zero() {
+        let lower_codes = 0_u8..u8::MAX;
+
+        let quantized: Vec<_> = lower_codes
+            .clone()
+            .map(|lower_code| {
+                let threshold = lower_code as f32 + 0.5;
+                [
+                    quantize_display_code(f32::from_bits(threshold.to_bits() - 1)),
+                    quantize_display_code(threshold),
+                    quantize_display_code(f32::from_bits(threshold.to_bits() + 1)),
+                ]
+            })
+            .collect();
+
+        let expected: Vec<_> = lower_codes
+            .map(|lower_code| [lower_code, lower_code + 1, lower_code + 1])
+            .collect();
+        assert_eq!(quantized, expected);
+    }
+
     #[test]
     fn linear_channels_encode_to_standard_srgb_output_codes() {
         assert_eq!(
@@ -178,10 +219,32 @@ mod tests {
         );
     }
 
+    /// Linear channels at and beyond both clamping boundaries remain displayable.
     #[test]
     fn linear_channels_clamp_to_the_displayable_range() {
-        assert_eq!(encode_test_channel(-1.0), 0);
-        assert_eq!(encode_test_channel(2.0), 255);
+        let linear_channels = [-1.0, 0.0, 1.0, 2.0];
+
+        let encoded = linear_channels.map(encode_test_channel);
+
+        assert_eq!(encoded, [0, 0, 255, 255]);
+    }
+
+    /// Lookup-table output retains round-half-away behavior across its complete input range.
+    #[test]
+    fn lookup_table_quantization_matches_round_across_displayable_range() {
+        let table = SrgbEncodeTable::new();
+        let linear_channels = (0..=65_536).map(|step| step as f32 / 65_536.0);
+
+        let mismatches: Vec<_> = linear_channels
+            .filter_map(|linear| {
+                let display_code = table.interpolate(linear) * 255.0;
+                let quantized = quantize_display_code(display_code);
+                let rounded = display_code.round() as u8;
+                (quantized != rounded).then_some((linear, display_code, quantized, rounded))
+            })
+            .collect();
+
+        assert!(mismatches.is_empty(), "mismatches: {mismatches:?}");
     }
 
     #[test]
