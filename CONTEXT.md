@@ -32,6 +32,10 @@ _Avoid_: Scene time, current time, startup time
 A lunar animation that maps one fixed-duration display cycle across the complete timestamp range of validated ephemeris data. Apollo 18 uses it for the two-minute web showcase.
 _Avoid_: Annual animation, web animation
 
+**Compressed astronomical time**:
+Presentation of a long astronomical interval over a shorter scene-time cycle. It may skip source samples at the host's rendering cadence but never changes the deterministic mapping from scene time to astronomical instant.
+_Avoid_: Time lapse, accelerated frame rate
+
 **Synodic-month animation**:
 A lunar animation that maps one fixed-duration display cycle across a mean synodic month beginning at the animation epoch. Apollo 18 uses it for the ten-second native sequence.
 _Avoid_: Native animation, phase animation
@@ -99,6 +103,18 @@ _Avoid_: Libration angle, globe yaw
 **Synodic month**:
 The interval over which the Moon returns to the same phase relative to the Sun and Earth. Apollo 18 uses its mean duration of 29.530588853 days when presenting one lunar-phase cycle.
 _Avoid_: Lunar rotation period, sidereal month
+
+**Coverage failure**:
+Rejection of a synodic-month animation when validated ephemeris timestamps do not span one complete mean synodic month from the animation epoch. Native rendering reports it before writing numbered frames.
+_Avoid_: Render failure, missing sample
+
+**Loop discontinuity**:
+The deliberate jump from the final presented astronomical state back to the animation epoch without interpolation or blending. Both lunar animation policies permit this because their endpoint states need not match.
+_Avoid_: Seamless loop, transition
+
+**Deterministic render**:
+A render whose framebuffer is fully determined by explicit dimensions, scene time, validated ephemeris, lunar maps, and rendering settings, without wall-clock or network input.
+_Avoid_: Reproducible enough, live render
 
 **Sun direction**:
 The world-space unit direction from the lunar globe toward the Sun, used as the incoming-light direction for lunar illumination.

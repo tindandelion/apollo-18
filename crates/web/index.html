@@ -66,6 +66,17 @@
         aspect-ratio: 1;
       }
 
+      [hidden] {
+        display: none;
+      }
+
+      .render-error {
+        max-width: 32rem;
+        margin: auto;
+        color: #f2b8b5;
+        line-height: 1.5;
+      }
+
       footer {
         width: calc(100% + 2rem);
         margin-top: 1rem;
@@ -125,6 +136,10 @@
       <p>Elevation-shaded lunar globe drawn by the software renderer in Rust</p>
       <div class="canvas-stage">
         <canvas id="apollo18-canvas" aria-label="Lunar globe render"></canvas>
+        <p id="apollo18-render-error" class="render-error" role="alert" hidden>
+          The lunar globe could not load its ephemeris data. Reload the page; if the problem
+          continues, report it using the source-code link below.
+        </p>
       </div>
       <footer aria-label="Credits and licensing">
         <p>

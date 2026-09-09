@@ -18,6 +18,10 @@ impl AstronomicalInstant {
     pub(crate) const fn add(self, seconds: f64) -> Self {
         Self(self.0 + seconds)
     }
+
+    pub(crate) fn seconds_since(self, earlier: Self) -> f64 {
+        self.0 - earlier.0
+    }
 }
 
 #[derive(Debug, Clone)]
@@ -67,6 +71,16 @@ impl LunarEphemeris {
             first_timestamp: timestamps[0],
             samples,
         })
+    }
+
+    pub fn first_instant(&self) -> AstronomicalInstant {
+        AstronomicalInstant::from_unix_seconds(self.first_timestamp)
+    }
+
+    pub fn last_instant(&self) -> AstronomicalInstant {
+        AstronomicalInstant::from_unix_seconds(
+            self.first_timestamp + (self.samples.len() - 1) as i64 * SECONDS_PER_HOUR,
+        )
     }
 
     pub(crate) fn covers(&self, start: AstronomicalInstant, end: AstronomicalInstant) -> bool {
@@ -459,6 +473,19 @@ mod tests {
         let result = LunarEphemeris::from_nasa_json(source);
 
         assert!(matches!(result, Err(EphemerisError::InvalidJson(_))));
+    }
+
+    /// Validated timestamp bounds expose astronomical instants without source-format details.
+    #[test]
+    fn exposes_first_and_last_validated_instants() {
+        let source = two_sample_json(30.0, 20.0);
+        let expected_first = EPOCH;
+        let expected_last = EPOCH.add(SECONDS_PER_HOUR as f64);
+
+        let ephemeris = LunarEphemeris::from_nasa_json(&source).expect("source should be valid");
+
+        assert_eq!(ephemeris.first_instant(), expected_first);
+        assert_eq!(ephemeris.last_instant(), expected_last);
     }
 
     /// One complete hourly record is valid ephemeris data for nearest-record sampling.

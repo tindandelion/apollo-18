@@ -1,7 +1,6 @@
 use apollo18_renderer::{
-    CANONICAL_ANIMATION_EPOCH, LunarColorMap, LunarElevationMap, LunarEphemeris,
-    LunarPhaseAnimation, SceneTime, image::decode_float_tiff, image::decode_jpeg,
-    render_lunar_globe,
+    EphemerisSpanAnimation, LunarColorMap, LunarElevationMap, LunarEphemeris, SceneTime,
+    image::decode_float_tiff, image::decode_jpeg, render_lunar_globe,
 };
 use std::cell::RefCell;
 use std::fmt;
@@ -35,7 +34,19 @@ pub fn start() -> Result<(), JsValue> {
         .ok_or_else(|| JsValue::from_str("Canvas 2D context is unavailable"))?
         .dyn_into::<CanvasRenderingContext2d>()?;
 
-    start_animation(window, canvas, context)
+    if let Err(error) = start_animation(window, canvas.clone(), context) {
+        web_sys::console::error_1(&JsValue::from_str(&format!(
+            "Apollo 18 could not initialize lunar rendering: {}",
+            error.as_string().unwrap_or_else(|| format!("{error:?}"))
+        )));
+        canvas.set_attribute("hidden", "")?;
+        let failure = document
+            .get_element_by_id("apollo18-render-error")
+            .ok_or_else(|| JsValue::from_str("apollo18 render error message is missing"))?;
+        failure.remove_attribute("hidden")?;
+    }
+
+    Ok(())
 }
 
 fn start_animation(
@@ -50,10 +61,18 @@ fn start_animation(
         decode_float_tiff(LUNAR_ELEVATION_MAP_TIFF)
             .map_err(|error| JsValue::from_str(&error.to_string()))?,
     );
-    let ephemeris = LunarEphemeris::from_nasa_json(LUNAR_EPHEMERIS_JSON)
+    let ephemeris_override = js_sys::Reflect::get(
+        window.as_ref(),
+        &JsValue::from_str("__apollo18EphemerisJson"),
+    )?
+    .as_string();
+    let ephemeris_source = ephemeris_override
+        .as_deref()
+        .map(str::as_bytes)
+        .unwrap_or(LUNAR_EPHEMERIS_JSON);
+    let ephemeris = LunarEphemeris::from_nasa_json(ephemeris_source)
         .map_err(|error| JsValue::from_str(&error.to_string()))?;
-    let lunar_phase_animation = LunarPhaseAnimation::new(ephemeris, CANONICAL_ANIMATION_EPOCH)
-        .map_err(|error| JsValue::from_str(&error.to_string()))?;
+    let lunar_phase_animation = EphemerisSpanAnimation::new(ephemeris);
     let animation = Rc::new(RefCell::new(CanvasAnimation::new(
         canvas,
         context,
@@ -168,8 +187,8 @@ struct CanvasAnimation {
     context: CanvasRenderingContext2d,
     color_map: LunarColorMap,
     elevation_map: LunarElevationMap,
-    lunar_phase_animation: LunarPhaseAnimation,
-    started_at_milliseconds: Option<f64>,
+    lunar_phase_animation: EphemerisSpanAnimation,
+    scene_clock: MonotonicSceneClock,
 }
 
 impl CanvasAnimation {
@@ -178,7 +197,7 @@ impl CanvasAnimation {
         context: CanvasRenderingContext2d,
         color_map: LunarColorMap,
         elevation_map: LunarElevationMap,
-        lunar_phase_animation: LunarPhaseAnimation,
+        lunar_phase_animation: EphemerisSpanAnimation,
     ) -> Self {
         Self {
             canvas,
@@ -186,7 +205,7 @@ impl CanvasAnimation {
             color_map,
             elevation_map,
             lunar_phase_animation,
-            started_at_milliseconds: None,
+            scene_clock: MonotonicSceneClock::default(),
         }
     }
 
@@ -195,9 +214,6 @@ impl CanvasAnimation {
         timestamp_milliseconds: f64,
         device_pixel_ratio: f64,
     ) -> Result<(), JsValue> {
-        let started_at_milliseconds = *self
-            .started_at_milliseconds
-            .get_or_insert(timestamp_milliseconds);
         let bounds = self.canvas.get_bounding_client_rect();
         let Some(resolution) =
             select_backing_resolution(bounds.width(), bounds.height(), device_pixel_ratio)
@@ -211,9 +227,10 @@ impl CanvasAnimation {
             self.canvas.set_height(resolution.height);
         }
 
-        let scene_time =
-            SceneTime::from_elapsed_millis(started_at_milliseconds, timestamp_milliseconds)
-                .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        let scene_time = self
+            .scene_clock
+            .scene_time(timestamp_milliseconds)
+            .map_err(|error| JsValue::from_str(&error.to_string()))?;
         let appearance = self.lunar_phase_animation.lunar_appearance(scene_time);
         let frame = render_lunar_globe(
             resolution.width,
@@ -232,9 +249,61 @@ impl CanvasAnimation {
     }
 }
 
+#[derive(Default)]
+struct MonotonicSceneClock {
+    started_at_milliseconds: Option<f64>,
+}
+
+impl MonotonicSceneClock {
+    fn scene_time(
+        &mut self,
+        timestamp_milliseconds: f64,
+    ) -> Result<SceneTime, apollo18_renderer::InvalidSceneTime> {
+        let started_at_milliseconds = *self
+            .started_at_milliseconds
+            .get_or_insert(timestamp_milliseconds);
+        SceneTime::from_elapsed_millis(started_at_milliseconds, timestamp_milliseconds)
+    }
+}
+
 #[cfg(test)]
 mod tests {
-    use super::{BackingResolution, ResolutionError, select_backing_resolution};
+    use super::{
+        BackingResolution, MonotonicSceneClock, ResolutionError, select_backing_resolution,
+    };
+
+    /// The first render-ready callback establishes scene time zero.
+    #[test]
+    fn monotonic_clock_guarantees_zero_scene_time_for_first_frame() {
+        let mut clock = MonotonicSceneClock::default();
+
+        let scene_time = clock
+            .scene_time(42_000.0)
+            .expect("timestamp should be valid");
+
+        assert_eq!(
+            scene_time,
+            apollo18_renderer::SceneTime::from_seconds(0.0).expect("scene time should be valid")
+        );
+    }
+
+    /// Later scene time comes from elapsed monotonic time rather than frame count.
+    #[test]
+    fn monotonic_clock_preserves_elapsed_time_across_stalls() {
+        let mut clock = MonotonicSceneClock::default();
+        let _ = clock
+            .scene_time(1_000.0)
+            .expect("timestamp should be valid");
+
+        let scene_time = clock
+            .scene_time(121_000.0)
+            .expect("timestamp should be valid");
+
+        assert_eq!(
+            scene_time,
+            apollo18_renderer::SceneTime::from_seconds(120.0).expect("scene time should be valid")
+        );
+    }
 
     /// An uncapped display request is rounded to the nearest backing pixels.
     #[test]

@@ -223,6 +223,70 @@ test("release web host updates its high-density backing resolution", async ({
     });
 });
 
+test("release web host follows controlled monotonic ephemeris-span time", async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 360, height: 640 });
+  await page.addInitScript(() => {
+    const callbacks = [];
+    window.apollo18PresentedFrameHashes = [];
+    window.requestAnimationFrame = (callback) => {
+      callbacks.push(callback);
+      return callbacks.length;
+    };
+    window.apollo18RunAnimationFrame = (timestamp) => {
+      const callback = callbacks.shift();
+      if (!callback) throw new Error("no animation callback is ready");
+      callback(timestamp);
+    };
+
+    const putImageData = CanvasRenderingContext2D.prototype.putImageData;
+    CanvasRenderingContext2D.prototype.putImageData = function (
+      imageData,
+      ...arguments_
+    ) {
+      let hash = 2166136261;
+      for (let offset = 0; offset < imageData.data.length; offset += 97) {
+        hash = Math.imul(hash ^ imageData.data[offset], 16777619);
+      }
+      window.apollo18PresentedFrameHashes.push(hash >>> 0);
+      return putImageData.call(this, imageData, ...arguments_);
+    };
+  });
+  await page.goto("/");
+  await expect.poll(() => page.evaluate(() => typeof window.apollo18RunAnimationFrame)).toBe("function");
+
+  await page.evaluate(() => window.apollo18RunAnimationFrame(1_000));
+  await page.evaluate(() => window.apollo18RunAnimationFrame(61_000));
+  await page.evaluate(() => window.apollo18RunAnimationFrame(121_000));
+  const hashes = await page.evaluate(() => window.apollo18PresentedFrameHashes.slice());
+
+  expect(hashes).toHaveLength(3);
+  expect(hashes[1]).not.toBe(hashes[0]);
+  expect(hashes[2]).toBe(hashes[0]);
+});
+
+test("release web host replaces the canvas when ephemeris validation fails", async ({
+  page,
+}) => {
+  const diagnostics = [];
+  page.on("console", (message) => {
+    if (message.type() === "error") diagnostics.push(message.text());
+  });
+  await page.addInitScript(() => {
+    window.__apollo18EphemerisJson = "not valid JSON";
+  });
+
+  await page.goto("/");
+  const canvas = page.locator("#apollo18-canvas");
+  const failure = page.locator("#apollo18-render-error");
+
+  await expect(canvas).toBeHidden();
+  await expect(failure).toBeVisible();
+  await expect(failure).toContainText("could not load its ephemeris data");
+  expect(diagnostics.some((message) => message.includes("invalid NASA lunar ephemeris JSON"))).toBe(true);
+});
+
 test("release web host presents the software-rendered framebuffer", async ({
   page,
 }) => {

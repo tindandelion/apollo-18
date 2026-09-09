@@ -2,7 +2,7 @@
 
 Apollo 18 derives date-dependent lunar illumination and apparent Earth-centered orientation from NASA Scientific Visualization Studio's original Moon Phase and Libration JSON, committed unchanged with separate provenance, rather than calculating ephemerides in project code or depending on a live service. Native and web hosts provide the same bytes to a focused shared-renderer ephemeris module, which strictly validates required values and contiguous hourly timestamps and samples them only by astronomical instant.
 
-The first validated ephemeris timestamp is the **animation epoch**: the astronomical instant represented at scene time zero. Neither host reads the UTC wall clock. A separate lunar-phase animation module owns two timeline policies:
+The first validated ephemeris timestamp is the **animation epoch**: the astronomical instant represented at scene time zero. Neither host reads the UTC wall clock. Mapping these long data intervals into short display cycles is **compressed astronomical time**; rendering cadence may skip samples, but it never alters the mapping. A separate lunar-phase animation module owns two timeline policies:
 
 - The native **synodic-month animation** maps each ten-second cycle across the first mean synodic month of `29.530588853 days`:
 
@@ -33,4 +33,6 @@ Interpolating records was rejected because it would fabricate values absent from
 
 Animation is reproducible and inspectable but inherits NASA's hourly precision, changes pose and illumination in discrete steps, has bounded source coverage, and adds approximately 2 MB to project assets and compiled hosts. Nearest-record sampling is intended for visual presentation rather than scientific analysis.
 
-The native host must verify one complete mean synodic month of coverage from the first timestamp before writing frames. The web host accepts any valid non-empty contiguous ephemeris because its timeline is bounded by that source's first and last timestamps. A mean synodic month is not exactly periodic in the source, and the end of an ephemeris need not match its beginning, so both loops deliberately permit discontinuities rather than blending or inventing values.
+The native host must verify one complete mean synodic month of coverage from the first timestamp before writing frames. This **coverage failure** is reported before any numbered PNG is created. The web host accepts any valid non-empty contiguous ephemeris because its timeline is bounded by that source's first and last timestamps; malformed, empty, duplicate, or non-hourly data replaces the canvas with an actionable failure message and logs diagnostics.
+
+A mean synodic month is not exactly periodic in the source, and the end of an ephemeris need not match its beginning, so both loops deliberately permit a **loop discontinuity** rather than blending or inventing values. Deterministic tests supply explicit scene time and checked-in bytes, never the wall clock or network. The ephemeris drives only Earth-centered pose and direct solar illumination: eclipses and Earth-shadow behavior remain excluded.

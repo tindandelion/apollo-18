@@ -6,7 +6,7 @@ A **lunar phase** is the visible pattern of illumination set by the angle betwee
 
 The **animation epoch** is the first validated ephemeris timestamp: the astronomical instant represented at scene time zero. For the checked-in source it is `2026-01-01T00:00:00Z`. It comes from data rather than a host's UTC wall clock.
 
-Apollo 18 uses two deterministic timeline policies. Native rendering uses a **synodic-month animation**. Let `t` be explicit scene time, `Tₙ = 10 seconds`, and `M = 29.530588853 days` be the mean **synodic month**:
+Apollo 18 uses **compressed astronomical time**: long astronomical intervals are presented over short scene-time cycles. A slow renderer may skip source samples, but rendering cadence never changes the mapping. Two deterministic timeline policies apply it. Native rendering uses a **synodic-month animation**. Let `t` be explicit scene time, `Tₙ = 10 seconds`, and `M = 29.530588853 days` be the mean **synodic month**:
 
 ```text
 native_fraction(t) = (t mod Tₙ) / Tₙ
@@ -22,7 +22,9 @@ web_astronomy_time(t) = first + web_fraction(t) × (last - first)
 
 The first browser animation callback establishes monotonic scene time zero and presents `first`. Later callbacks derive scene time from that monotonic origin. If rendering stalls, elapsed time continues and astronomical samples are skipped rather than slowing playback. A replacement ephemeris still occupies one 120-second web cycle regardless of its calendar span.
 
-Both mappings derive directly from scene time, never from accumulated frame steps. A real ephemeris does not repeat after exactly one mean synodic month, and its final state need not match its first, so both resets can have deliberate discontinuities.
+Both mappings derive directly from scene time, never from accumulated frame steps. Tests use explicit scene times and checked-in data, so equal inputs select the same record and framebuffer without a wall clock or network. A real ephemeris does not repeat after exactly one mean synodic month, and its final state need not match its first. Each reset is therefore a deliberate **loop discontinuity** rather than a blend.
+
+Before native output starts, the final validated timestamp must reach at least `animation_epoch + M`. If not, a **coverage failure** stops the sequence before any numbered PNG is written. The web policy needs no month-sized coverage because it always maps within its validated first and last timestamps.
 
 ## Selecting an hourly sample
 
@@ -81,4 +83,4 @@ diffuse = max(dot(terrain_normal, sun_direction), 0)
 linear_output = linear_lunar_color × diffuse
 ```
 
-There is no ambient or specular term. Terrain normals can still create sparse rim highlights where undisplaced spherical geometry would be dark, as recorded in ADR-0005. Nearest-record sampling of the hourly source is appropriate for this visual animation, not scientific analysis. The sub-Earth point provides an Earth-centered view, not a location-dependent terrestrial view; topocentric parallax remains out of scope.
+There is no ambient or specular term. Terrain normals can still create sparse rim highlights where undisplaced spherical geometry would be dark, as recorded in ADR-0005. Nearest-record sampling of the hourly source is appropriate for this visual animation, not scientific analysis. The sub-Earth point provides an Earth-centered view, not a location-dependent terrestrial view; topocentric parallax remains out of scope. Earth-shadow geometry is not modeled, so the animation does not depict lunar eclipses even when an ephemeris instant overlaps one.

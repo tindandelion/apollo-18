@@ -38,6 +38,7 @@ version = "0.1.0"
 dependencies = [
  "apollo18-renderer",
  "console_error_panic_hook",
+ "js-sys",
  "wasm-bindgen",
  "web-sys",
 ]

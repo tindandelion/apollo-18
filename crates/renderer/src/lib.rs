@@ -19,7 +19,7 @@ pub use lunar_color_map::LunarColorMap;
 pub use lunar_elevation_map::LunarElevationMap;
 pub use lunar_ephemeris::{AstronomicalInstant, EphemerisError, LunarEphemeris};
 pub use lunar_phase_animation::{
-    AnimationCoverageError, CANONICAL_ANIMATION_EPOCH, LunarPhaseAnimation,
+    AnimationCoverageError, EphemerisSpanAnimation, SynodicMonthAnimation,
 };
 pub use scene_time::{InvalidSceneTime, SceneTime};
 
@@ -577,12 +577,12 @@ mod tests {
             })
         }
 
-        fn lunar_phase_animation() -> &'static LunarPhaseAnimation {
-            static ANIMATION: OnceLock<LunarPhaseAnimation> = OnceLock::new();
+        fn lunar_phase_animation() -> &'static SynodicMonthAnimation {
+            static ANIMATION: OnceLock<SynodicMonthAnimation> = OnceLock::new();
             ANIMATION.get_or_init(|| {
                 let ephemeris = LunarEphemeris::from_nasa_json(EPHEMERIS_JSON)
                     .expect("canonical NASA lunar ephemeris JSON should decode");
-                LunarPhaseAnimation::new(ephemeris, CANONICAL_ANIMATION_EPOCH)
+                SynodicMonthAnimation::new(ephemeris)
                     .expect("canonical NASA lunar ephemeris should cover the animation")
             })
         }

@@ -4,7 +4,8 @@
   "private": true,
   "scripts": {
     "test": "playwright test web-smoke.spec.js",
-    "test:performance": "playwright test web-performance.spec.js"
+    "test:performance": "playwright test web-performance.spec.js",
+    "test:timeline-performance": "playwright test web-timeline-performance.spec.js"
   },
   "devDependencies": {
     "@playwright/test": "^1.58.2"

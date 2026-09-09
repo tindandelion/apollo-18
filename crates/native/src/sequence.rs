@@ -183,6 +183,28 @@ mod tests {
         }
     }
 
+    /// The canonical release sequence omits the duplicate ten-second endpoint.
+    #[test]
+    fn canonical_release_sequence_ends_at_frame_299_over_30_fps() {
+        let frames_per_second = NonZeroU32::new(30).expect("30 should be nonzero");
+
+        let first = SceneTime::for_frame(0, frames_per_second);
+        let last = SceneTime::for_frame(299, frames_per_second);
+
+        assert_eq!(
+            first,
+            SceneTime::from_seconds(0.0).expect("time should be valid")
+        );
+        assert_eq!(
+            last,
+            SceneTime::from_seconds(299.0 / 30.0).expect("time should be valid")
+        );
+        assert_ne!(
+            last,
+            SceneTime::from_seconds(10.0).expect("time should be valid")
+        );
+    }
+
     #[test]
     fn sequence_paths_use_fixed_width_frame_numbers() {
         let output_directory = Path::new("frames");
