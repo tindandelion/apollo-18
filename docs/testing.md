@@ -118,6 +118,28 @@ and Ticket 29's prior 4.2 ms noise bound. The separate sustained-FPS contract
 rerun measured 17.95 FPS over 7.97 seconds. This is a cumulative improvement,
 but the expected 30 FPS assertion remains open for the later Ticket 19 work.
 
+Ticket 31 compared three warmed baseline and three changed runs on the same
+reference environment. The experiment transformed the world-space Sun
+direction into lunar-globe object space once per frame and removed the
+object-to-world normal transformation from each lunar fragment:
+
+| Variant | Run | Frames | Completed FPS | Software rendering | Complete frame |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Baseline | 1 | 141 | 17.50 | 56.2 ms | 56.4 ms |
+| Baseline | 2 | 144 | 17.92 | 55.4 ms | 55.6 ms |
+| Baseline | 3 | 143 | 17.83 | 55.7 ms | 55.9 ms |
+| Object-space illumination | 1 | 148 | 18.37 | 53.95 ms | 54.1 ms |
+| Object-space illumination | 2 | 146 | 18.17 | 54.7 ms | 54.9 ms |
+| Object-space illumination | 3 | 141 | 17.61 | 56.5 ms | 56.7 ms |
+
+The median complete-frame time changed from 55.9 ms to 54.9 ms. That 1.0 ms
+change is smaller than the changed variant's 2.6 ms run-to-run span, the
+baseline and changed ranges overlap, and both are inside Ticket 29's 4.2 ms
+noise bound. The experiment was therefore inconclusive and reverted. Its
+sustained-FPS contract run measured 18.52 FPS over 7.99 seconds; as expected
+for this intermediate performance ticket, the later Ticket 19 threshold of
+30 FPS remains open.
+
 The Ticket 13 baseline was measured on 2026-09-06 with:
 
 - Apple Mac15,7 with an Apple M3 Pro (`arm64`)

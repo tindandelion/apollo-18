@@ -107,6 +107,30 @@ mod tests {
         assert_eq!(appearance.sun_direction(), sun_direction);
     }
 
+    fn white_color_map() -> LunarColorMap {
+        LunarColorMap::new(
+            SrgbImage::new(4, 3, vec![255; 4 * 3 * 3]).expect("color map should be valid"),
+        )
+    }
+
+    fn sloped_elevation_map() -> LunarElevationMap {
+        let mut samples = vec![0.0; 4 * 3];
+        samples[5] = -3_000.0;
+        samples[7] = 3_000.0;
+        LunarElevationMap::new(
+            ElevationImage::new(4, 3, samples).expect("elevation map should be valid"),
+        )
+    }
+
+    fn center_pixel(framebuffer: &crate::rasterizer::Framebuffer) -> [u8; 4] {
+        let x = framebuffer.width() / 2;
+        let y = framebuffer.height() / 2;
+        let offset = ((y * framebuffer.width() + x) * 4) as usize;
+        framebuffer.pixels()[offset..offset + 4]
+            .try_into()
+            .expect("pixel should have four channels")
+    }
+
     /// Equal explicit lunar rendering inputs produce equal framebuffers.
     #[test]
     fn explicit_lunar_appearance_renders_deterministically() {
@@ -127,6 +151,80 @@ mod tests {
             .expect("lunar globe should render");
 
         assert_eq!(first, second);
+    }
+
+    /// Rotating the lunar globe pose and Sun together preserves terrain-normal illumination.
+    #[test]
+    fn rotated_lunar_appearance_preserves_terrain_normal_illumination() {
+        let color_map = white_color_map();
+        let elevation_map = sloped_elevation_map();
+        let object_space_sun = Vec3::NEG_X;
+        let rotation = Mat4::from_rotation_z(std::f32::consts::FRAC_PI_2);
+        let identity_appearance = LunarAppearance::new(
+            Mat4::IDENTITY,
+            SunDirection::new(object_space_sun).expect("Sun direction should be valid"),
+        );
+        let rotated_appearance = LunarAppearance::new(
+            rotation,
+            SunDirection::new(rotation.transform_vector3(object_space_sun))
+                .expect("rotated Sun direction should be valid"),
+        );
+
+        let identity = render_lunar_globe(33, 33, identity_appearance, &color_map, &elevation_map)
+            .expect("identity appearance should render");
+        let rotated = render_lunar_globe(33, 33, rotated_appearance, &color_map, &elevation_map)
+            .expect("rotated appearance should render");
+
+        assert_eq!(center_pixel(&identity), center_pixel(&rotated));
+        assert!(center_pixel(&identity)[0] > 0);
+    }
+
+    /// Reversing the Sun leaves the same sloped terrain normal unlit.
+    #[test]
+    fn terrain_normal_facing_away_from_sun_is_unlit() {
+        let color_map = white_color_map();
+        let elevation_map = sloped_elevation_map();
+        let appearance = LunarAppearance::new(
+            Mat4::IDENTITY,
+            SunDirection::new(Vec3::X).expect("Sun direction should be valid"),
+        );
+
+        let framebuffer = render_lunar_globe(33, 33, appearance, &color_map, &elevation_map)
+            .expect("lunar appearance should render");
+
+        assert_eq!(center_pixel(&framebuffer), [0, 0, 0, 255]);
+    }
+
+    /// Terrain-normal shading can illuminate rim fragments on an otherwise new-Moon globe.
+    #[test]
+    fn terrain_normals_preserve_new_moon_rim_highlights() {
+        let color_map = LunarColorMap::new(
+            SrgbImage::new(8, 4, vec![255; 8 * 4 * 3]).expect("color map should be valid"),
+        );
+        let samples = (0..8 * 4)
+            .map(|index| {
+                let longitude =
+                    (index % 8) as f32 / 8.0 * std::f32::consts::TAU - std::f32::consts::PI;
+                longitude.cos() * 10_000.0
+            })
+            .collect();
+        let elevation_map = LunarElevationMap::new(
+            ElevationImage::new(8, 4, samples).expect("elevation map should be valid"),
+        );
+        let appearance = LunarAppearance::new(
+            Mat4::IDENTITY,
+            SunDirection::new(Vec3::Z).expect("Sun direction should be valid"),
+        );
+
+        let framebuffer = render_lunar_globe(65, 65, appearance, &color_map, &elevation_map)
+            .expect("new-Moon appearance should render");
+        let highlighted_pixel_count = framebuffer
+            .pixels()
+            .chunks_exact(4)
+            .filter(|pixel| pixel[..3] != [0, 0, 0] && pixel[..3] != [24, 24, 24])
+            .count();
+
+        assert!(highlighted_pixel_count > 0);
     }
 
     /// Sun direction affects rendered lunar appearance independently of identity pose.

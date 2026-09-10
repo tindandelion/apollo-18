@@ -84,3 +84,20 @@ diffuse = max(dot(n_world, s), 0)
 
 Map lookup continues to use unrotated globe location, so geography stays
 painted on the surface while the Sun stays fixed in the world.
+
+Because a lunar globe pose `R` is a rotation, Lambertian illumination can also
+be calculated entirely in object space by rotating the Sun in the opposite
+direction once per frame:
+
+```text
+s_object = R⁻¹ · s_world
+max(dot(normalize(R · perturbed), s_world), 0)
+    = max(dot(normalize(perturbed), s_object), 0)
+```
+
+The equality follows from rotations preserving vector lengths and dot
+products, with `R⁻¹ = Rᵀ`. Apollo 18 measured this alternative against the
+complete high-density browser frame. Its timing ranges overlapped, so the
+experiment was reverted rather than retaining complexity without a
+measurement-supported improvement. The renderer therefore continues to rotate
+each terrain normal into world space before illumination.
