@@ -235,6 +235,83 @@ changes were therefore reverted. The experimental variant's separate
 sustained-FPS contract run measured 23.13 FPS over 7.95 seconds; the later
 Ticket 19 threshold of 30 FPS remains open.
 
+### Optimized scalar renderer profile
+
+Ticket 35 reprofiled the unchanged release renderer on 2026-09-10 after all
+retained scalar experiments. Three warmed runs used the normal advancing
+animation and the same reference browser workload as the retained diagnostic:
+
+| Run | Frames | Completed FPS | Software rendering | `ImageData` | Canvas presentation | Complete frame |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 183 | 22.80 | 42.3 ms | 0.0 ms | 0.2 ms | 42.4 ms |
+| 2 | 177 | 22.12 | 43.6 ms | 0.0 ms | 0.2 ms | 43.9 ms |
+| 3 | 183 | 22.73 | 42.5 ms | 0.0 ms | 0.2 ms | 42.8 ms |
+
+The median result across runs is 22.73 completed FPS and 42.8 ms per complete
+frame. A separate run of the threshold-enforcing performance contract measured
+22.42 FPS over 7.98 seconds and failed its expected, still-open 30 FPS
+assertion. The complete-frame range is 1.5 ms, so this measurement set does not
+support new claims smaller than 1.5 ms. Compared with the 62.05 ms median of
+Ticket 29's four diagnostic runs, the cumulative scalar result is 19.25 ms
+(31.0%) lower. This cross-ticket comparison is contextual rather than an
+isolated-effect claim because the runs were not interleaved.
+
+The retained scalar contributions are the 8.9 ms paired improvement from
+Ticket 30's sRGB quantization, Ticket 32's 1.9 ms paired improvement from
+reusing the terrain tangent frame's horizontal radius, and Ticket 33's 10.5 ms
+representative-animation improvement from bypassing downstream work for exactly
+unlit fragments. Ticket 33 additionally measured a 17.4 ms improvement at its
+fixed new-Moon-like sample, but that phase-dependent result is not added to the
+representative total. Ticket 31's 1.0 ms result was inconclusive and reverted;
+Ticket 34's 0.9 ms combined result was too small for its numerical risk and was
+also reverted. No cumulative contribution is claimed for either reverted
+experiment, and the retained per-ticket figures are not summed as if they came
+from one noise-free measurement series.
+
+A Chrome DevTools Protocol CPU profile sampled 62,264 stacks over eight seconds
+at a 100-microsecond requested interval after the normal two-second warmup. It
+placed 61,702 samples (99.10%) in release Wasm, 57,037 (91.61%) directly in the
+inlined render kernel, and 4,034 (6.48%) directly in its scalar arctangent
+helper. Canvas `putImageData` accounted for 257 samples (0.41%), consistent
+with the stage diagnostic: presentation and handoff are not the residual
+bottleneck. `wasm-tools print` confirmed that the hot helper is scalar and that
+the release module contains no four-fragment SIMD kernel.
+
+Because release optimization fuses most fragment work into one Wasm function,
+a companion eight-second native sampling run introduced temporary
+`inline(never)` barriers at existing operation boundaries solely to recover
+source-level attribution. The barriers and harness were removed after capture;
+the profile is directional and its percentages must not be converted into
+browser milliseconds. Its 6,660 samples inside lunar rendering divided the
+remaining work as follows:
+
+| Residual category | Samples | Share | Included work |
+| --- | ---: | ---: | --- |
+| Raster traversal | 1,907 | 28.6% | edge evaluation, top-left coverage, barycentric and depth interpolation, and loop control |
+| Lunar-coordinate derivation | 1,510 | 22.7% | globe-location interpolation and normalization, longitude/latitude functions, and texel-coordinate selection |
+| Terrain-normal derivation | 1,499 | 22.5% | tangent-frame construction, physical slopes, and perturbed-radial arithmetic |
+| Lunar-map sampling | 703 | 10.6% | elevation-map gathers and lunar-color-map lookup |
+| Illumination | 552 | 8.3% | terrain-normal rotation and normalization, Lambertian response, and linear-color multiplication |
+| Depth and framebuffer output | 489 | 7.3% | strict depth acceptance, sRGB encoding, and RGBA writes |
+
+The profile shows that no single scalar replacement can close the target.
+Candidate-fragment traversal is the largest category, while lunar-coordinate
+and terrain-normal work together account for another 45.2%. The current 42.8
+ms median must fall by 9.47 ms, or 22.1%, to fit the 33.33 ms 30-FPS budget.
+
+Ticket 36 should therefore introduce one general four-fragment batch seam with
+a behavior-preserving scalar fallback, without adding a lunar-only bypass.
+Ticket 37 should first target the measured raster work: edge and top-left
+coverage, barycentric and depth interpolation, depth comparison, and contiguous
+sRGB/RGBA output where accepted-lane layout permits it. Ticket 38 should then
+target globe-location interpolation and normalization, terrain-normal
+arithmetic, illumination, and linear-color processing. Longitude/latitude
+transcendentals, nearest-texel selection, and lunar color/elevation map gathers
+remain scalar per lane initially because core Wasm SIMD has neither vector
+transcendentals nor general gather/scatter. Approximate geographic functions or
+more complex gathers are justified only by a new residual profile and must
+preserve sampled-texel and golden-render contracts.
+
 The Ticket 13 baseline was measured on 2026-09-06 with:
 
 - Apple Mac15,7 with an Apple M3 Pro (`arm64`)
