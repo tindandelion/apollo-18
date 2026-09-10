@@ -193,6 +193,7 @@ mod tests {
         );
     }
 
+    /// Two adjacent triangles own every diagonal shared-edge sample exactly once.
     #[test]
     fn top_left_rule_gives_shared_edge_to_one_triangle() {
         let red = Srgb8::RED;
@@ -220,6 +221,37 @@ mod tests {
             for x in 1..5 {
                 assert_ne!(pixel(&forward, x, y), opaque(BACKGROUND));
             }
+        }
+    }
+
+    /// Two adjacent triangles own every horizontal shared-edge sample exactly once.
+    #[test]
+    fn top_left_rule_gives_horizontal_shared_edge_to_one_triangle() {
+        let red = Srgb8::RED;
+        let green = Srgb8::GREEN;
+        let top_left = vertex(1.0, 0.5, red);
+        let top_right = vertex(5.0, 0.5, red);
+        let middle_left = vertex(1.0, 2.5, red);
+        let middle_right = vertex(5.0, 2.5, red);
+        let bottom_left = vertex(1.0, 4.5, green);
+        let bottom_right = vertex(5.0, 4.5, green);
+        let top_first = [top_left, middle_right, middle_left];
+        let top_second = [top_left, top_right, middle_right];
+        let bottom_first = [vertex(1.0, 2.5, green), bottom_right, bottom_left];
+        let bottom_second = [
+            vertex(1.0, 2.5, green),
+            vertex(5.0, 2.5, green),
+            bottom_right,
+        ];
+
+        let top_then_bottom =
+            render_triangles(&[top_first, top_second, bottom_first, bottom_second]);
+        let bottom_then_top =
+            render_triangles(&[bottom_first, bottom_second, top_first, top_second]);
+
+        assert_eq!(top_then_bottom, bottom_then_top);
+        for x in 1..5 {
+            assert_eq!(pixel(&top_then_bottom, x, 2), opaque(green));
         }
     }
 

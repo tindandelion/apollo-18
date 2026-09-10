@@ -202,6 +202,39 @@ improved by 10.5 ms (19.4%). The bypass was therefore retained. The separate
 sustained-FPS contract rerun measured 22.17 FPS over 7.98 seconds; the later
 Ticket 19 threshold of 30 FPS remains open.
 
+Ticket 34 compared direct edge evaluation with incremental X/Y edge stepping
+and reciprocal-area barycentric normalization on the same reference
+environment. All variants traversed the same framebuffer-bounded candidate
+rectangles; tighter scanline spans were not introduced.
+
+| Variant | Run | Frames | Completed FPS | Software rendering | Complete frame |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Direct edge evaluation | 1 | 182 | 22.76 | 42.25 ms | 42.45 ms |
+| Direct edge evaluation | 2 | 182 | 22.61 | 42.65 ms | 42.80 ms |
+| Direct edge evaluation | 3 | 183 | 22.73 | 42.30 ms | 42.50 ms |
+| Incremental edge stepping | 1 | 183 | 22.74 | 42.50 ms | 42.70 ms |
+| Incremental edge stepping | 2 | 182 | 22.72 | 42.85 ms | 42.95 ms |
+| Incremental edge stepping | 3 | 176 | 22.01 | 43.75 ms | 43.95 ms |
+| Direct evaluation and reciprocal area | 1 | 172 | 21.37 | 45.40 ms | 45.55 ms |
+| Direct evaluation and reciprocal area | 2 | 172 | 21.41 | 45.40 ms | 45.60 ms |
+| Direct evaluation and reciprocal area | 3 | 172 | 21.41 | 45.40 ms | 45.55 ms |
+| Incremental stepping and reciprocal area | 1 | 187 | 23.29 | 41.40 ms | 41.60 ms |
+| Incremental stepping and reciprocal area | 2 | 187 | 23.30 | 41.20 ms | 41.40 ms |
+| Incremental stepping and reciprocal area | 3 | 184 | 22.94 | 41.40 ms | 41.60 ms |
+
+Neither incremental stepping nor reciprocal-area multiplication was beneficial
+in isolation: incremental stepping overlapped the baseline, while reciprocal
+normalization with direct edge evaluation regressed to a 45.55 ms median. The
+combined experiment improved the baseline median complete-frame time from
+42.50 ms to 41.60 ms, a 0.9 ms (2.1%) reduction. Its three measurements did not
+overlap the three baseline measurements, and its 0.2 ms span was smaller than
+the separation. Exact triangle and cube goldens and tolerance-checked lunar
+goldens passed unchanged, but the small whole-frame gain did not justify the
+added floating-point accumulation risk and loop complexity. All arithmetic
+changes were therefore reverted. The experimental variant's separate
+sustained-FPS contract run measured 23.13 FPS over 7.95 seconds; the later
+Ticket 19 threshold of 30 FPS remains open.
+
 The Ticket 13 baseline was measured on 2026-09-06 with:
 
 - Apple Mac15,7 with an Apple M3 Pro (`arm64`)
