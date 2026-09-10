@@ -195,6 +195,24 @@ mod tests {
         assert_eq!(center_pixel(&framebuffer), [0, 0, 0, 255]);
     }
 
+    /// A barely Sun-facing terrain normal remains lit rather than taking the exactly-unlit path.
+    #[test]
+    fn barely_lit_terrain_normal_remains_illuminated() {
+        let color_map = white_color_map();
+        let elevation_map = LunarElevationMap::new(
+            ElevationImage::new(1, 1, vec![0.0]).expect("elevation map should be valid"),
+        );
+        let appearance = LunarAppearance::new(
+            Mat4::IDENTITY,
+            SunDirection::new(Vec3::new(1.0, 0.0, -0.001)).expect("Sun direction should be valid"),
+        );
+
+        let framebuffer = render_lunar_globe(33, 33, appearance, &color_map, &elevation_map)
+            .expect("lunar appearance should render");
+
+        assert_eq!(center_pixel(&framebuffer), [3, 3, 3, 255]);
+    }
+
     /// Terrain-normal shading can illuminate rim fragments on an otherwise new-Moon globe.
     #[test]
     fn terrain_normals_preserve_new_moon_rim_highlights() {

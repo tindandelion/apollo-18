@@ -5,6 +5,18 @@ const warmupMilliseconds = 2_000;
 const measurementMilliseconds = 8_000;
 const maximumBackingDimension = 1152;
 const minimumMeasuredFrames = 60;
+const sceneTimeOffsetSetting = process.env.APOLLO18_SCENE_TIME_OFFSET_SECONDS;
+const sceneTimeOffsetSeconds =
+  sceneTimeOffsetSetting === undefined ? null : Number(sceneTimeOffsetSetting);
+
+if (
+  sceneTimeOffsetSeconds !== null &&
+  (!Number.isFinite(sceneTimeOffsetSeconds) || sceneTimeOffsetSeconds < 0)
+) {
+  throw new Error(
+    "APOLLO18_SCENE_TIME_OFFSET_SECONDS must be finite and non-negative",
+  );
+}
 
 test.use({
   viewport: { width: 1440, height: 900 },
@@ -15,8 +27,9 @@ test("records completed high-density rendering stage timings", async ({
   page,
   browser,
 }) => {
-  await page.addInitScript(() => {
+  await page.addInitScript((sceneTimeOffsetMilliseconds) => {
     const requestAnimationFrame = window.requestAnimationFrame.bind(window);
+    let sceneTimeEpochMilliseconds;
     const ImageDataConstructor = window.ImageData;
     const putImageData = CanvasRenderingContext2D.prototype.putImageData;
     const measurements = {
@@ -74,7 +87,16 @@ test("records completed high-density rendering stage timings", async ({
         };
         measurements.currentFrame = frame;
         try {
-          callback(timestamp);
+          let animationTimestamp = timestamp;
+          if (sceneTimeOffsetMilliseconds !== null) {
+            if (sceneTimeEpochMilliseconds === undefined) {
+              sceneTimeEpochMilliseconds = timestamp;
+            } else {
+              animationTimestamp =
+                sceneTimeEpochMilliseconds + sceneTimeOffsetMilliseconds;
+            }
+          }
+          callback(animationTimestamp);
         } finally {
           frame.completedMilliseconds = performance.now();
           frame.completeMilliseconds =
@@ -89,7 +111,7 @@ test("records completed high-density rendering stage timings", async ({
           }
         }
       });
-  });
+  }, sceneTimeOffsetSeconds === null ? null : sceneTimeOffsetSeconds * 1_000);
 
   await page.goto("/");
   const canvas = page.locator("#apollo18-canvas");
@@ -104,6 +126,7 @@ test("records completed high-density rendering stage timings", async ({
   await page.waitForTimeout(measurementMilliseconds);
   const configuration = {
     expectedDimensions: `${maximumBackingDimension}x${maximumBackingDimension}`,
+    sceneTimeOffsetSeconds,
     warmupMilliseconds,
     measurementMilliseconds,
   };
@@ -134,6 +157,7 @@ test("records completed high-density rendering stage timings", async ({
 
     return {
       environment: {
+        sceneTimeOffsetSeconds: configuration.sceneTimeOffsetSeconds,
         userAgent: navigator.userAgent,
         viewport: `${window.innerWidth}x${window.innerHeight} CSS pixels`,
         devicePixelRatio: window.devicePixelRatio,
@@ -184,6 +208,7 @@ test("records completed high-density rendering stage timings", async ({
     devicePixelRatio: result.environment.devicePixelRatio,
     canvasCssDimensions: result.environment.canvasCssDimensions,
     backingResolution: result.environment.backingResolution,
+    sceneTimeOffsetSeconds: result.environment.sceneTimeOffsetSeconds,
     measurement: result.measurement,
     medianStageMilliseconds: result.medianStageMilliseconds,
   };

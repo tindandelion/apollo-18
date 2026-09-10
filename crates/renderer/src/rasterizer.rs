@@ -57,10 +57,10 @@ impl Rasterizer {
         self.framebuffer
     }
 
-    fn write_if_nearer(&mut self, x: u32, y: u32, depth: f32, color: LinearRgb) {
+    fn write_if_nearer(&mut self, x: u32, y: u32, depth: f32, color: Srgb8) {
         let index = y as usize * self.framebuffer.width() as usize + x as usize;
         if depth < self.depth_buffer[index] {
-            self.framebuffer.set_pixel(x, y, color.to_srgb8());
+            self.framebuffer.set_pixel(x, y, color);
             self.depth_buffer[index] = depth;
         }
     }
@@ -81,8 +81,8 @@ mod tests {
     impl FragmentShader for TestColorShader {
         type Attribute = LinearRgb;
 
-        fn shade(&self, colors: [Self::Attribute; 3], _weights: [f32; 3]) -> LinearRgb {
-            colors[0]
+        fn shade(&self, colors: [Self::Attribute; 3], _weights: [f32; 3]) -> Srgb8 {
+            colors[0].to_srgb8()
         }
     }
 

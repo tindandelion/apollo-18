@@ -1,7 +1,7 @@
-use super::LinearRgb;
+use super::Srgb8;
 
 pub(crate) trait FragmentShader {
     type Attribute: Copy;
 
-    fn shade(&self, attributes: [Self::Attribute; 3], barycentric_weights: [f32; 3]) -> LinearRgb;
+    fn shade(&self, attributes: [Self::Attribute; 3], barycentric_weights: [f32; 3]) -> Srgb8;
 }

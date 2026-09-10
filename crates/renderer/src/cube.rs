@@ -11,10 +11,11 @@ struct VertexColorShader;
 impl FragmentShader for VertexColorShader {
     type Attribute = LinearRgb;
 
-    fn shade(&self, colors: [Self::Attribute; 3], barycentric_weights: [f32; 3]) -> LinearRgb {
-        colors[0] * barycentric_weights[0]
+    fn shade(&self, colors: [Self::Attribute; 3], barycentric_weights: [f32; 3]) -> Srgb8 {
+        (colors[0] * barycentric_weights[0]
             + colors[1] * barycentric_weights[1]
-            + colors[2] * barycentric_weights[2]
+            + colors[2] * barycentric_weights[2])
+            .to_srgb8()
     }
 }
 

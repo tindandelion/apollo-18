@@ -10,6 +10,7 @@ pub(crate) struct Srgb8 {
 }
 
 impl Srgb8 {
+    pub(crate) const BLACK: Self = Self::from_hex(0x00_00_00);
     pub(crate) const RED: Self = Self::from_hex(0xff_00_00);
     pub(crate) const GREEN: Self = Self::from_hex(0x00_ff_00);
     pub(crate) const BLUE: Self = Self::from_hex(0x00_00_ff);

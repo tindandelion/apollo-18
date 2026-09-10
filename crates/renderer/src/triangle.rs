@@ -12,8 +12,8 @@ struct TriangleColorShader;
 impl FragmentShader for TriangleColorShader {
     type Attribute = LinearRgb;
 
-    fn shade(&self, colors: [Self::Attribute; 3], weights: [f32; 3]) -> LinearRgb {
-        colors[0] * weights[0] + colors[1] * weights[1] + colors[2] * weights[2]
+    fn shade(&self, colors: [Self::Attribute; 3], weights: [f32; 3]) -> Srgb8 {
+        (colors[0] * weights[0] + colors[1] * weights[1] + colors[2] * weights[2]).to_srgb8()
     }
 }
 

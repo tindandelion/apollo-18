@@ -78,7 +78,12 @@ The diagnostic prints the host, operating system, architecture, processor,
 browser and version, viewport, device pixel ratio, canvas CSS dimensions,
 backing resolution, warmup, sample size, throughput, and median stage timings.
 Compare changes on the same host and browser. Use three warmed runs, and do not
-claim effects smaller than the observed run-to-run variation.
+claim effects smaller than the observed run-to-run variation. To hold one
+lunar appearance fixed while measuring phase-dependent work, set
+`APOLLO18_SCENE_TIME_OFFSET_SECONDS` to a non-negative ephemeris-span scene
+time. The first callback still establishes scene time zero; subsequent measured
+callbacks receive the fixed offset. Without the variable, the normal two-minute
+animation advances during the diagnostic.
 
 The Ticket 29 baseline was measured on 2026-09-09 in four separate release
 browser runs on the reference environment below. `ImageData` construction was
@@ -159,6 +164,43 @@ The median complete-frame time improved from 56.0 ms to 54.1 ms, a 1.9 ms
 the baseline's 1.8 ms run-to-run span, so the change was retained. The
 separate sustained-FPS contract rerun measured 18.22 FPS over 7.96 seconds;
 the later Ticket 19 threshold of 30 FPS remains open.
+
+Ticket 33 measured both the normal advancing animation and two fixed lunar
+appearances on the same reference environment. The fixed full-Moon-like sample
+uses scene time `20.22148647105834` (2026-03-03 12:00 UTC), and the fixed
+new-Moon-like sample uses `73.5700422422651` (2026-08-12 18:00 UTC). The latter
+preserves ADR-0005 terrain-normal rim highlights rather than forcing the disk
+to geometric black.
+
+| Appearance | Variant | Run | Frames | Completed FPS | Software rendering | Complete frame |
+| --- | --- | ---: | ---: | ---: | ---: | ---: |
+| Full-Moon-like | Baseline | 1 | 147 | 18.36 | 54.0 ms | 54.2 ms |
+| Full-Moon-like | Baseline | 2 | 148 | 18.37 | 54.0 ms | 54.2 ms |
+| Full-Moon-like | Baseline | 3 | 138 | 17.18 | 57.7 ms | 57.9 ms |
+| Full-Moon-like | Unlit bypass | 1 | 140 | 17.44 | 56.9 ms | 57.1 ms |
+| Full-Moon-like | Unlit bypass | 2 | 139 | 17.35 | 57.2 ms | 57.4 ms |
+| Full-Moon-like | Unlit bypass | 3 | 137 | 17.08 | 58.1 ms | 58.3 ms |
+| New-Moon-like | Baseline | 1 | 138 | 17.17 | 57.8 ms | 58.0 ms |
+| New-Moon-like | Baseline | 2 | 144 | 17.92 | 55.0 ms | 55.1 ms |
+| New-Moon-like | Baseline | 3 | 147 | 18.29 | 54.2 ms | 54.4 ms |
+| New-Moon-like | Unlit bypass | 1 | 210 | 26.17 | 37.1 ms | 37.3 ms |
+| New-Moon-like | Unlit bypass | 2 | 212 | 26.38 | 37.5 ms | 37.7 ms |
+| New-Moon-like | Unlit bypass | 3 | 209 | 26.10 | 37.9 ms | 38.1 ms |
+
+At the illuminated sample, the median complete-frame time changed from 54.2 ms
+to 57.4 ms. The 3.2 ms difference is inside Ticket 29's 4.2 ms noise bound,
+and the ranges overlap, so no illuminated-phase effect is claimed. At the
+unlit sample, the median improved from 55.1 ms to 37.7 ms, a 17.4 ms (31.6%)
+reduction with non-overlapping ranges. The benefit is phase-dependent because
+only exactly zero terrain-normal Lambertian intensity bypasses lunar color-map
+sampling and general sRGB encoding.
+
+Three normal advancing-animation runs measured 22.31, 22.80, and 21.85
+completed FPS, with median complete-frame times of 43.6, 42.6, and 43.8 ms.
+Compared with Ticket 32's 54.1 ms cumulative median, the representative median
+improved by 10.5 ms (19.4%). The bypass was therefore retained. The separate
+sustained-FPS contract rerun measured 22.17 FPS over 7.98 seconds; the later
+Ticket 19 threshold of 30 FPS remains open.
 
 The Ticket 13 baseline was measured on 2026-09-06 with:
 

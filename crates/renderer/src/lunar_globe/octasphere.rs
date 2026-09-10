@@ -2,9 +2,7 @@ use super::globe_location::GlobeLocation;
 use super::lunar_appearance::{LunarAppearance, SunDirection};
 use super::lunar_color_map::LunarColorMap;
 use super::lunar_elevation_map::LunarElevationMap;
-use crate::rasterizer::{
-    FragmentShader, Framebuffer, LinearRgb, NdcVertex, Rasterizer, RenderError, Srgb8,
-};
+use crate::rasterizer::{FragmentShader, Framebuffer, NdcVertex, Rasterizer, RenderError, Srgb8};
 use glam::{Mat4, Vec3};
 use std::collections::HashMap;
 
@@ -36,7 +34,7 @@ impl<'a> LunarShader<'a> {
 impl FragmentShader for LunarShader<'_> {
     type Attribute = GlobeLocation;
 
-    fn shade(&self, attributes: [Self::Attribute; 3], barycentric_weights: [f32; 3]) -> LinearRgb {
+    fn shade(&self, attributes: [Self::Attribute; 3], barycentric_weights: [f32; 3]) -> Srgb8 {
         let globe_location = GlobeLocation::interpolate(attributes, barycentric_weights)
             .expect("covered fragments interpolate a nonzero globe location");
         let geo_coords = globe_location.geo_coords();
@@ -46,8 +44,11 @@ impl FragmentShader for LunarShader<'_> {
             .transform_vector3(perturbed_radial)
             .normalize();
         let diffuse_intensity = self.sun_direction.diffuse_intensity(lighting_normal);
+        if diffuse_intensity == 0.0 {
+            return Srgb8::BLACK;
+        }
 
-        self.color_map.sample_linear(geo_coords) * diffuse_intensity
+        (self.color_map.sample_linear(geo_coords) * diffuse_intensity).to_srgb8()
     }
 }
 
@@ -225,18 +226,12 @@ mod tests {
         let facing_away = GlobeLocation::new(Vec3::Z).expect("valid globe location");
 
         assert_eq!(
-            shader
-                .shade([facing_sun; 3], [1.0, 0.0, 0.0])
-                .to_srgb8()
-                .channels(),
+            shader.shade([facing_sun; 3], [1.0, 0.0, 0.0]).channels(),
             [255, 255, 255]
         );
         for unlit in [perpendicular, facing_away] {
             assert_eq!(
-                shader
-                    .shade([unlit; 3], [1.0, 0.0, 0.0])
-                    .to_srgb8()
-                    .channels(),
+                shader.shade([unlit; 3], [1.0, 0.0, 0.0]).channels(),
                 [0, 0, 0]
             );
         }
@@ -258,10 +253,7 @@ mod tests {
         ];
 
         assert_eq!(
-            shader
-                .shade(attributes, [0.5, 0.5, 0.0])
-                .to_srgb8()
-                .channels(),
+            shader.shade(attributes, [0.5, 0.5, 0.0]).channels(),
             [255, 255, 255]
         );
     }
