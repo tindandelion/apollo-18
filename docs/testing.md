@@ -140,6 +140,26 @@ sustained-FPS contract run measured 18.52 FPS over 7.99 seconds; as expected
 for this intermediate performance ticket, the later Ticket 19 threshold of
 30 FPS remains open.
 
+Ticket 32 compared three warmed baseline and three changed runs on the same
+reference environment. It reused the tangent frame's horizontal radius when
+calculating physical eastward terrain slope instead of independently
+calculating the equivalent latitude cosine for every lunar fragment:
+
+| Variant | Run | Frames | Completed FPS | Software rendering | Complete frame |
+| --- | ---: | ---: | ---: | ---: | ---: |
+| Baseline | 1 | 143 | 17.79 | 55.8 ms | 56.0 ms |
+| Baseline | 2 | 144 | 17.94 | 55.4 ms | 55.6 ms |
+| Baseline | 3 | 140 | 17.38 | 57.2 ms | 57.4 ms |
+| Reused horizontal radius | 1 | 148 | 18.42 | 53.85 ms | 54.1 ms |
+| Reused horizontal radius | 2 | 148 | 18.42 | 54.0 ms | 54.2 ms |
+| Reused horizontal radius | 3 | 148 | 18.42 | 53.9 ms | 54.1 ms |
+
+The median complete-frame time improved from 56.0 ms to 54.1 ms, a 1.9 ms
+(3.4%) reduction. The ranges do not overlap, and the reduction is larger than
+the baseline's 1.8 ms run-to-run span, so the change was retained. The
+separate sustained-FPS contract rerun measured 18.22 FPS over 7.96 seconds;
+the later Ticket 19 threshold of 30 FPS remains open.
+
 The Ticket 13 baseline was measured on 2026-09-06 with:
 
 - Apple Mac15,7 with an Apple M3 Pro (`arm64`)

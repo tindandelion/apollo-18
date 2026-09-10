@@ -3,6 +3,13 @@ use glam::Vec3;
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub(crate) struct GlobeLocation(Vec3);
 
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub(crate) struct TangentFrame {
+    pub(crate) east: Vec3,
+    pub(crate) north: Vec3,
+    pub(crate) horizontal_radius: f32,
+}
+
 impl GlobeLocation {
     pub(crate) fn new(direction: Vec3) -> Option<Self> {
         if direction.is_finite() && direction.length_squared() > 0.0 {
@@ -22,7 +29,7 @@ impl GlobeLocation {
         self.0
     }
 
-    pub(crate) fn tangent_frame(self) -> (Vec3, Vec3) {
+    pub(crate) fn tangent_frame(self) -> TangentFrame {
         let horizontal_radius = self.0.x.hypot(self.0.z);
         let east = if horizontal_radius > 0.0 {
             Vec3::new(-self.0.z, 0.0, self.0.x) / horizontal_radius
@@ -31,7 +38,11 @@ impl GlobeLocation {
         };
         let north = east.cross(self.0);
 
-        (east, north)
+        TangentFrame {
+            east,
+            north,
+            horizontal_radius,
+        }
     }
 
     pub(crate) fn geo_coords(self) -> GeoCoords {
@@ -53,10 +64,6 @@ pub(crate) struct GeoCoords {
 impl GeoCoords {
     pub(crate) const fn globe_location(self) -> GlobeLocation {
         self.globe_location
-    }
-
-    pub(crate) const fn latitude(self) -> f32 {
-        self.latitude
     }
 
     pub(crate) fn nearest_texel(self, width: u32, height: u32) -> (u32, u32) {
@@ -132,10 +139,10 @@ mod tests {
     fn zero_longitude_equator_has_canonical_east_and_north() {
         let location = globe_location(Vec3::NEG_Z);
 
-        let (east, north) = location.tangent_frame();
+        let tangent_frame = location.tangent_frame();
 
-        approx::assert_relative_eq!(east, Vec3::X, epsilon = 1.0e-6);
-        approx::assert_relative_eq!(north, Vec3::Y, epsilon = 1.0e-6);
+        approx::assert_relative_eq!(tangent_frame.east, Vec3::X, epsilon = 1.0e-6);
+        approx::assert_relative_eq!(tangent_frame.north, Vec3::Y, epsilon = 1.0e-6);
     }
 
     /// A general globe location has an orthonormal tangent frame.
@@ -143,7 +150,9 @@ mod tests {
     fn tangent_frame_is_orthonormal() {
         let location = globe_location(Vec3::new(1.0, 2.0, -3.0));
 
-        let (east, north) = location.tangent_frame();
+        let tangent_frame = location.tangent_frame();
+        let east = tangent_frame.east;
+        let north = tangent_frame.north;
 
         approx::assert_relative_eq!(east.length(), 1.0, epsilon = 1.0e-6);
         approx::assert_relative_eq!(north.length(), 1.0, epsilon = 1.0e-6);
@@ -161,8 +170,10 @@ mod tests {
         let north_frame = north_pole.tangent_frame();
         let south_frame = south_pole.tangent_frame();
 
-        assert_eq!(north_frame, (Vec3::NEG_X, Vec3::NEG_Z));
-        assert_eq!(south_frame, (Vec3::NEG_X, Vec3::Z));
+        assert_eq!(north_frame.east, Vec3::NEG_X);
+        assert_eq!(north_frame.north, Vec3::NEG_Z);
+        assert_eq!(south_frame.east, Vec3::NEG_X);
+        assert_eq!(south_frame.north, Vec3::Z);
     }
 
     /// Nonzero finite vectors are stored as unit globe locations.

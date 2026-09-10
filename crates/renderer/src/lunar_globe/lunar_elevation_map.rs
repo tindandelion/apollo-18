@@ -25,14 +25,15 @@ impl LunarElevationMap {
     pub(crate) fn perturbed_radial(&self, geo_coords: GeoCoords) -> Vec3 {
         let globe_location = geo_coords.globe_location();
         let location = globe_location.as_vec3();
-        let (east, north) = globe_location.tangent_frame();
+        let tangent_frame = globe_location.tangent_frame();
         let (x, y) = geo_coords.nearest_texel(self.width(), self.height());
-        let (eastward_slope, northward_slope) = self.physical_slopes(x, y, geo_coords.latitude());
+        let (eastward_slope, northward_slope) =
+            self.physical_slopes(x, y, tangent_frame.horizontal_radius);
 
-        location - eastward_slope * east - northward_slope * north
+        location - eastward_slope * tangent_frame.east - northward_slope * tangent_frame.north
     }
 
-    fn physical_slopes(&self, x: u32, y: u32, latitude: f32) -> (f32, f32) {
+    fn physical_slopes(&self, x: u32, y: u32, horizontal_radius: f32) -> (f32, f32) {
         let delta_longitude = std::f32::consts::TAU / self.width() as f32;
         let delta_latitude = std::f32::consts::PI / self.height() as f32;
 
@@ -55,7 +56,7 @@ impl LunarElevationMap {
             let latitude_derivative = (self.image.sample(x, y - 1) - self.image.sample(x, y + 1))
                 / (2.0 * delta_latitude);
             (
-                longitude_derivative / (LUNAR_REFERENCE_RADIUS_KM * latitude.cos()),
+                longitude_derivative / (LUNAR_REFERENCE_RADIUS_KM * horizontal_radius),
                 latitude_derivative / LUNAR_REFERENCE_RADIUS_KM,
             )
         }
@@ -119,6 +120,25 @@ mod tests {
         let expected = Vec3::new(slope_east, 0.0, 1.0);
 
         let perturbed_radial = map.perturbed_radial(geo_coords(Vec3::Z));
+
+        approx::assert_relative_eq!(perturbed_radial, expected, epsilon = 1.0e-5);
+    }
+
+    /// A near-polar non-polar row uses its globe location's horizontal radius for physical eastward distance.
+    #[test]
+    fn near_polar_east_west_ramp_uses_the_horizontal_radius() {
+        let mut samples = vec![0.0; 4 * 180];
+        samples[4 + 1] = -1.0;
+        samples[4 + 3] = 1.0;
+        let map = elevation_map(4, 180, samples);
+        let latitude = 88.5_f32.to_radians();
+        let horizontal_radius = latitude.cos();
+        let location = Vec3::new(0.0, latitude.sin(), -horizontal_radius);
+        let longitude_derivative = 2.0 / std::f32::consts::PI;
+        let slope_east = longitude_derivative / (1737.4 * horizontal_radius);
+        let expected = location - slope_east * Vec3::X;
+
+        let perturbed_radial = map.perturbed_radial(geo_coords(location));
 
         approx::assert_relative_eq!(perturbed_radial, expected, epsilon = 1.0e-5);
     }
