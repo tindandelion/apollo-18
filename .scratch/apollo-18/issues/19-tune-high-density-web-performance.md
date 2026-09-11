@@ -4,7 +4,7 @@
 
 **Blocked by:** 13: Use color-map-bounded high-density web rendering
 
-**Status:** ready-for-agent
+**Status:** done
 
 ## Settled direction
 
@@ -57,18 +57,19 @@ Optional tools such as Samply or Hyperfine may be useful if the available profil
 
 - [x] The capped high-density baseline is reproduced and profiles identify terrain-normal derivation as a material residual cost.
 - [x] Temporary prototypes bound both choices: cached gradients preserve existing goldens but are insufficient, while cached texel-center normals plus object-space illumination pass the 30 FPS contract with an accepted visual difference.
-- [ ] `LunarElevationMap` precomputes one finite, normalized object-space terrain normal per source texel using the settled reference-sphere gradient and edge rules, and does not retain source elevation samples after construction.
-- [ ] Focused Arrange-Act-Assert tests cover flat and sloped terrain, antimeridian wrapping, polar rows, cache dimensions, unit normals, deterministic construction, nearest-texel selection, and object-space illumination under lunar-globe rotation.
-- [ ] Fragment shading samples the terrain-normal cache and performs no elevation stencil sampling, physical-slope derivation, tangent-frame construction, perturbed-radial normalization, or object-to-world normal transformation.
-- [ ] The world-space Sun direction is transformed into lunar-globe object space once per frame without changing phase, libration, position angle, or exactly-unlit behavior.
-- [ ] The release browser performance test verifies at least 30 completed, rendered, and presented frames per second at the 1152-pixel cap after warmup; instrumentation still requires exactly one software render and Canvas 2D presentation per counted frame.
-- [ ] The output preserves the resolution-selection policy, lunar orientation and phase, source lunar color-map and elevation-map resolution, octasphere subdivision, terrain-lighting behavior apart from the accepted texel-center quantization, and Canvas 2D presentation path.
-- [ ] After implementation and performance review, the six realistic lunar golden fixtures are explicitly regenerated, visually reviewed as the new standard, and pass normally without the update environment variable; exact triangle and cube goldens remain byte-identical.
-- [ ] Native output dimensions and deterministic native output remain unchanged, and browser smoke coverage passes at device pixel ratio 2 and after responsive resizing.
-- [ ] ADR-0003, the terrain-normal learning guide, and performance documentation record the new sampling convention, equations, memory/startup cost, reference environment, baseline, final result, and accepted quality tradeoff.
-- [ ] The local quality gate, browser smoke tests, realistic lunar goldens, and ticket-specific release browser performance test pass.
+- [x] `LunarElevationMap` precomputes one finite, normalized object-space terrain normal per source texel using the settled reference-sphere gradient and edge rules, and does not retain source elevation samples after construction.
+- [x] Focused Arrange-Act-Assert tests cover flat and sloped terrain, antimeridian wrapping, polar rows, cache dimensions, unit normals, deterministic construction, nearest-texel selection, and object-space illumination under lunar-globe rotation.
+- [x] Fragment shading samples the terrain-normal cache and performs no elevation stencil sampling, physical-slope derivation, tangent-frame construction, perturbed-radial normalization, or object-to-world normal transformation.
+- [x] The world-space Sun direction is transformed into lunar-globe object space once per frame without changing phase, libration, position angle, or exactly-unlit behavior.
+- [x] The release browser performance test verifies at least 30 completed, rendered, and presented frames per second at the 1152-pixel cap after warmup; instrumentation still requires exactly one software render and Canvas 2D presentation per counted frame.
+- [x] The output preserves the resolution-selection policy, lunar orientation and phase, source lunar color-map and elevation-map resolution, octasphere subdivision, terrain-lighting behavior apart from the accepted texel-center quantization, and Canvas 2D presentation path.
+- [x] After implementation and performance review, the six realistic lunar golden fixtures are explicitly regenerated, visually reviewed as the new standard, and pass normally without the update environment variable; exact triangle and cube goldens remain byte-identical.
+- [x] Native output dimensions and deterministic native output remain unchanged, and browser smoke coverage passes at device pixel ratio 2 and after responsive resizing.
+- [x] ADR-0003, the terrain-normal learning guide, and performance documentation record the new sampling convention, equations, memory/startup cost, reference environment, baseline, final result, and accepted quality tradeoff.
+- [x] The local quality gate, browser smoke tests, realistic lunar goldens, and ticket-specific release browser performance test pass.
 
 ## Comments
 
 - 2026-09-11: Terrain precomputation prototypes found two viable bounds. Caching elevation gradients preserved all goldens and reduced paired median complete-frame time by 5.17 ms (10.7%) in the stabilized alternating run set, although an earlier cooler set showed only 1.55 ms with overlapping ranges. Caching texel-center terrain normals and moving illumination to object space reduced a representative cooler median from 43.45 to 31.7 ms and passed the sustained browser contract at 30.13 FPS, but all six realistic lunar goldens exceeded their budgets (499–1,641 outlier pixels; maximum RGB difference 6–10). The prototypes were removed after measurement; full methodology, memory and startup costs are recorded in `docs/testing.md`.
 - 2026-09-11: The visual comparisons were reviewed and the texel-center normal quality reduction was accepted. Precomputed terrain normals plus once-per-frame object-space Sun transformation are now the settled Ticket 19 implementation direction. Golden regeneration is deliberately deferred until that implementation is complete and reviewed.
+- 2026-09-11: The production cache alone reached 28.74 FPS, so the previously conditional once-per-frame object-space Sun transformation was retained. Three final diagnostic runs reached 31.01, 30.21, and 31.50 FPS; the threshold-enforcing test reached 31.62 FPS. The six regenerated lunar goldens were visually reviewed and accepted.

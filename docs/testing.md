@@ -359,6 +359,45 @@ measured median lunar-map setup times of 216.5 ms for baseline, 233 ms for
 cached gradients, and 251 ms for cached normals, adding 16.5 ms or 34.5 ms once
 at startup.
 
+### Retained terrain-normal cache result
+
+Ticket 19 retained the texel-center terrain-normal cache after visual review of
+the prototype. The canonical 1440×720 cache stores three `f32` components per
+texel (12.44 MB) and replaces the 4.15 MB source elevation samples after its
+one-time construction. Fragment shading samples one cached normal by nearest
+texel. The world-space Sun direction is transformed through the transpose of
+the lunar globe pose once per frame, so Lambertian illumination remains
+geographically equivalent without per-fragment normal transformations.
+
+A preliminary retained build that still transformed each cached normal into
+world space measured 28.74 FPS and a 33.35 ms median complete frame, below the
+30 FPS contract. Moving the Sun direction into object space was therefore also
+retained. Three warmed diagnostic runs of the complete implementation produced:
+
+| Run | Frames | Completed FPS | Software rendering | `ImageData` | Canvas presentation | Complete frame |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 1 | 249 | 31.01 | 30.5 ms | 0.0 ms | 0.2 ms | 30.7 ms |
+| 2 | 242 | 30.21 | 31.55 ms | 0.0 ms | 0.2 ms | 31.75 ms |
+| 3 | 252 | 31.50 | 30.55 ms | 0.0 ms | 0.2 ms | 30.7 ms |
+
+The median diagnostic result is 31.01 FPS and 30.7 ms per complete frame. The
+separate threshold-enforcing sustained test measured 31.62 FPS over eight
+seconds. Every counted frame performed exactly one software render,
+`ImageData` construction, and Canvas 2D presentation at 1152×1152. Compared
+with Ticket 35's representative 22.39 FPS and 43.45 ms retained-scalar result,
+the final median removes 12.75 ms (29.3%) from complete-frame time and leaves
+2.63 ms of headroom under the 33.33 ms target.
+
+These final measurements used the same Apple M3 Pro, macOS 15.7.7, headless
+Playwright Chromium 151.0.7922.34, 1440×900 viewport, device pixel ratio 2,
+730.625×730.625 CSS-pixel canvas, 1152×1152 backing resolution, two-second
+warmup, and eight-second measurement window documented for the investigation.
+The accepted quality tradeoff is nearest-texel terrain-normal orientation: six
+realistic fixtures changed by 499–1,641 pixels beyond one RGB code, with maximum
+channel differences of 6–10, while alpha, geometry, orientation, phase, and
+presentation behavior remained unchanged. The six regenerated fixtures were
+visually reviewed and accepted as the new standard on 2026-09-11.
+
 The Ticket 13 baseline was measured on 2026-09-06 with:
 
 - Apple Mac15,7 with an Apple M3 Pro (`arm64`)

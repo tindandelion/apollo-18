@@ -70,7 +70,7 @@ object_to_world = rotate_z(P) × rotate_x(-φₑ) × rotate_y(λₑ)
 
 The rightmost transform still acts first. Positive `rotate_z(P)` moves projected lunar north from up toward framebuffer left, which is counterclockwise despite framebuffer pixel rows increasing downward. Rolling after centering leaves the sub-Earth direction on world `-Z`, so the globe remains centered and keeps the same apparent size.
 
-The subsolar direction begins in the same object-space lunar coordinates and is rotated by the complete `object_to_world` rotation before becoming the world-space **Sun direction**. Geometry and terrain normals use that same rotation. Lunar color-map and elevation-map lookup continue to use the unrotated **globe location**, so geography moves with the posed globe rather than sliding across it.
+The subsolar direction begins in the same object-space lunar coordinates and is rotated by the complete `object_to_world` rotation before becoming the world-space **Sun direction**. Geometry uses that rotation. Shading applies its inverse to the Sun direction once per frame and compares it with cached object-space terrain normals, which is equivalent to rotating every normal into world space. Lunar color-map and terrain-normal lookup continue to use the unrotated **globe location**, so geography moves with the posed globe rather than sliding across it.
 
 The shared lunar-phase animation policies select one astronomical instant, then sample both points and the position angle and package the resulting pose and Sun direction into a **lunar appearance**. The ephemeris sample hides the source values and owns their conversion into the object-to-world rotation and matching world-space Sun direction. Lunar rasterization only consumes the explicit appearance.
 
@@ -79,7 +79,8 @@ The shared lunar-phase animation policies select one astronomical instant, then 
 Each fragment retains terrain-normal Lambertian shading:
 
 ```text
-diffuse = max(dot(terrain_normal, sun_direction), 0)
+sun_object = inverse(object_to_world) × sun_world
+diffuse = max(dot(terrain_normal_object, sun_object), 0)
 linear_output = linear_lunar_color × diffuse
 ```
 

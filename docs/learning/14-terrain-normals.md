@@ -1,103 +1,68 @@
 # Deriving terrain normals from lunar elevation
 
-The lunar globe's silhouette stays a sphere. Crater and mare relief comes from
-a **terrain normal**: a lighting orientation tilted by elevation gradients on
-the 1,737.4 km **lunar reference radius**. Object-space **globe location**
-still selects both the lunar color map and the lunar elevation map. Elevation
-tilts that location into a perturbed radial in the same object space. Globe
-rotation carries the perturbed radial into world space, where one normalize
-produces the lighting vector for Lambert's dot with the fixed Sun.
+The lunar globe's silhouette remains spherical. Crater and mare relief comes from a **terrain normal**: a lighting orientation tilted by elevation gradients on the 1,737.4 km **lunar reference radius**. Elevation changes lighting only; it does not move octasphere vertices.
 
-NASA publishes the source file as a displacement map. Apollo 18 does not move
-vertices. Elevation only changes the lighting vector, so the octasphere remains
-a perfect sphere.
+Apollo 18 derives one normalized object-space terrain normal at every lunar-elevation-map texel center during map construction. Fragment shading then selects that cache with the same nearest-texel lunar-coordinate policy used by the source map. Moving this invariant work out of fragment shading is what makes the capped high-density software renderer practical in WebAssembly.
 
-## Physical slopes on the reference sphere
+## Texel-center location and tangent frame
 
-A fragment has unit globe location `û` and elevation `h` in kilometers. With
-longitude `λ` and latitude `φ` from the same convention as color-map lookup:
+For column `x` and row `y` in a map of width `W` and height `H`, the texel-center longitude and latitude are:
 
 ```text
-λ = atan2(x, -z)
-φ = asin(y)
+λ = ((x + 1/2) / W - 1/2) · 2π
+φ = (1/2 - (y + 1/2) / H) · π
 ```
 
-the east and north unit tangents can be derived directly from the globe
-location. Let `ρ = hypot(x, z)`, the location's radius around the lunar north
-axis:
+The corresponding unit **globe location** `û` and tangent directions are:
 
 ```text
-east  = (-z / ρ, 0, x / ρ)
+û     = (sin λ cos φ, sin φ, -cos λ cos φ)
+east  = (cos λ, 0, sin λ)
 north = east × û
 ```
 
-This is algebraically equivalent to reconstructing the tangents from `λ` and
-`φ`, but avoids additional trigonometric functions. At an exact pole `ρ = 0`,
-longitude—and therefore the tangent frame—is inherently ambiguous. Apollo 18
-uses the antimeridian convention `east = -X`; crossing with `û` then gives the
-corresponding north tangent.
+Because texel centers do not lie exactly at either pole, this frame is defined for every cached sample. Polar *rows* still receive special gradient treatment because eastward physical distance approaches zero there.
 
-Finite differences supply `∂h/∂λ` and `∂h/∂φ`. Physical slopes use the
-reference radius `R = 1737.4 km` only, not the local radius `R + h`, because
-the rasterized surface is still that sphere:
+## Physical slopes on the reference sphere
+
+Finite differences supply `∂h/∂λ` and `∂h/∂φ`, where elevation `h` is measured in kilometers. Physical slopes use only the lunar reference radius `R = 1737.4 km`:
 
 ```text
 slope_east  = (∂h/∂λ) / (R cos φ)
 slope_north = (∂h/∂φ) / R
 perturbed   = û − slope_east · east − slope_north · north
-n           = normalize(perturbed)
+n_object    = normalize(perturbed)
 ```
 
-A constant `h` leaves the perturbed radial equal to `û`, so `n = û`. A slope
-that rises toward the Sun brightens; the opposite wall darkens.
+Using `R + h` would describe displaced geometry, but Apollo 18 draws an undisplaced sphere. Constant elevation produces `n_object = û`.
 
 ## Discrete gradients
 
-The elevation map is 4 pixels per degree, so `Δλ = Δφ = 0.25°`. Each fragment
-calculates `λ` and `φ` once and shares those coordinates between the lunar
-color and elevation map lookups. The fragment's `û` still provides `û`, east,
-north, and `cos φ`. Only `h` is quantized with the shared nearest-neighbor
-lookup: `floor` into a texel, wrap longitude, clamp latitude.
-
-Interior texels use 4-connected central differences of that texel's neighbors:
+For the 1440×720, four-pixels-per-degree elevation map:
 
 ```text
+Δλ = 2π / W
+Δφ = π / H
+
 ∂h/∂λ ≈ (h_east − h_west) / (2 Δλ)
 ∂h/∂φ ≈ (h_north − h_south) / (2 Δφ)
 ```
 
-East and west wrap, so a crater that crosses 180° longitude has a continuous
-gradient. Polar rows have no latitude neighbor on one side and `cos φ → 0`.
-Those rows take a one-sided latitude difference and set `slope_east = 0`, which
-keeps the polar normal in the local meridian and avoids dividing by zero.
+East and west neighbors wrap across the antimeridian. Interior rows use central latitude differences. The first and last rows use one-sided latitude differences and set `slope_east = 0`, avoiding division by the very small polar-row circumference.
 
-## Lighting
+After construction, `LunarElevationMap` retains its dimensions and one three-`f32` normal per texel, but no elevation samples. The canonical normal cache occupies about 12.44 MB, 8.29 MB more than the former 4.15 MB elevation storage. The measured prototype increased median lunar-map setup from 216.5 ms to 251 ms; this one-time startup cost replaces repeated work in every rendered fragment.
 
-`n` is the object-space **terrain normal**. Yaw is a pure rotation, so
-normalizing `perturbed` before rotating it is the same lighting vector as
-rotating first and normalizing once:
+## Object-space lighting
+
+A lunar globe pose `Q` rotates object space into world space. Rotations preserve dot products, so rotating the Sun in the opposite direction once per frame is equivalent to rotating every sampled normal into world space:
 
 ```text
-n_world = normalize(R · perturbed)
-diffuse = max(dot(n_world, s), 0)
+s_object = Q⁻¹ · s_world = Qᵀ · s_world
+
+diffuse = max(dot(n_object, s_object), 0)
+        = max(dot(Q · n_object, s_world), 0)
 ```
 
-Map lookup continues to use unrotated globe location, so geography stays
-painted on the surface while the Sun stays fixed in the world.
+The renderer therefore transforms the world-space **Sun direction** once and performs Lambertian illumination directly in object space. Lunar coordinates still select both color and terrain data, so terrain remains attached through libration and position-angle roll.
 
-Because a lunar globe pose `R` is a rotation, Lambertian illumination can also
-be calculated entirely in object space by rotating the Sun in the opposite
-direction once per frame:
-
-```text
-s_object = R⁻¹ · s_world
-max(dot(normalize(R · perturbed), s_world), 0)
-    = max(dot(normalize(perturbed), s_object), 0)
-```
-
-The equality follows from rotations preserving vector lengths and dot
-products, with `R⁻¹ = Rᵀ`. Apollo 18 measured this alternative against the
-complete high-density browser frame. Its timing ranges overlapped, so the
-experiment was reverted rather than retaining complexity without a
-measurement-supported improvement. The renderer therefore continues to rotate
-each terrain normal into world space before illumination.
+Nearest-texel normal sampling intentionally introduces a small lighting quantization relative to deriving a tangent frame at every fragment. Visual review accepted that tradeoff. The color-map resolution, elevation-map resolution, octasphere, phase, orientation, and Canvas 2D presentation path remain unchanged.

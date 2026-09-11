@@ -11,7 +11,6 @@ type SphereNdcVertex = NdcVertex<GlobeLocation>;
 struct LunarShader<'a> {
     color_map: &'a LunarColorMap,
     elevation_map: &'a LunarElevationMap,
-    object_rotation: Mat4,
     sun_direction: SunDirection,
 }
 
@@ -19,13 +18,11 @@ impl<'a> LunarShader<'a> {
     const fn new(
         color_map: &'a LunarColorMap,
         elevation_map: &'a LunarElevationMap,
-        object_rotation: Mat4,
         sun_direction: SunDirection,
     ) -> Self {
         Self {
             color_map,
             elevation_map,
-            object_rotation,
             sun_direction,
         }
     }
@@ -38,12 +35,8 @@ impl FragmentShader for LunarShader<'_> {
         let globe_location = GlobeLocation::interpolate(attributes, barycentric_weights)
             .expect("covered fragments interpolate a nonzero globe location");
         let geo_coords = globe_location.geo_coords();
-        let perturbed_radial = self.elevation_map.perturbed_radial(geo_coords);
-        let lighting_normal = self
-            .object_rotation
-            .transform_vector3(perturbed_radial)
-            .normalize();
-        let diffuse_intensity = self.sun_direction.diffuse_intensity(lighting_normal);
+        let terrain_normal = self.elevation_map.terrain_normal(geo_coords);
+        let diffuse_intensity = self.sun_direction.diffuse_intensity(terrain_normal);
         if diffuse_intensity == 0.0 {
             return Srgb8::BLACK;
         }
@@ -75,7 +68,11 @@ pub(crate) fn render(
         * object_rotation
         * Mat4::from_scale(Vec3::splat(GLOBE_RADIUS));
     let mesh = generate(CANONICAL_SUBDIVISION_LEVEL);
-    let shader = LunarShader::new(color_map, elevation_map, object_rotation, sun_direction);
+    let shader = LunarShader::new(
+        color_map,
+        elevation_map,
+        object_space_sun_direction(object_rotation, sun_direction),
+    );
 
     for triangle in mesh.triangles {
         let vertices = triangle.map(|index| {
@@ -91,6 +88,18 @@ pub(crate) fn render(
     }
 
     Ok(rasterizer.into_framebuffer())
+}
+
+fn object_space_sun_direction(
+    object_to_world: Mat4,
+    world_space_sun_direction: SunDirection,
+) -> SunDirection {
+    SunDirection::new(
+        object_to_world
+            .transpose()
+            .transform_vector3(world_space_sun_direction.as_vec3()),
+    )
+    .expect("a lunar globe rotation preserves the valid Sun direction")
 }
 
 fn projection_transform(width: u32, height: u32) -> Mat4 {
@@ -195,7 +204,7 @@ mod tests {
 
     fn flat_elevation_map() -> LunarElevationMap {
         LunarElevationMap::new(
-            ElevationImage::new(1, 1, vec![0.0]).expect("valid synthetic elevation map"),
+            ElevationImage::new(4, 1, vec![0.0; 4]).expect("valid synthetic elevation map"),
         )
     }
 
@@ -207,21 +216,21 @@ mod tests {
         LunarShader::new(
             color_map,
             elevation_map,
-            Mat4::IDENTITY,
             SunDirection::new(sun_direction).expect("valid Sun direction"),
         )
     }
 
-    /// Flat elevation and identity rotation keep Lambert at 1 facing the Sun and 0 facing away.
+    /// Cached flat-terrain normals produce full Lambert facing the Sun and zero perpendicular or away.
     #[test]
     fn lambertian_shading_is_full_facing_the_sun_and_zero_facing_away() {
         let color_map = LunarColorMap::new(
             SrgbImage::new(1, 1, vec![255, 255, 255]).expect("valid synthetic map"),
         );
         let elevation_map = flat_elevation_map();
-        let shader = identity_shader(&color_map, &elevation_map, Vec3::NEG_Z);
+        let facing_direction = (Vec3::X + Vec3::NEG_Z).normalize();
+        let shader = identity_shader(&color_map, &elevation_map, facing_direction);
 
-        let facing_sun = GlobeLocation::new(Vec3::NEG_Z).expect("valid globe location");
+        let facing_sun = GlobeLocation::new(facing_direction).expect("valid globe location");
         let perpendicular = GlobeLocation::new(Vec3::X).expect("valid globe location");
         let facing_away = GlobeLocation::new(Vec3::Z).expect("valid globe location");
 
@@ -237,9 +246,9 @@ mod tests {
         }
     }
 
-    /// Interpolated globe locations are renormalized so Lambert does not reveal tessellation.
+    /// An interpolated globe location selects the matching cached terrain normal.
     #[test]
-    fn interpolated_globe_location_is_normalized_for_smooth_lighting() {
+    fn interpolated_globe_location_selects_cached_terrain_normal() {
         let color_map = LunarColorMap::new(
             SrgbImage::new(1, 1, vec![255, 255, 255]).expect("valid synthetic map"),
         );
@@ -298,6 +307,24 @@ mod tests {
         assert_ne!(first, second);
         assert!(first[0] > 0 && second[0] > 0);
         assert_eq!((first[3], second[3]), (0xff, 0xff));
+    }
+
+    /// Rotating the Sun opposite the globe pose preserves their relative lighting direction.
+    #[test]
+    fn sun_direction_is_transformed_into_lunar_globe_object_space() {
+        let object_rotation = Mat4::from_rotation_y(90.0_f32.to_radians());
+        let object_space_normal = Vec3::new(1.0, 2.0, -3.0).normalize();
+        let world_space_sun =
+            SunDirection::new(object_rotation.transform_vector3(object_space_normal))
+                .expect("valid Sun direction");
+
+        let object_space_sun = object_space_sun_direction(object_rotation, world_space_sun);
+
+        approx::assert_relative_eq!(
+            object_space_sun.as_vec3(),
+            object_space_normal,
+            epsilon = 1.0e-6
+        );
     }
 
     #[test]
