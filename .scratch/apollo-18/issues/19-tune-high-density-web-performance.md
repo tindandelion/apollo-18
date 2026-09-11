@@ -2,13 +2,13 @@
 
 **What to build:** Optimize the representative web lunar globe at the color-map-bounded high-density resolution introduced by Ticket 13 so it sustains at least 30 FPS in desktop WebAssembly without reducing output resolution, lunar-map detail, or presentation quality.
 
-**Blocked by:** 13: Use color-map-bounded high-density web rendering; 39: Verify and document high-density web performance
+**Blocked by:** 13: Use color-map-bounded high-density web rendering
 
 **Status:** ready-for-agent
 
 ## Implementation breakdown
 
-Ticket 19 is the umbrella for the following implementation sequence:
+Ticket 19 retains the results of the completed investigation and scalar-optimization sequence:
 
 - 29: Retain high-density browser performance diagnostics
 - 30: Remove WebAssembly rounding calls from sRGB encoding
@@ -17,12 +17,8 @@ Ticket 19 is the umbrella for the following implementation sequence:
 - 33: Bypass downstream work for exactly unlit fragments
 - 34: Advance raster edge equations incrementally
 - 35: Reprofile the optimized scalar renderer
-- 36: Add four-fragment rendering with a scalar fallback
-- 37: Vectorize fragment coverage and framebuffer output
-- 38: Vectorize lunar fragment shading to meet the performance contract
-- 39: Verify and document high-density web performance
 
-Complete and commit every child ticket before marking this umbrella ticket `done`.
+Continue performance investigation and implementation directly under this ticket. The previously planned four-fragment vectorization sequence was removed from the backlog because it was not considered the right direction.
 
 ## Performance contract
 
