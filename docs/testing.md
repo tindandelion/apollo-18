@@ -303,6 +303,62 @@ removed from the backlog because it was not considered the right approach.
 Further performance investigation and implementation continues under Ticket 19
 and must preserve sampled-texel and golden-render contracts.
 
+### Terrain precomputation investigation
+
+Ticket 19 evaluated two temporary terrain-data prototypes on 2026-09-11. Both
+moved work from each fragment into `LunarElevationMap` construction and were
+removed after measurement.
+
+The quality-preserving prototype cached each elevation texel's longitudinal
+derivative and fully scaled northward slope. It retained the exact interpolated
+globe location, tangent frame, horizontal-radius scaling, perturbed radial, and
+normal transformation per fragment, as required by ADR-0003. Four alternating
+baseline/changed diagnostic pairs measured:
+
+| Variant | Run | Completed FPS | Software rendering | Complete frame |
+| --- | ---: | ---: | ---: | ---: |
+| Baseline | 1 | 20.10 | 48.4 ms | 48.6 ms |
+| Baseline | 2 | 20.37 | 47.8 ms | 47.9 ms |
+| Baseline | 3 | 20.38 | 47.7 ms | 47.85 ms |
+| Baseline | 4 | 20.00 | 48.8 ms | 49.0 ms |
+| Precomputed gradients | 1 | 22.98 | 41.65 ms | 41.9 ms |
+| Precomputed gradients | 2 | 22.39 | 43.0 ms | 43.15 ms |
+| Precomputed gradients | 3 | 22.40 | 42.8 ms | 43.0 ms |
+| Precomputed gradients | 4 | 22.21 | 43.4 ms | 43.55 ms |
+
+The medians improved from 20.24 to 22.40 FPS and from 48.25 to 43.08 ms per
+complete frame: a 5.17 ms (10.7%) frame-time reduction. Earlier, cooler runs
+showed a smaller 1.55 ms median reduction with overlapping ranges, so the
+absolute effect is sensitive to machine state; the alternating pairs establish
+the direction, not a replacement baseline. All eight realistic and exact
+golden cases passed. Caching the canonical octasphere and its normalized globe
+locations had no standalone measurable effect: both baseline and changed
+three-run medians were 46.0 ms.
+
+The quality-trading prototype cached one normalized object-space terrain normal
+at each 1440×720 elevation-texel center. It also transformed the Sun direction
+to object space once per frame. This removed elevation gathers, terrain-gradient
+math, tangent-frame construction, perturbed-radial normalization, and
+object-to-world normal transformation from each fragment. Three alternating
+pairs improved the medians from 20.02 to 29.94 FPS and from 48.6 to 31.95 ms:
+a 16.65 ms (34.3%) frame-time reduction. On cooler runs representative of the
+retained Ticket 35 baseline, the complete-frame median improved from 43.45 to
+31.7 ms and throughput from 22.39 to 30.12 FPS. The separate sustained-FPS
+contract passed at 30.13 FPS. Precomputed normals without moving illumination
+to object space reached only a 36.8 ms median and 26.25 FPS, showing that both
+parts matter.
+
+The quality tradeoff is measurable but visually bounded. Across the six
+realistic lunar goldens, 499–1,641 of 640,000 framebuffer pixels exceeded the
+normal tolerance of one RGB code, with maximum channel differences of 6–10;
+all six therefore failed their golden budgets. The quality-preserving cache
+requires two `f32` values per texel (8.29 MB, or 4.15 MB more than the source
+elevation samples if it replaces them). The normal cache requires three `f32`
+values per texel (12.44 MB, or 8.29 MB more). Browser initialization probes
+measured median lunar-map setup times of 216.5 ms for baseline, 233 ms for
+cached gradients, and 251 ms for cached normals, adding 16.5 ms or 34.5 ms once
+at startup.
+
 The Ticket 13 baseline was measured on 2026-09-06 with:
 
 - Apple Mac15,7 with an Apple M3 Pro (`arm64`)
