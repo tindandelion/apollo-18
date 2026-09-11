@@ -22,7 +22,11 @@ Use NASA SVS's north-up 2026 lunar frames as the visual ground truth for ephemer
 
 Frames are chronological hourly samples. `moon.0001.jpg` is `2026-01-01T00:00Z`; calculate later frame numbers as hours since that instant plus one, padded to four digits. Compare phase, terminator, central lunar location, and landmark roll visually. Apollo 18 uses different surface assets and rendering, so these frames are orientation references rather than pixel-comparison fixtures.
 
-## Quality gate
+## NASA assets
+
+Keep runtime lunar data checked in under `assets/nasa/` rather than fetching it over the network. Whenever an asset is added or replaced, add or update its adjacent provenance document with the source URL, retrieval date, checksum, and usage guidance. Keep NASA data provenance and usage terms separate from Apollo 18's code license.
+
+## Validation
 
 Run the canonical quality gate from the repository root before completing every implementation ticket:
 
@@ -30,9 +34,45 @@ Run the canonical quality gate from the repository root before completing every 
 ./scripts/dev/quality-gate.sh
 ```
 
-Also run every ticket-specific golden, native-output, browser, asset-provenance, and deterministic-animation check required by its acceptance criteria.
+Also run every ticket-specific native-output, asset-provenance, and deterministic-animation check required by its acceptance criteria.
 
-## Unit tests
+For web initialization, Canvas presentation, backing-resolution, or responsive behavior changes, also run:
+
+```bash
+scripts/dev/web-smoke-test.sh
+```
+
+For performance-sensitive renderer or web changes, run:
+
+```bash
+scripts/dev/web-performance-test.sh
+scripts/dev/web-timeline-performance-test.sh
+```
+
+Compare performance on the same machine and browser using three warmed runs. Do not claim changes smaller than observed run-to-run variation. Count only frames that perform one software render and one Canvas 2D presentation at the 1152×1152 cap. Set `APOLLO18_SCENE_TIME_OFFSET_SECONDS` to compare a fixed lunar appearance.
+
+Install browser-test dependencies when needed:
+
+```bash
+cd crates/web/smoke-tests
+npm ci
+npx playwright install chromium
+```
+
+### Golden renders
+
+Triangle and cube goldens require exact decoded pixels; lunar goldens use the tolerance encoded by `crates/renderer/tests/golden_renders.rs`. Failed lunar comparisons write amplified differences under `target/apollo18/golden-diffs/`.
+
+Golden replacement is an explicit visible behavior change:
+
+```bash
+APOLLO18_UPDATE_GOLDENS=1 cargo test -p apollo18-renderer \
+  --test golden_renders golden_pixels
+```
+
+Visually review every replaced golden before committing it.
+
+### Unit tests
 
 Write each unit test in the Arrange-Act-Assert pattern: set up inputs, exercise one behavior, then assert the observable result, with a blank line between those phases. A `///` doc comment on the test describes the scenario it covers.
 
