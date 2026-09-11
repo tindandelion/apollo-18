@@ -41,4 +41,4 @@ The backing image is no longer presented with forced nearest-neighbor `pixelated
 
 ## Measured tradeoff
 
-On the Ticket 13 reference environment documented in [`docs/testing.md`](../testing.md), a 730.625×730.625 CSS-pixel canvas at DPR 2 requested more than the cap and selected a 1152×1152 backing resolution. The release lunar scene measured 15.42 FPS, compared with the project's 30 FPS target. Ticket 13 accepts that cost to establish sharper output; Ticket 19 profiles and tunes the same bounded workload without reducing its resolution.
+In the reference release-browser workload, a 730.625×730.625 CSS-pixel canvas at DPR 2 requested more than the cap and selected a 1152×1152 backing resolution. The initial high-density implementation measured 15.42 FPS, establishing the cost of sharper output. Subsequent profiling and renderer optimization raised the same bounded workload above the project's 30 FPS target without reducing its backing resolution.

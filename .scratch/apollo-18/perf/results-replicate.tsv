@@ -1,7 +1,0 @@
-baseline-run1	{"medianFrameMs":66.8,"p25Ms":66.3,"p75Ms":67.3,"medianPresentationMs":0.2,"impliedFps":14.97,"frames":80}
-baseline-run2	{"medianFrameMs":64.7,"p25Ms":64.5,"p75Ms":65,"medianPresentationMs":0.2,"impliedFps":15.46,"frames":80}
-whatif-256	{"medianFrameMs":60.2,"p25Ms":59.9,"p75Ms":60.4,"medianPresentationMs":0.2,"impliedFps":16.61,"frames":80}
-whatif-128	{"medianFrameMs":64.2,"p25Ms":63.7,"p75Ms":64.4,"medianPresentationMs":0.2,"impliedFps":15.58,"frames":80}
-whatif-512	{"medianFrameMs":63.5,"p25Ms":63.2,"p75Ms":63.9,"medianPresentationMs":0.2,"impliedFps":15.75,"frames":80}
-whatif-4	{"medianFrameMs":62.9,"p25Ms":62.4,"p75Ms":63.4,"medianPresentationMs":0.2,"impliedFps":15.9,"frames":80}
-whatif-900	{"medianFrameMs":57.2,"p25Ms":55.7,"p75Ms":59,"medianPresentationMs":0.2,"impliedFps":17.48,"frames":80}

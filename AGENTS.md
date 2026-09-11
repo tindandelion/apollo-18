@@ -4,13 +4,27 @@
 
 Apollo 18 is a learning-first Rust software renderer for presenting the Moon with NASA lunar surface data. Use the canonical project language in `CONTEXT.md`; read relevant decisions under `docs/adr/` before changing renderer conventions.
 
+## Directory structure
+
+| Path               | Purpose                                                                                        |
+| ------------------ | ---------------------------------------------------------------------------------------------- |
+| `crates/renderer/` | Platform-independent software renderer, scene logic, lunar data decoding, and rendering tests. |
+| `crates/native/`   | Native command-line hosts that write milestone images and deterministic frame sequences.       |
+| `crates/web/`      | WebAssembly host, webpage, and Playwright browser and performance tests.                       |
+| `assets/nasa/`     | Checked-in lunar source data with adjacent provenance documents.                               |
+| `docs/adr/`        | Durable rendering and data decisions.                                                          |
+| `docs/learning/`   | Graphics reasoning and equations.                                                              |
+| `docs/agents/`     | Repository workflow conventions.                                                               |
+| `scripts/dev/`     | Local validation and diagnostics.                                                              |
+| `scripts/deploy/`  | Release artifact generation.                                                                   |
+
 ## Planned implementation
 
 When implementing the renderer, native binaries, web showcase, lunar assets, or rendering tests, read `.scratch/apollo-18/spec.md` and the ticket being worked under `.scratch/apollo-18/issues/`. Work one frontier ticket at a time; completion requires every acceptance criterion and the ticket's quality gate to pass.
 
 ## Learning documentation
 
-For every graphics stage, add or update a concise guide under `docs/learning/` that explains the stage's reasoning and equations. Keep tutorial material in these guides and reserve code comments for local implementation reasoning.
+For every graphics stage, add or update a concise guide under `docs/learning/` that explains the stage's reasoning and equations. Keep tutorial material in these guides and reserve code comments for local implementation reasoning. The learning documents should read as a tutorial guide for a user unfamiliar with the subject.
 
 ## Lunar Globe: Ground Truth
 

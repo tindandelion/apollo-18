@@ -57,7 +57,7 @@ Moving one row down in the top-left framebuffer changes only `y`:
 E(x, y + 1) = E(x, y) + dx
 ```
 
-The increments `-dy` and `dx` are constant for the entire edge. The Ticket 34 experiment evaluated all three edge equations once at the bounded traversal origin, added each edge's X increment across a row, and added each edge's Y increment to the saved row-start values between rows.
+The increments `-dy` and `dx` are constant for the entire edge. The incremental-stepping experiment evaluated all three edge equations once at the bounded traversal origin, added each edge's X increment across a row, and added each edge's Y increment to the saved row-start values between rows.
 
 Conceptually, the experimental loop changed from this:
 
@@ -96,7 +96,7 @@ This would move one division outside candidate traversal and replace three divis
 
 An optimization can make source code look faster while producing no measurable benefit. Apollo 18 compares warmed release-browser runs of the same 1152×1152 workload and keeps visual behavior protected by focused rasterizer tests and golden renders.
 
-For Ticket 34, three baseline runs had median complete-frame times of 42.45, 42.80, and 42.50 ms. Incremental stepping alone measured 42.70, 42.95, and 43.95 ms, so no isolated improvement was claimed. Reciprocal normalization paired with direct edge evaluation regressed to 45.55, 45.60, and 45.55 ms. Combining both changes measured 41.60, 41.40, and 41.60 ms. Exact triangle and cube goldens and tolerance-checked lunar goldens remained unchanged. This is a useful reminder that compiler output and surrounding loop structure matter: timings for isolated source edits do not necessarily add together.
+In three baseline runs, median complete-frame times were 42.45, 42.80, and 42.50 ms. Incremental stepping alone measured 42.70, 42.95, and 43.95 ms, so no isolated improvement was claimed. Reciprocal normalization paired with direct edge evaluation regressed to 45.55, 45.60, and 45.55 ms. Combining both changes measured 41.60, 41.40, and 41.60 ms. Exact triangle and cube goldens and tolerance-checked lunar goldens remained unchanged. This is a useful reminder that compiler output and surrounding loop structure matter: timings for isolated source edits do not necessarily add together.
 
 The best variant reduced median whole-frame time by only 0.9 ms, or 2.1%, and throughput remained about 23 FPS against the 30 FPS target. That gain did not justify carrying extra floating-point accumulation risk and loop complexity, so all arithmetic changes were reverted. Apollo 18 continues to evaluate edge equations directly and divide edge values by area. The horizontal shared-edge regression test remains because it strengthens coverage of the unchanged top-left rule.
 
