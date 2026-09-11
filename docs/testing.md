@@ -274,8 +274,7 @@ placed 61,702 samples (99.10%) in release Wasm, 57,037 (91.61%) directly in the
 inlined render kernel, and 4,034 (6.48%) directly in its scalar arctangent
 helper. Canvas `putImageData` accounted for 257 samples (0.41%), consistent
 with the stage diagnostic: presentation and handoff are not the residual
-bottleneck. `wasm-tools print` confirmed that the hot helper is scalar and that
-the release module contains no four-fragment SIMD kernel.
+bottleneck. `wasm-tools print` confirmed that the hot helper is scalar.
 
 Because release optimization fuses most fragment work into one Wasm function,
 a companion eight-second native sampling run introduced temporary
@@ -299,18 +298,10 @@ Candidate-fragment traversal is the largest category, while lunar-coordinate
 and terrain-normal work together account for another 45.2%. The current 42.8
 ms median must fall by 9.47 ms, or 22.1%, to fit the 33.33 ms 30-FPS budget.
 
-Ticket 36 should therefore introduce one general four-fragment batch seam with
-a behavior-preserving scalar fallback, without adding a lunar-only bypass.
-Ticket 37 should first target the measured raster work: edge and top-left
-coverage, barycentric and depth interpolation, depth comparison, and contiguous
-sRGB/RGBA output where accepted-lane layout permits it. Ticket 38 should then
-target globe-location interpolation and normalization, terrain-normal
-arithmetic, illumination, and linear-color processing. Longitude/latitude
-transcendentals, nearest-texel selection, and lunar color/elevation map gathers
-remain scalar per lane initially because core Wasm SIMD has neither vector
-transcendentals nor general gather/scatter. Approximate geographic functions or
-more complex gathers are justified only by a new residual profile and must
-preserve sampled-texel and golden-render contracts.
+The follow-up optimization direction derived from this profile was subsequently
+removed from the backlog because it was not considered the right approach.
+Further performance investigation and implementation continues under Ticket 19
+and must preserve sampled-texel and golden-render contracts.
 
 The Ticket 13 baseline was measured on 2026-09-06 with:
 
