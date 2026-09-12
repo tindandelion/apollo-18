@@ -19,10 +19,6 @@ function selectedBackingResolution(cssWidth, cssHeight, devicePixelRatio) {
   };
 }
 
-function isFaviconRequest(url) {
-  return new URL(url).pathname === "/favicon.ico";
-}
-
 test("release web host fits its square presentation within the viewport", async ({
   page,
 }) => {
@@ -294,19 +290,17 @@ test("release web host presents the software-rendered framebuffer", async ({
 
   page.on("pageerror", (error) => runtimeErrors.push(error.message));
   page.on("console", (message) => {
-    if (message.type() === "error" && !message.text().includes("favicon.ico")) {
+    if (message.type() === "error") {
       runtimeErrors.push(message.text());
     }
   });
   page.on("requestfailed", (request) => {
-    if (!isFaviconRequest(request.url())) {
-      runtimeErrors.push(
-        `${request.method()} ${request.url()} failed: ${request.failure()?.errorText}`,
-      );
-    }
+    runtimeErrors.push(
+      `${request.method()} ${request.url()} failed: ${request.failure()?.errorText}`,
+    );
   });
   page.on("response", (response) => {
-    if (response.status() >= 400 && !isFaviconRequest(response.url())) {
+    if (response.status() >= 400) {
       runtimeErrors.push(`${response.status()} ${response.url()}`);
     }
   });

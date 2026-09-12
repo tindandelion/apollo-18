@@ -7,3 +7,15 @@ locked = true
 
 [serve]
 no_spa = true
+
+[watch]
+watch = [
+  ".",
+  "../renderer",
+  "../../Cargo.toml",
+  "../../Cargo.lock",
+  "../../assets/nasa/lroc_color_2k.jpg",
+  "../../assets/nasa/ldem_4.tif",
+  "../../assets/nasa/mooninfo_2026.json",
+]
+ignore = ["smoke-tests"]
