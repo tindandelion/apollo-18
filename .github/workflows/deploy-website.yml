@@ -27,8 +27,8 @@ jobs:
 
       - name: Run quality gate
         uses: ./.github/actions/quality-gate
-        with:
-          public-url: "${{ steps.pages.outputs.base_path }}/"
+        env:
+          TRUNK_BUILD_PUBLIC_URL: "${{ steps.pages.outputs.base_path }}/"
 
       - name: Upload Pages artifact
         uses: actions/upload-pages-artifact@v5

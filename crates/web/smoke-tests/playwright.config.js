@@ -20,8 +20,7 @@ module.exports = defineConfig({
     headless: true,
   },
   webServer: {
-    command:
-      "trunk serve index.html --release --address 127.0.0.1 --port 41718",
+    command: "trunk serve --address 127.0.0.1 --port 41718",
     cwd: path.resolve(__dirname, ".."),
     env: {
       ...process.env,
