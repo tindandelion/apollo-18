@@ -4,3 +4,6 @@ trunk-version = "=0.21.14"
 target = "index.html"
 release = true
 locked = true
+
+[serve]
+no_spa = true
