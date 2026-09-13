@@ -192,7 +192,7 @@ struct CanvasAnimation {
     color_map: LunarColorMap,
     elevation_map: LunarElevationMap,
     lunar_phase_animation: EphemerisSpanAnimation,
-    scene_clock: MonotonicSceneClock,
+    started_at_milliseconds: Option<f64>,
 }
 
 impl CanvasAnimation {
@@ -209,7 +209,7 @@ impl CanvasAnimation {
             color_map,
             elevation_map,
             lunar_phase_animation,
-            scene_clock: MonotonicSceneClock::default(),
+            started_at_milliseconds: None,
         }
     }
 
@@ -231,10 +231,9 @@ impl CanvasAnimation {
             self.canvas.set_height(resolution.height);
         }
 
-        let scene_time = self
-            .scene_clock
-            .scene_time(timestamp_milliseconds)
-            .map_err(|error| JsValue::from_str(&error.to_string()))?;
+        let scene_time =
+            scene_time_from_timestamp(&mut self.started_at_milliseconds, timestamp_milliseconds)
+                .map_err(|error| JsValue::from_str(&error.to_string()))?;
         let appearance = self.lunar_phase_animation.lunar_appearance(scene_time);
         let frame = render_lunar_globe(
             resolution.width,
@@ -253,36 +252,26 @@ impl CanvasAnimation {
     }
 }
 
-#[derive(Default)]
-struct MonotonicSceneClock {
-    started_at_milliseconds: Option<f64>,
-}
-
-impl MonotonicSceneClock {
-    fn scene_time(
-        &mut self,
-        timestamp_milliseconds: f64,
-    ) -> Result<SceneTime, apollo18_renderer::InvalidSceneTime> {
-        let started_at_milliseconds = *self
-            .started_at_milliseconds
-            .get_or_insert(timestamp_milliseconds);
-        SceneTime::from_elapsed_millis(started_at_milliseconds, timestamp_milliseconds)
-    }
+fn scene_time_from_timestamp(
+    started_at_milliseconds: &mut Option<f64>,
+    timestamp_milliseconds: f64,
+) -> Result<SceneTime, apollo18_renderer::InvalidSceneTime> {
+    let started_at_milliseconds = *started_at_milliseconds.get_or_insert(timestamp_milliseconds);
+    SceneTime::from_elapsed_millis(started_at_milliseconds, timestamp_milliseconds)
 }
 
 #[cfg(test)]
 mod tests {
     use super::{
-        BackingResolution, MonotonicSceneClock, ResolutionError, select_backing_resolution,
+        BackingResolution, ResolutionError, scene_time_from_timestamp, select_backing_resolution,
     };
 
     /// The first render-ready callback establishes scene time zero.
     #[test]
-    fn monotonic_clock_guarantees_zero_scene_time_for_first_frame() {
-        let mut clock = MonotonicSceneClock::default();
+    fn first_timestamp_guarantees_zero_scene_time() {
+        let mut started_at_milliseconds = None;
 
-        let scene_time = clock
-            .scene_time(42_000.0)
+        let scene_time = scene_time_from_timestamp(&mut started_at_milliseconds, 42_000.0)
             .expect("timestamp should be valid");
 
         assert_eq!(
@@ -293,14 +282,12 @@ mod tests {
 
     /// Later scene time comes from elapsed monotonic time rather than frame count.
     #[test]
-    fn monotonic_clock_preserves_elapsed_time_across_stalls() {
-        let mut clock = MonotonicSceneClock::default();
-        let _ = clock
-            .scene_time(1_000.0)
+    fn timestamps_preserve_elapsed_time_across_stalls() {
+        let mut started_at_milliseconds = None;
+        let _ = scene_time_from_timestamp(&mut started_at_milliseconds, 1_000.0)
             .expect("timestamp should be valid");
 
-        let scene_time = clock
-            .scene_time(121_000.0)
+        let scene_time = scene_time_from_timestamp(&mut started_at_milliseconds, 121_000.0)
             .expect("timestamp should be valid");
 
         assert_eq!(
