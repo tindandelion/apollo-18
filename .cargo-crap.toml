@@ -1,0 +1,7 @@
+threshold = 12.0
+exclude = [
+    "crates/native/**",
+    "crates/web/**",
+    "crates/renderer/tests/**",
+]
+allow = ["*::fmt"]

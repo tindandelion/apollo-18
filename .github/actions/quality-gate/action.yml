@@ -1,5 +1,5 @@
 name: Run Apollo 18 quality gate
-description: Install pinned build tools and validate the native and web workspace
+description: Install pinned validation tools and validate the native and web workspace
 
 runs:
   using: composite
@@ -7,19 +7,25 @@ runs:
     - name: Install Rust components and Wasm target
       shell: bash
       run: |
-        rustup component add rustfmt clippy --toolchain 1.97.1
+        rustup component add rustfmt clippy llvm-tools-preview --toolchain 1.97.1
         rustup target add wasm32-unknown-unknown --toolchain 1.97.1
-
-    - name: Install Trunk
-      uses: taiki-e/install-action@v2.84.0
-      with:
-        tool: trunk@0.21.14
-        fallback: none
 
     - name: Install cargo-arc
       uses: taiki-e/install-action@v2.84.0
       with:
         tool: cargo-arc@0.3.1
+        fallback: cargo-install
+
+    - name: Install cargo-llvm-cov
+      uses: taiki-e/install-action@v2.84.0
+      with:
+        tool: cargo-llvm-cov@0.9.1
+        fallback: none
+
+    - name: Install cargo-crap
+      uses: taiki-e/install-action@v2.84.0
+      with:
+        tool: cargo-crap@0.4.3
         fallback: cargo-install
 
     - name: Run canonical quality gate

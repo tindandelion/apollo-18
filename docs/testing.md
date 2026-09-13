@@ -1,6 +1,6 @@
 # Testing Apollo 18
 
-The workspace quality gate covers Rust formatting, linting, tests, and the release web build. Run its canonical script from the repository root:
+The workspace quality gate covers Rust formatting, linting, tests, renderer CRAP metrics, and compilation of the web crate for the Wasm target. The deployment workflow performs the separate release web build. Run the canonical quality gate from the repository root:
 
 ```bash
 ./scripts/dev/quality-gate.sh
