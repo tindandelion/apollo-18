@@ -11,19 +11,19 @@ runs:
         rustup target add wasm32-unknown-unknown --toolchain 1.97.1
 
     - name: Install cargo-arc
-      uses: taiki-e/install-action@v2.84.0
+      uses: taiki-e/install-action@v2.87.12
       with:
         tool: cargo-arc@0.3.1
         fallback: cargo-install
 
     - name: Install cargo-llvm-cov
-      uses: taiki-e/install-action@v2.84.0
+      uses: taiki-e/install-action@v2.87.12
       with:
         tool: cargo-llvm-cov@0.9.1
         fallback: none
 
     - name: Install cargo-crap
-      uses: taiki-e/install-action@v2.84.0
+      uses: taiki-e/install-action@v2.87.12
       with:
         tool: cargo-crap@0.4.3
         fallback: cargo-install
