@@ -6,6 +6,32 @@ The workspace quality gate covers Rust formatting, linting, tests, renderer CRAP
 ./scripts/dev/quality-gate.sh
 ```
 
+## Release Wasm size
+
+The release Wasm size diagnostic builds the web host and reports the generated
+Wasm artifact's raw and gzip-compressed byte counts:
+
+```bash
+./scripts/dev/web-wasm-size.sh
+```
+
+The command requires Trunk and gzip, builds with the locked release
+configuration, and replaces only `target/apollo18/web-wasm-size/dist`. Its final
+three lines identify the measured artifact and report `raw_bytes` and
+`gzip_bytes`. The gzip measurement uses level 9 without a timestamp or original
+filename, so unchanged builds produce directly comparable counts. It is a
+repeatable compression proxy for the Wasm artifact, not a measurement of the
+complete site or a particular web server's transfer encoding. Compare changes
+on the same machine and Rust, Trunk, and gzip versions.
+
+The floating-point lunar elevation baseline was captured on 2026-09-14 from
+commit `0729bca` using Rust 1.97.1, Trunk 0.21.14, and Apple gzip 457.140.3 on
+an Apple M3 Pro (`arm64`) running macOS 15.7.9:
+
+| Elevation source | Raw Wasm | Gzip Wasm |
+| --- | ---: | ---: |
+| 32-bit floating-point `ldem_4.tif` | 7,390,270 bytes | 3,908,799 bytes |
+
 ## Native smoke tests
 
 The native smoke tests execute the retained milestone binaries and validate the structure of their PNG artifacts. Temporary directories keep generated images out of the working tree.

@@ -4,11 +4,18 @@
 
 **Blocked by:** None (can start immediately).
 
-**Status:** ready-for-agent
+**Status:** done
 
-- [ ] One unattended repository command builds the release web host and reports the generated Wasm artifact's raw byte count and gzip byte count.
-- [ ] The diagnostic writes generated output only under ignored build directories and does not modify the checked-in web distribution.
-- [ ] Repeated runs against an unchanged build produce clear, comparable output.
-- [ ] The command and interpretation of its metrics are documented with the web testing guidance.
-- [ ] The current floating-point-elevation baseline is captured using the diagnostic before the asset replacement begins.
-- [ ] The canonical quality gate passes.
+- [x] One unattended repository command builds the release web host and reports the generated Wasm artifact's raw byte count and gzip byte count.
+- [x] The diagnostic writes generated output only under ignored build directories and does not modify the checked-in web distribution.
+- [x] Repeated runs against an unchanged build produce clear, comparable output.
+- [x] The command and interpretation of its metrics are documented with the web testing guidance.
+- [x] The current floating-point-elevation baseline is captured using the diagnostic before the asset replacement begins.
+- [x] The canonical quality gate passes.
+
+## Comments
+
+Implemented `scripts/dev/web-wasm-size.sh` and recorded the 2026-09-14 baseline
+in `docs/testing.md`. Two consecutive release builds reported 7,390,270 raw
+bytes and 3,908,799 gzip bytes. The canonical quality gate passed, and the
+standards and specification review found no issues.
