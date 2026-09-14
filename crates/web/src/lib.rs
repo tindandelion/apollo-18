@@ -1,142 +1,93 @@
+mod bundled_assets;
+mod error;
+mod globe_web_page;
+
 use apollo18_renderer::{
-    SceneTime,
-    image::{decode_jpeg, decode_lunar_elevation_tiff},
-    lunar_globe::{
-        EphemerisSpanAnimation, LunarColorMap, LunarElevationMap, LunarEphemeris,
-        render_lunar_globe,
-    },
+    Framebuffer, SceneTime,
+    lunar_globe::{EphemerisSpanAnimation, LunarColorMap, LunarElevationMap, render_lunar_globe},
 };
-use std::cell::RefCell;
+use bundled_assets::BundledAssets;
+use error::Error;
+use globe_web_page::{FrameRequest, GlobeWebPage};
 use std::fmt;
 use std::rc::Rc;
 use std::time::Duration;
-use wasm_bindgen::Clamped;
-use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
-use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData, Window};
 
+const EPHEMERIS_SPAN_PERIOD: Duration = Duration::from_secs(240);
 const MAX_BACKING_DIMENSION: u32 = 1152;
-const CANVAS_ID: &str = "apollo18-canvas";
-const CANVAS_STAGE_ID: &str = "apollo18-canvas-stage";
-const LOADING_STATUS_ID: &str = "apollo18-render-loading";
-const RENDER_ERROR_ID: &str = "apollo18-render-error";
-const LUNAR_COLOR_MAP_JPEG: &[u8] = include_bytes!("../../../assets/nasa/lroc_color_2k.jpg");
-const LUNAR_ELEVATION_MAP_TIFF: &[u8] = include_bytes!("../../../assets/nasa/ldem_4_uint.tif");
-const LUNAR_EPHEMERIS_JSON: &[u8] = include_bytes!("../../../assets/nasa/mooninfo_2026.json");
 
 #[wasm_bindgen(start)]
 pub fn start() -> Result<(), JsValue> {
     console_error_panic_hook::set_once();
 
-    let window = web_sys::window().ok_or_else(|| JsValue::from_str("window is unavailable"))?;
-    let document = window
-        .document()
-        .ok_or_else(|| JsValue::from_str("document is unavailable"))?;
-    let canvas = document
-        .get_element_by_id(CANVAS_ID)
-        .ok_or_else(|| JsValue::from_str("apollo18 canvas is missing"))?
-        .dyn_into::<HtmlCanvasElement>()?;
+    let page = Rc::new(GlobeWebPage::discover()?);
+    let assets = BundledAssets::load()?;
+    let lunar_phase_animation =
+        EphemerisSpanAnimation::new(assets.ephemeris, EPHEMERIS_SPAN_PERIOD).map_err(|error| {
+            Error::with_context("could not initialize the ephemeris-span animation", error)
+        })?;
 
-    let context = canvas
-        .get_context("2d")?
-        .ok_or_else(|| JsValue::from_str("Canvas 2D context is unavailable"))?
-        .dyn_into::<CanvasRenderingContext2d>()?;
-
-    if let Err(error) = start_animation(window, canvas.clone(), context) {
-        web_sys::console::error_1(&JsValue::from_str(&format!(
-            "Apollo 18 could not initialize lunar rendering: {}",
-            error.as_string().unwrap_or_else(|| format!("{error:?}"))
-        )));
-        dismiss_loading_status(&document)?;
-        canvas.set_attribute("hidden", "")?;
-        let failure = document
-            .get_element_by_id(RENDER_ERROR_ID)
-            .ok_or_else(|| JsValue::from_str("apollo18 render error message is missing"))?;
-        failure.remove_attribute("hidden")?;
+    let mut animation = CanvasAnimation::new(
+        assets.color_map,
+        assets.elevation_map,
+        lunar_phase_animation,
+    );
+    if let Err(error) = page.start_presenting(move |request| animation.render(request)) {
+        page.show_initialization_failure(&error)?;
     }
 
     Ok(())
 }
 
-fn dismiss_loading_status(document: &web_sys::Document) -> Result<(), JsValue> {
-    let stage = document
-        .get_element_by_id(CANVAS_STAGE_ID)
-        .ok_or_else(|| JsValue::from_str("apollo18 canvas stage is missing"))?;
-    stage.remove_attribute("aria-busy")?;
-    let loading = document
-        .get_element_by_id(LOADING_STATUS_ID)
-        .ok_or_else(|| JsValue::from_str("apollo18 loading status is missing"))?;
-    loading.set_attribute("hidden", "")?;
-    Ok(())
+struct CanvasAnimation {
+    color_map: LunarColorMap,
+    elevation_map: LunarElevationMap,
+    lunar_phase_animation: EphemerisSpanAnimation,
+    started_at_milliseconds: Option<f64>,
 }
 
-fn start_animation(
-    window: Window,
-    canvas: HtmlCanvasElement,
-    context: CanvasRenderingContext2d,
-) -> Result<(), JsValue> {
-    const EPHEMERIS_SPAN_PERIOD: Duration = Duration::from_secs(240);
-
-    let color_map = LunarColorMap::new(
-        decode_jpeg(LUNAR_COLOR_MAP_JPEG).map_err(|error| JsValue::from_str(&error.to_string()))?,
-    );
-    let elevation_map = LunarElevationMap::new(
-        decode_lunar_elevation_tiff(LUNAR_ELEVATION_MAP_TIFF)
-            .map_err(|error| JsValue::from_str(&error.to_string()))?,
-    );
-    let ephemeris_override = js_sys::Reflect::get(
-        window.as_ref(),
-        &JsValue::from_str("__apollo18EphemerisJson"),
-    )?
-    .as_string();
-    let ephemeris_source = ephemeris_override
-        .as_deref()
-        .map(str::as_bytes)
-        .unwrap_or(LUNAR_EPHEMERIS_JSON);
-    let ephemeris = LunarEphemeris::from_nasa_json(ephemeris_source)
-        .map_err(|error| JsValue::from_str(&error.to_string()))?;
-    let lunar_phase_animation = EphemerisSpanAnimation::new(ephemeris, EPHEMERIS_SPAN_PERIOD)
-        .map_err(|error| JsValue::from_str(&error.to_string()))?;
-    let animation = Rc::new(RefCell::new(CanvasAnimation::new(
-        canvas,
-        context,
-        color_map,
-        elevation_map,
-        lunar_phase_animation,
-    )));
-    let callback_slot = Rc::new(RefCell::new(None));
-    let callback_slot_for_frame = Rc::clone(&callback_slot);
-    let window_for_frame = window.clone();
-
-    let callback = Closure::<dyn FnMut(f64)>::new(move |timestamp_milliseconds| {
-        if let Err(error) = animation.borrow_mut().render(
-            timestamp_milliseconds,
-            window_for_frame.device_pixel_ratio(),
-        ) {
-            wasm_bindgen::throw_val(error);
+impl CanvasAnimation {
+    fn new(
+        color_map: LunarColorMap,
+        elevation_map: LunarElevationMap,
+        lunar_phase_animation: EphemerisSpanAnimation,
+    ) -> Self {
+        Self {
+            color_map,
+            elevation_map,
+            lunar_phase_animation,
+            started_at_milliseconds: None,
         }
+    }
 
-        let callback_slot = callback_slot_for_frame.borrow();
-        let callback = callback_slot
-            .as_ref()
-            .expect("animation callback should remain installed");
-        if let Err(error) = request_animation_frame(&window_for_frame, callback) {
-            wasm_bindgen::throw_val(error);
-        }
-    });
-    request_animation_frame(&window, &callback)?;
-    callback_slot.replace(Some(callback));
+    fn render(&mut self, request: FrameRequest) -> Result<Framebuffer, Error> {
+        let resolution = select_backing_resolution(
+            request.canvas_css_width(),
+            request.canvas_css_height(),
+            request.device_pixel_ratio(),
+        )
+        .map_err(|error| {
+            Error::with_context("could not select a canvas backing resolution", error)
+        })?;
 
-    Ok(())
-}
+        let scene_time = scene_time_from_timestamp(
+            &mut self.started_at_milliseconds,
+            request.timestamp_milliseconds(),
+        )
+        .map_err(|error| Error::with_context("could not derive scene time", error))?;
+        let appearance = self.lunar_phase_animation.lunar_appearance(scene_time);
+        let frame = render_lunar_globe(
+            resolution.width,
+            resolution.height,
+            appearance,
+            &self.color_map,
+            &self.elevation_map,
+        )
+        .map_err(|error| Error::with_context("could not render the lunar globe", error))?;
 
-fn request_animation_frame(
-    window: &Window,
-    callback: &Closure<dyn FnMut(f64)>,
-) -> Result<(), JsValue> {
-    window
-        .request_animation_frame(callback.as_ref().unchecked_ref())
-        .map(|_| ())
+        Ok(frame)
+    }
 }
 
 #[derive(Clone, Copy, Debug, Eq, PartialEq)]
@@ -174,7 +125,7 @@ fn select_backing_resolution(
     css_width: f64,
     css_height: f64,
     device_pixel_ratio: f64,
-) -> Result<Option<BackingResolution>, ResolutionError> {
+) -> Result<BackingResolution, ResolutionError> {
     if !css_width.is_finite() || css_width < 0.0 {
         return Err(ResolutionError::InvalidCssWidth(css_width));
     }
@@ -184,10 +135,6 @@ fn select_backing_resolution(
     if !device_pixel_ratio.is_finite() || device_pixel_ratio <= 0.0 {
         return Err(ResolutionError::InvalidDevicePixelRatio(device_pixel_ratio));
     }
-    if css_width == 0.0 || css_height == 0.0 {
-        return Ok(None);
-    }
-
     let desired_width = css_width * device_pixel_ratio;
     let desired_height = css_height * device_pixel_ratio;
     if !desired_width.is_finite() || !desired_height.is_finite() {
@@ -203,90 +150,7 @@ fn select_backing_resolution(
         .round()
         .clamp(1.0, maximum_dimension) as u32;
 
-    Ok(Some(BackingResolution { width, height }))
-}
-
-struct CanvasAnimation {
-    canvas: HtmlCanvasElement,
-    context: CanvasRenderingContext2d,
-    color_map: LunarColorMap,
-    elevation_map: LunarElevationMap,
-    lunar_phase_animation: EphemerisSpanAnimation,
-    started_at_milliseconds: Option<f64>,
-    loading_status_dismissed: bool,
-}
-
-impl CanvasAnimation {
-    fn new(
-        canvas: HtmlCanvasElement,
-        context: CanvasRenderingContext2d,
-        color_map: LunarColorMap,
-        elevation_map: LunarElevationMap,
-        lunar_phase_animation: EphemerisSpanAnimation,
-    ) -> Self {
-        Self {
-            canvas,
-            context,
-            color_map,
-            elevation_map,
-            lunar_phase_animation,
-            started_at_milliseconds: None,
-            loading_status_dismissed: false,
-        }
-    }
-
-    fn render(
-        &mut self,
-        timestamp_milliseconds: f64,
-        device_pixel_ratio: f64,
-    ) -> Result<(), JsValue> {
-        let bounds = self.canvas.get_bounding_client_rect();
-        let Some(resolution) =
-            select_backing_resolution(bounds.width(), bounds.height(), device_pixel_ratio)
-                .map_err(|error| JsValue::from_str(&error.to_string()))?
-        else {
-            return Ok(());
-        };
-
-        if self.canvas.width() != resolution.width || self.canvas.height() != resolution.height {
-            self.canvas.set_width(resolution.width);
-            self.canvas.set_height(resolution.height);
-        }
-
-        let scene_time =
-            scene_time_from_timestamp(&mut self.started_at_milliseconds, timestamp_milliseconds)
-                .map_err(|error| JsValue::from_str(&error.to_string()))?;
-        let appearance = self.lunar_phase_animation.lunar_appearance(scene_time);
-        let frame = render_lunar_globe(
-            resolution.width,
-            resolution.height,
-            appearance,
-            &self.color_map,
-            &self.elevation_map,
-        )
-        .map_err(|error| JsValue::from_str(&error.to_string()))?;
-        let image = ImageData::new_with_u8_clamped_array_and_sh(
-            Clamped(frame.pixels()),
-            frame.width(),
-            frame.height(),
-        )?;
-        self.context.put_image_data(&image, 0.0, 0.0)?;
-        self.dismiss_loading_after_first_presentation()
-    }
-
-    fn dismiss_loading_after_first_presentation(&mut self) -> Result<(), JsValue> {
-        if self.loading_status_dismissed {
-            return Ok(());
-        }
-
-        let document = self
-            .canvas
-            .owner_document()
-            .ok_or_else(|| JsValue::from_str("document is unavailable"))?;
-        dismiss_loading_status(&document)?;
-        self.loading_status_dismissed = true;
-        Ok(())
-    }
+    Ok(BackingResolution { width, height })
 }
 
 fn scene_time_from_timestamp(
@@ -345,10 +209,10 @@ mod tests {
 
         assert_eq!(
             resolution,
-            Some(BackingResolution {
+            BackingResolution {
                 width: 641,
                 height: 400
-            })
+            }
         );
     }
 
@@ -364,10 +228,10 @@ mod tests {
 
         assert_eq!(
             resolution,
-            Some(BackingResolution {
+            BackingResolution {
                 width: 1152,
                 height: 576
-            })
+            }
         );
     }
 
@@ -383,24 +247,11 @@ mod tests {
 
         assert_eq!(
             resolution,
-            Some(BackingResolution {
+            BackingResolution {
                 width: 1,
                 height: 1
-            })
+            }
         );
-    }
-
-    /// A zero-sized CSS canvas skips rendering until layout gives it an area.
-    #[test]
-    fn skips_zero_sized_canvas() {
-        let css_width = 0.0;
-        let css_height = 200.0;
-        let device_pixel_ratio = 2.0;
-
-        let resolution =
-            select_backing_resolution(css_width, css_height, device_pixel_ratio).unwrap();
-
-        assert_eq!(resolution, None);
     }
 
     /// Invalid browser measurements are reported instead of becoming allocations.

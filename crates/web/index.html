@@ -53,14 +53,14 @@
         color: #cccccc;
       }
 
-      .canvas-stage {
+      .globe-container {
         min-height: 0;
         container-type: size;
         display: grid;
         place-items: center;
       }
 
-      .canvas-stage > * {
+      .globe-container > * {
         grid-area: 1 / 1;
       }
 
@@ -143,7 +143,7 @@
     <main>
       <h1>Apollo 18</h1>
       <p>Elevation-shaded lunar globe drawn by the software renderer in Rust</p>
-      <div id="apollo18-canvas-stage" class="canvas-stage" aria-busy="true">
+      <div id="apollo18-globe-container" class="globe-container" aria-busy="true">
         <canvas id="apollo18-canvas" aria-label="Lunar globe render"></canvas>
         <p id="apollo18-render-loading" class="render-loading" role="status">
           Loading lunar globe...

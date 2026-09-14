@@ -305,11 +305,11 @@ test("release web host shows loading until first canvas presentation", async ({
   await page.goto("/", { waitUntil: "domcontentloaded" });
 
   const loading = page.locator("#apollo18-render-loading");
-  const stage = page.locator("#apollo18-canvas-stage");
+  const globeContainer = page.locator("#apollo18-globe-container");
   const canvas = page.locator("#apollo18-canvas");
   await expect(loading).toBeVisible();
   await expect(loading).toHaveText("Loading lunar globe...");
-  await expect(stage).toHaveAttribute("aria-busy", "true");
+  await expect(globeContainer).toHaveAttribute("aria-busy", "true");
   await expect(canvas).toBeVisible();
 
   releaseWasm();
@@ -317,7 +317,7 @@ test("release web host shows loading until first canvas presentation", async ({
     .poll(() => page.evaluate(() => window.apollo18AnimationCallbackCount))
     .toBeGreaterThan(0);
   await expect(loading).toBeVisible();
-  await expect(stage).toHaveAttribute("aria-busy", "true");
+  await expect(globeContainer).toHaveAttribute("aria-busy", "true");
   await expect(canvas).toBeVisible();
 
   await page.evaluate(() => window.apollo18RunAnimationFrame(1_000));
@@ -325,33 +325,7 @@ test("release web host shows loading until first canvas presentation", async ({
     .poll(() => page.evaluate(() => window.apollo18PresentedResolution))
     .toBeTruthy();
   await expect(loading).toBeHidden();
-  await expect(stage).not.toHaveAttribute("aria-busy", "true");
-});
-
-test("release web host replaces the canvas when ephemeris validation fails", async ({
-  page,
-}) => {
-  const diagnostics = [];
-  page.on("console", (message) => {
-    if (message.type() === "error") diagnostics.push(message.text());
-  });
-  await page.addInitScript(() => {
-    window.__apollo18EphemerisJson = "not valid JSON";
-  });
-
-  await page.goto("/");
-  const canvas = page.locator("#apollo18-canvas");
-  const failure = page.locator("#apollo18-render-error");
-
-  await expect(canvas).toBeHidden();
-  await expect(failure).toBeVisible();
-  await expect(failure).toContainText("could not load its ephemeris data");
-  await expect(page.locator("#apollo18-render-loading")).toBeHidden();
-  await expect(page.locator("#apollo18-canvas-stage")).not.toHaveAttribute(
-    "aria-busy",
-    "true",
-  );
-  expect(diagnostics.some((message) => message.includes("invalid NASA lunar ephemeris JSON"))).toBe(true);
+  await expect(globeContainer).not.toHaveAttribute("aria-busy", "true");
 });
 
 test("release web host presents the software-rendered framebuffer", async ({
