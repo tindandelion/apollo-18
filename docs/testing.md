@@ -82,7 +82,7 @@ claim effects smaller than the observed run-to-run variation. To hold one
 lunar appearance fixed while measuring phase-dependent work, set
 `APOLLO18_SCENE_TIME_OFFSET_SECONDS` to a non-negative ephemeris-span scene
 time. The first callback still establishes scene time zero; subsequent measured
-callbacks receive the fixed offset. Without the variable, the normal two-minute
+callbacks receive the fixed offset. Without the variable, the normal four-minute
 animation advances during the diagnostic.
 
 The Ticket 29 baseline was measured on 2026-09-09 in four separate release

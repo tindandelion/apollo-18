@@ -10,14 +10,14 @@ The first validated ephemeris timestamp is the **animation epoch**: the astronom
   astronomy_time(t) = epoch + ((t mod 10 seconds) / 10 seconds) × 29.530588853 days
   ```
 
-- The web **ephemeris-span animation** maps each 120-second cycle linearly from the first validated timestamp through the last:
+- The web **ephemeris-span animation** maps each 240-second cycle linearly from the first validated timestamp through the last:
 
   ```text
-  progress(t) = (t mod 120 seconds) / 120 seconds
+  progress(t) = (t mod 240 seconds) / 240 seconds
   astronomy_time(t) = first_timestamp + progress(t) × (last_timestamp - first_timestamp)
   ```
 
-  The first web frame explicitly presents the first record before monotonic playback advances. A delayed animation callback skips astronomical instants instead of slowing the timeline. Replacing the checked-in source changes the represented span but not the 120-second playback duration.
+  The first web frame explicitly presents the first record before monotonic playback advances. A delayed animation callback skips astronomical instants instead of slowing the timeline. Replacing the checked-in source changes the represented span but not the 240-second playback duration.
 
 Each astronomical instant uses the nearest hourly NASA record without interpolating its sub-Earth point, subsolar point, or lunar position angle. An instant exactly halfway between records selects the later record. In ephemeris-span playback this gives the first and last records half as much timeline as interior records. An ephemeris sample converts its sub-Earth point into the object-to-world rotation and its matching subsolar point into the world-space Sun direction through the renderer's established lunar longitude and latitude convention; this is coordinate conversion, not an astronomical position model.
 
@@ -25,7 +25,7 @@ Each astronomical instant uses the nearest hourly NASA record without interpolat
 
 Runtime NASA requests were rejected because they would make rendering depend on network availability, do not support both hosts consistently, and were not CORS-compatible with the static showcase. JPL Horizons, Skyfield with JPL kernels, SPICE, and Astronomy Engine could provide more precision or arbitrary date coverage, but would add generation machinery or astronomical calculations that Apollo 18 does not need for this visual presentation.
 
-Starting production animation from the current UTC instant was rejected because checked-in annual data would make the showcase expire, require date-dependent failure behavior, and make native release artifacts vary with build time. Giving both hosts the same synodic-month loop was also rejected: the compact native artifact benefits from its established ten-second cycle, while the continuously running web showcase can present the complete source over two minutes.
+Starting production animation from the current UTC instant was rejected because checked-in annual data would make the showcase expire, require date-dependent failure behavior, and make native release artifacts vary with build time. Giving both hosts the same synodic-month loop was also rejected: the compact native artifact benefits from its established ten-second cycle, while the continuously running web showcase can present the complete source over four minutes.
 
 Interpolating records was rejected because it would fabricate values absent from NASA's source and require wrap rules for longitude and position angle. Forcing either endpoint to blend seamlessly was rejected for the same reason.
 

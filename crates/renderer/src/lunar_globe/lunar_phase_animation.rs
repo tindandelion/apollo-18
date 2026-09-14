@@ -3,13 +3,7 @@ use super::{LunarAppearance, LunarEphemeris};
 use crate::SceneTime;
 use std::error::Error;
 use std::fmt::{self, Display, Formatter};
-
-const SYNODIC_MONTH_PERIOD_SECONDS: f64 = 10.0;
-const EPHEMERIS_SPAN_PERIOD_SECONDS: f64 = 120.0;
-const MEAN_SYNODIC_MONTH_DAYS: f64 = 29.530_588_853;
-const HOURS_PER_DAY: f64 = 24.0;
-const SECONDS_PER_HOUR: f64 = 3_600.0;
-const MEAN_SYNODIC_MONTH_SECONDS: f64 = MEAN_SYNODIC_MONTH_DAYS * HOURS_PER_DAY * SECONDS_PER_HOUR;
+use std::time::Duration;
 
 #[derive(Debug, Clone)]
 pub struct SynodicMonthAnimation {
@@ -18,9 +12,13 @@ pub struct SynodicMonthAnimation {
 }
 
 impl SynodicMonthAnimation {
+    const PERIOD_SECONDS: f64 = 10.0;
+    const MEAN_SYNODIC_MONTH_DAYS: f64 = 29.530_588_853;
+    const MEAN_SYNODIC_MONTH_SECONDS: f64 = Self::MEAN_SYNODIC_MONTH_DAYS * 24.0 * 3_600.0;
+
     pub fn new(ephemeris: LunarEphemeris) -> Result<Self, AnimationCoverageError> {
         let animation_epoch = ephemeris.first_instant();
-        let required_end = animation_epoch.add(MEAN_SYNODIC_MONTH_SECONDS);
+        let required_end = animation_epoch.add(Self::MEAN_SYNODIC_MONTH_SECONDS);
         if !ephemeris.covers(animation_epoch, required_end) {
             return Err(AnimationCoverageError);
         }
@@ -32,10 +30,10 @@ impl SynodicMonthAnimation {
     }
 
     pub fn lunar_appearance(&self, scene_time: SceneTime) -> LunarAppearance {
-        let cycle_fraction = scene_time.cycle_fraction(SYNODIC_MONTH_PERIOD_SECONDS);
+        let cycle_fraction = scene_time.cycle_fraction(Self::PERIOD_SECONDS);
         let instant = self
             .animation_epoch
-            .add(cycle_fraction * MEAN_SYNODIC_MONTH_SECONDS);
+            .add(cycle_fraction * Self::MEAN_SYNODIC_MONTH_SECONDS);
         self.ephemeris
             .lunar_appearance_at(instant)
             .expect("validated ephemeris coverage includes every animation instant")
@@ -47,22 +45,31 @@ pub struct EphemerisSpanAnimation {
     ephemeris: LunarEphemeris,
     animation_epoch: AstronomicalInstant,
     span_seconds: f64,
+    period_seconds: f64,
 }
 
 impl EphemerisSpanAnimation {
-    pub fn new(ephemeris: LunarEphemeris) -> Self {
+    pub fn new(
+        ephemeris: LunarEphemeris,
+        period: Duration,
+    ) -> Result<Self, InvalidAnimationPeriod> {
+        if period.is_zero() {
+            return Err(InvalidAnimationPeriod);
+        }
+
         let animation_epoch = ephemeris.first_instant();
         let span_seconds = ephemeris.last_instant().seconds_since(animation_epoch);
 
-        Self {
+        Ok(Self {
             ephemeris,
             animation_epoch,
             span_seconds,
-        }
+            period_seconds: period.as_secs_f64(),
+        })
     }
 
     pub fn lunar_appearance(&self, scene_time: SceneTime) -> LunarAppearance {
-        let cycle_fraction = scene_time.cycle_fraction(EPHEMERIS_SPAN_PERIOD_SECONDS);
+        let cycle_fraction = scene_time.cycle_fraction(self.period_seconds);
         let instant = self.animation_epoch.add(cycle_fraction * self.span_seconds);
         self.ephemeris
             .lunar_appearance_at(instant)
@@ -83,12 +90,28 @@ impl Display for AnimationCoverageError {
 
 impl Error for AnimationCoverageError {}
 
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct InvalidAnimationPeriod;
+
+impl Display for InvalidAnimationPeriod {
+    fn fmt(&self, formatter: &mut Formatter<'_>) -> fmt::Result {
+        formatter.write_str("animation period must be nonzero")
+    }
+}
+
+impl Error for InvalidAnimationPeriod {}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    const EPHEMERIS_SPAN_PERIOD: Duration = Duration::from_secs(120);
+    const SECONDS_PER_HOUR: f64 = 3_600.0;
+
     fn scene_time_for_astronomy_hours(hours: f64) -> SceneTime {
         SceneTime::from_seconds(
-            hours / (MEAN_SYNODIC_MONTH_DAYS * HOURS_PER_DAY) * SYNODIC_MONTH_PERIOD_SECONDS,
+            hours * SECONDS_PER_HOUR / SynodicMonthAnimation::MEAN_SYNODIC_MONTH_SECONDS
+                * SynodicMonthAnimation::PERIOD_SECONDS,
         )
         .expect("scene time should be valid")
     }
@@ -232,7 +255,18 @@ mod tests {
         assert_eq!(appearance, expected);
     }
 
-    /// The web animation maps one cycle across any complete validated ephemeris span.
+    /// Ephemeris-span animation rejects a period that cannot define a cycle.
+    #[test]
+    fn ephemeris_span_rejects_zero_period() {
+        let ephemeris =
+            LunarEphemeris::from_nasa_json(&three_sample_json()).expect("source should be valid");
+
+        let result = EphemerisSpanAnimation::new(ephemeris, Duration::ZERO);
+
+        assert!(matches!(result, Err(InvalidAnimationPeriod)));
+    }
+
+    /// A 120-second animation maps one cycle across any complete validated ephemeris span.
     #[test]
     fn ephemeris_span_maps_complete_source_to_two_minutes() {
         let source = three_sample_json();
@@ -246,7 +280,8 @@ mod tests {
         let expected_end = ephemeris
             .lunar_appearance_at(ephemeris.last_instant())
             .expect("last record should be available");
-        let animation = EphemerisSpanAnimation::new(ephemeris);
+        let animation = EphemerisSpanAnimation::new(ephemeris, EPHEMERIS_SPAN_PERIOD)
+            .expect("animation period should be valid");
 
         let start = animation.lunar_appearance(scene_time(0.0));
         let middle = animation.lunar_appearance(scene_time(60.0));
@@ -257,7 +292,7 @@ mod tests {
         assert_eq!(near_end, expected_end);
     }
 
-    /// Nearest sampling gives endpoint records half the web display interval of interior records.
+    /// Nearest sampling gives endpoint records half the display interval of interior records.
     #[test]
     fn ephemeris_span_gives_endpoints_half_intervals() {
         let ephemeris =
@@ -271,7 +306,8 @@ mod tests {
         let last = ephemeris
             .lunar_appearance_at(ephemeris.last_instant())
             .expect("last record should be available");
-        let animation = EphemerisSpanAnimation::new(ephemeris);
+        let animation = EphemerisSpanAnimation::new(ephemeris, EPHEMERIS_SPAN_PERIOD)
+            .expect("animation period should be valid");
 
         let before_first_tie = animation.lunar_appearance(scene_time(29.999));
         let first_tie = animation.lunar_appearance(scene_time(30.0));
@@ -284,12 +320,13 @@ mod tests {
         assert_eq!(last_tie, last);
     }
 
-    /// The web cycle resets directly to the first record at two minutes.
+    /// A 120-second cycle resets directly to the first record at two minutes.
     #[test]
     fn ephemeris_span_resets_at_two_minutes() {
         let ephemeris =
             LunarEphemeris::from_nasa_json(&three_sample_json()).expect("source should be valid");
-        let animation = EphemerisSpanAnimation::new(ephemeris);
+        let animation = EphemerisSpanAnimation::new(ephemeris, EPHEMERIS_SPAN_PERIOD)
+            .expect("animation period should be valid");
 
         let start = animation.lunar_appearance(scene_time(0.0));
         let reset = animation.lunar_appearance(scene_time(120.0));

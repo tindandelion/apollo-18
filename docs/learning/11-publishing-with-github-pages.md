@@ -119,7 +119,7 @@ ephemeris timestamp. Its 300 frames sample scene time at 30 frames per second
 from zero through `299 / 30` seconds. Omitting the frame at exactly ten seconds
 avoids repeating the initial ephemeris record at the loop boundary. The WebP
 itself loops indefinitely. The website independently presents the complete
-ephemeris in a 120-second ephemeris-span loop.
+ephemeris in a 240-second ephemeris-span loop.
 
 The repository README contains only an image reference through GitHub's stable
 latest-release download URL. Each newer release therefore updates the visible

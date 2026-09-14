@@ -29,7 +29,7 @@ The astronomical instant represented at scene time zero. Apollo 18 derives it fr
 _Avoid_: Scene time, current time, startup time
 
 **Ephemeris-span animation**:
-A lunar animation that maps one fixed-duration display cycle across the complete timestamp range of validated ephemeris data. Apollo 18 uses it for the two-minute web showcase.
+A lunar animation that maps one fixed-duration display cycle across the complete timestamp range of validated ephemeris data. Apollo 18 uses it for the four-minute web showcase.
 _Avoid_: Annual animation, web animation
 
 **Compressed astronomical time**:

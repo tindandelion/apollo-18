@@ -253,8 +253,8 @@ test("release web host follows controlled monotonic ephemeris-span time", async 
   await expect.poll(() => page.evaluate(() => typeof window.apollo18RunAnimationFrame)).toBe("function");
 
   await page.evaluate(() => window.apollo18RunAnimationFrame(1_000));
-  await page.evaluate(() => window.apollo18RunAnimationFrame(61_000));
   await page.evaluate(() => window.apollo18RunAnimationFrame(121_000));
+  await page.evaluate(() => window.apollo18RunAnimationFrame(241_000));
   const hashes = await page.evaluate(() => window.apollo18PresentedFrameHashes.slice());
 
   expect(hashes).toHaveLength(3);

@@ -13,14 +13,14 @@ native_fraction(t) = (t mod Tₙ) / Tₙ
 native_astronomy_time(t) = animation_epoch + native_fraction(t) × M
 ```
 
-The web showcase uses an **ephemeris-span animation**. Let `T_web = 120 seconds`, `first` be the animation epoch, and `last` be the final validated timestamp:
+The web showcase uses an **ephemeris-span animation**. Let `T_web = 240 seconds`, `first` be the animation epoch, and `last` be the final validated timestamp:
 
 ```text
 web_fraction(t) = (t mod T_web) / T_web
 web_astronomy_time(t) = first + web_fraction(t) × (last - first)
 ```
 
-The first browser animation callback establishes monotonic scene time zero and presents `first`. Later callbacks derive scene time from that monotonic origin. If rendering stalls, elapsed time continues and astronomical samples are skipped rather than slowing playback. A replacement ephemeris still occupies one 120-second web cycle regardless of its calendar span.
+The first browser animation callback establishes monotonic scene time zero and presents `first`. Later callbacks derive scene time from that monotonic origin. If rendering stalls, elapsed time continues and astronomical samples are skipped rather than slowing playback. A replacement ephemeris still occupies one 240-second web cycle regardless of its calendar span.
 
 Both mappings derive directly from scene time, never from accumulated frame steps. Tests use explicit scene times and checked-in data, so equal inputs select the same record and framebuffer without a wall clock or network. A real ephemeris does not repeat after exactly one mean synodic month, and its final state need not match its first. Each reset is therefore a deliberate **loop discontinuity** rather than a blend.
 

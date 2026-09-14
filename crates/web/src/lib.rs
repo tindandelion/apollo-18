@@ -9,6 +9,7 @@ use apollo18_renderer::{
 use std::cell::RefCell;
 use std::fmt;
 use std::rc::Rc;
+use std::time::Duration;
 use wasm_bindgen::Clamped;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
@@ -58,6 +59,8 @@ fn start_animation(
     canvas: HtmlCanvasElement,
     context: CanvasRenderingContext2d,
 ) -> Result<(), JsValue> {
+    const EPHEMERIS_SPAN_PERIOD: Duration = Duration::from_secs(240);
+
     let color_map = LunarColorMap::new(
         decode_jpeg(LUNAR_COLOR_MAP_JPEG).map_err(|error| JsValue::from_str(&error.to_string()))?,
     );
@@ -76,7 +79,8 @@ fn start_animation(
         .unwrap_or(LUNAR_EPHEMERIS_JSON);
     let ephemeris = LunarEphemeris::from_nasa_json(ephemeris_source)
         .map_err(|error| JsValue::from_str(&error.to_string()))?;
-    let lunar_phase_animation = EphemerisSpanAnimation::new(ephemeris);
+    let lunar_phase_animation = EphemerisSpanAnimation::new(ephemeris, EPHEMERIS_SPAN_PERIOD)
+        .map_err(|error| JsValue::from_str(&error.to_string()))?;
     let animation = Rc::new(RefCell::new(CanvasAnimation::new(
         canvas,
         context,

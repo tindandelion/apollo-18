@@ -11,7 +11,7 @@ pub use lunar_color_map::LunarColorMap;
 pub use lunar_elevation_map::LunarElevationMap;
 pub use lunar_ephemeris::{AstronomicalInstant, EphemerisError, LunarEphemeris};
 pub use lunar_phase_animation::{
-    AnimationCoverageError, EphemerisSpanAnimation, SynodicMonthAnimation,
+    AnimationCoverageError, EphemerisSpanAnimation, InvalidAnimationPeriod, SynodicMonthAnimation,
 };
 
 use crate::BACKGROUND;
