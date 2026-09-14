@@ -76,7 +76,7 @@ cargo test -p apollo18-native --test native_smoke
 
 ## Browser smoke test
 
-The browser smoke test uses Playwright and headless Chromium to build, serve, and load the release web host. It verifies that the Wasm application initializes without runtime or resource errors, requests Canvas 2D rather than a GPU context, selects a backing resolution from the canvas CSS dimensions and device pixel ratio, and presents non-background framebuffer pixels. Its high-density scenario uses a 1440×900 CSS-pixel viewport at device pixel ratio 2 and verifies the 1152×1152 cap, framebuffer presentation at that same resolution, responsive resizing, and a device-pixel-ratio change.
+The browser smoke test uses Playwright and headless Chromium to build, serve, and load the release web host. It verifies that the Wasm application initializes without runtime or resource errors, requests Canvas 2D rather than a GPU context, selects a backing resolution from the canvas CSS dimensions and device pixel ratio, and presents non-background framebuffer pixels. It holds the Wasm response long enough to prove the page shows `Loading lunar globe...` with a busy canvas stage, keeps that status after the host starts and before the first animation callback, then hides it after the first canvas presentation. Its ephemeris-failure scenario also verifies that the loading status is hidden when the canvas is replaced. Its high-density scenario uses a 1440×900 CSS-pixel viewport at device pixel ratio 2 and verifies the 1152×1152 cap, framebuffer presentation at that same resolution, responsive resizing, and a device-pixel-ratio change.
 
 Install its Node dependencies and Chromium once:
 

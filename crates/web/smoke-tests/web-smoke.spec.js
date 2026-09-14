@@ -262,6 +262,72 @@ test("release web host follows controlled monotonic ephemeris-span time", async 
   expect(hashes[2]).toBe(hashes[0]);
 });
 
+test("release web host shows loading until first canvas presentation", async ({
+  page,
+}) => {
+  let releaseWasm;
+  const wasmReleased = new Promise((resolve) => {
+    releaseWasm = resolve;
+  });
+
+  await page.route("**/*_bg.wasm", async (route) => {
+    await wasmReleased;
+    await route.continue();
+  });
+  await page.addInitScript(() => {
+    const callbacks = [];
+    window.apollo18AnimationCallbackCount = 0;
+    window.requestAnimationFrame = (callback) => {
+      callbacks.push(callback);
+      window.apollo18AnimationCallbackCount = callbacks.length;
+      return callbacks.length;
+    };
+    window.apollo18RunAnimationFrame = (timestamp) => {
+      const callback = callbacks.shift();
+      if (!callback) throw new Error("no animation callback is ready");
+      callback(timestamp);
+    };
+
+    const putImageData = CanvasRenderingContext2D.prototype.putImageData;
+    CanvasRenderingContext2D.prototype.putImageData = function (
+      imageData,
+      ...arguments_
+    ) {
+      window.apollo18PresentedResolution = {
+        width: imageData.width,
+        height: imageData.height,
+      };
+      return putImageData.call(this, imageData, ...arguments_);
+    };
+  });
+
+  await page.setViewportSize({ width: 360, height: 640 });
+  await page.goto("/", { waitUntil: "domcontentloaded" });
+
+  const loading = page.locator("#apollo18-render-loading");
+  const stage = page.locator("#apollo18-canvas-stage");
+  const canvas = page.locator("#apollo18-canvas");
+  await expect(loading).toBeVisible();
+  await expect(loading).toHaveText("Loading lunar globe...");
+  await expect(stage).toHaveAttribute("aria-busy", "true");
+  await expect(canvas).toBeVisible();
+
+  releaseWasm();
+  await expect
+    .poll(() => page.evaluate(() => window.apollo18AnimationCallbackCount))
+    .toBeGreaterThan(0);
+  await expect(loading).toBeVisible();
+  await expect(stage).toHaveAttribute("aria-busy", "true");
+  await expect(canvas).toBeVisible();
+
+  await page.evaluate(() => window.apollo18RunAnimationFrame(1_000));
+  await expect
+    .poll(() => page.evaluate(() => window.apollo18PresentedResolution))
+    .toBeTruthy();
+  await expect(loading).toBeHidden();
+  await expect(stage).not.toHaveAttribute("aria-busy", "true");
+});
+
 test("release web host replaces the canvas when ephemeris validation fails", async ({
   page,
 }) => {
@@ -280,6 +346,11 @@ test("release web host replaces the canvas when ephemeris validation fails", asy
   await expect(canvas).toBeHidden();
   await expect(failure).toBeVisible();
   await expect(failure).toContainText("could not load its ephemeris data");
+  await expect(page.locator("#apollo18-render-loading")).toBeHidden();
+  await expect(page.locator("#apollo18-canvas-stage")).not.toHaveAttribute(
+    "aria-busy",
+    "true",
+  );
   expect(diagnostics.some((message) => message.includes("invalid NASA lunar ephemeris JSON"))).toBe(true);
 });
 

@@ -17,6 +17,9 @@ use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData, Window};
 
 const MAX_BACKING_DIMENSION: u32 = 1152;
 const CANVAS_ID: &str = "apollo18-canvas";
+const CANVAS_STAGE_ID: &str = "apollo18-canvas-stage";
+const LOADING_STATUS_ID: &str = "apollo18-render-loading";
+const RENDER_ERROR_ID: &str = "apollo18-render-error";
 const LUNAR_COLOR_MAP_JPEG: &[u8] = include_bytes!("../../../assets/nasa/lroc_color_2k.jpg");
 const LUNAR_ELEVATION_MAP_TIFF: &[u8] = include_bytes!("../../../assets/nasa/ldem_4_uint.tif");
 const LUNAR_EPHEMERIS_JSON: &[u8] = include_bytes!("../../../assets/nasa/mooninfo_2026.json");
@@ -44,13 +47,26 @@ pub fn start() -> Result<(), JsValue> {
             "Apollo 18 could not initialize lunar rendering: {}",
             error.as_string().unwrap_or_else(|| format!("{error:?}"))
         )));
+        dismiss_loading_status(&document)?;
         canvas.set_attribute("hidden", "")?;
         let failure = document
-            .get_element_by_id("apollo18-render-error")
+            .get_element_by_id(RENDER_ERROR_ID)
             .ok_or_else(|| JsValue::from_str("apollo18 render error message is missing"))?;
         failure.remove_attribute("hidden")?;
     }
 
+    Ok(())
+}
+
+fn dismiss_loading_status(document: &web_sys::Document) -> Result<(), JsValue> {
+    let stage = document
+        .get_element_by_id(CANVAS_STAGE_ID)
+        .ok_or_else(|| JsValue::from_str("apollo18 canvas stage is missing"))?;
+    stage.remove_attribute("aria-busy")?;
+    let loading = document
+        .get_element_by_id(LOADING_STATUS_ID)
+        .ok_or_else(|| JsValue::from_str("apollo18 loading status is missing"))?;
+    loading.set_attribute("hidden", "")?;
     Ok(())
 }
 
@@ -197,6 +213,7 @@ struct CanvasAnimation {
     elevation_map: LunarElevationMap,
     lunar_phase_animation: EphemerisSpanAnimation,
     started_at_milliseconds: Option<f64>,
+    loading_status_dismissed: bool,
 }
 
 impl CanvasAnimation {
@@ -214,6 +231,7 @@ impl CanvasAnimation {
             elevation_map,
             lunar_phase_animation,
             started_at_milliseconds: None,
+            loading_status_dismissed: false,
         }
     }
 
@@ -252,7 +270,22 @@ impl CanvasAnimation {
             frame.width(),
             frame.height(),
         )?;
-        self.context.put_image_data(&image, 0.0, 0.0)
+        self.context.put_image_data(&image, 0.0, 0.0)?;
+        self.dismiss_loading_after_first_presentation()
+    }
+
+    fn dismiss_loading_after_first_presentation(&mut self) -> Result<(), JsValue> {
+        if self.loading_status_dismissed {
+            return Ok(());
+        }
+
+        let document = self
+            .canvas
+            .owner_document()
+            .ok_or_else(|| JsValue::from_str("document is unavailable"))?;
+        dismiss_loading_status(&document)?;
+        self.loading_status_dismissed = true;
+        Ok(())
     }
 }
 

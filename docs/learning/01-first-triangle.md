@@ -34,7 +34,9 @@ Samples that land exactly on an edge need a deterministic ownership rule. Apollo
 
 ## Presenting the framebuffer on the web
 
-The web host compiles Rust to WebAssembly. Its `start()` function runs when the WebAssembly module loads. It queries the page's document for the Apollo 18 canvas, sets the canvas's internal dimensions, obtains its Canvas 2D context, asks the shared software renderer for a framebuffer, and presents those RGBA pixels as `ImageData`.
+The web host compiles Rust to WebAssembly. Its `start()` function runs when the WebAssembly module loads. It queries the page's document for the Apollo 18 canvas, obtains its Canvas 2D context, and starts the animation that asks the shared software renderer for a framebuffer and presents those RGBA pixels as `ImageData`.
+
+Until that first **canvas presentation**, the page shows **Loading lunar globe...** over the canvas stage. That status lives in the HTML so it can appear before WebAssembly starts. The web host hides it after the first **canvas presentation**, or replaces it with the failure message if initialization fails. Canvas presentation happens in animation callbacks, not at the end of `start()`.
 
 This keeps the responsibilities separate: the shared software renderer decides pixel colors, while the web host manages browser objects and presentation.
 

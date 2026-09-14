@@ -60,6 +60,14 @@
         place-items: center;
       }
 
+      .canvas-stage > * {
+        grid-area: 1 / 1;
+      }
+
+      .render-loading {
+        margin: 0;
+      }
+
       canvas {
         display: block;
         width: 100cqmin;
@@ -135,8 +143,11 @@
     <main>
       <h1>Apollo 18</h1>
       <p>Elevation-shaded lunar globe drawn by the software renderer in Rust</p>
-      <div class="canvas-stage">
+      <div id="apollo18-canvas-stage" class="canvas-stage" aria-busy="true">
         <canvas id="apollo18-canvas" aria-label="Lunar globe render"></canvas>
+        <p id="apollo18-render-loading" class="render-loading" role="status">
+          Loading lunar globe...
+        </p>
         <p id="apollo18-render-error" class="render-error" role="alert" hidden>
           The lunar globe could not load its ephemeris data. Reload the page; if the problem
           continues, report it using the source-code link below.

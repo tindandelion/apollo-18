@@ -20,6 +20,10 @@ _Avoid_: Canvas internal resolution, canvas size
 The displayed width and height of the HTML canvas in CSS pixels, independently of its backing resolution.
 _Avoid_: Displayed resolution, canvas size
 
+**Canvas presentation**:
+A framebuffer shown in the HTML canvas, with backing pixels matching that framebuffer.
+_Avoid_: Rendering the canvas, canvas draw, blit
+
 **Scene time**:
 Non-negative finite elapsed seconds supplied explicitly to a scene render, used to derive deterministic animation state independently of frame rate or host clock.
 _Avoid_: Current time, frame time
