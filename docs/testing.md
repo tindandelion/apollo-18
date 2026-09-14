@@ -31,6 +31,38 @@ an Apple M3 Pro (`arm64`) running macOS 15.7.9:
 | Elevation source | Raw Wasm | Gzip Wasm |
 | --- | ---: | ---: |
 | 32-bit floating-point `ldem_4.tif` | 7,390,270 bytes | 3,908,799 bytes |
+| Unsigned 16-bit `ldem_4_uint.tif` | 5,328,018 bytes | 2,973,230 bytes |
+
+The unsigned source was measured twice on the same environment and produced
+identical results. It reduces the raw Wasm by 2,062,252 bytes and the gzip Wasm
+by 935,569 bytes relative to the floating-point baseline.
+
+## Web cold-load comparison
+
+Ticket 02 compared five cold browser contexts for each elevation source through
+the first Canvas framebuffer presentation. Each context used a 1440×900
+viewport at device pixel ratio 2, an empty browser cache, and the release web
+host. Measurements used Playwright Chromium 151.0.7922.34 on the same Apple M3
+Pro, `arm64` macOS 15.7.9 environment as the Wasm-size baseline:
+
+| Elevation source | Run 1 | Run 2 | Run 3 | Run 4 | Run 5 | Median |
+| --- | ---: | ---: | ---: | ---: | ---: | ---: |
+| 32-bit floating-point | 441.2 ms | 413.8 ms | 410.3 ms | 421.6 ms | 423.2 ms | 421.6 ms |
+| Unsigned 16-bit | 432.9 ms | 440.7 ms | 412.7 ms | 409.1 ms | 410.2 ms | 412.7 ms |
+
+The ranges overlap. The 8.9 ms lower changed median is not treated as a clear
+initialization improvement, but the measurements show no regression requiring
+investigation.
+
+Ticket 02 also compared three warmed high-density runs against commit `1ce8303`
+on the same machine and browser. The baseline sustained-animation measurements
+were 28.03, 28.68, and 29.03 FPS; the unsigned-source measurements were 29.88,
+29.14, and 28.14 FPS. Timeline complete-frame medians were 34.3, 35.0, and
+34.1 ms for the baseline and 34.9, 33.2, and 35.35 ms for the unsigned source.
+The ranges overlap and show no rendering-performance regression. The timeline
+diagnostic passed all runs. The separate 30 FPS contract did not pass for
+either the baseline nor changed builds in this measurement session, despite its
+previously recorded 31.62 FPS retained-result run.
 
 ## Native smoke tests
 

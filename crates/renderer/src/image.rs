@@ -176,19 +176,17 @@ pub struct TiffDecodeError(TiffDecodeFailure);
 #[derive(Debug)]
 enum TiffDecodeFailure {
     Tiff(tiff::TiffError),
-    NotFloatingPoint,
+    UnsupportedLunarElevationRepresentation,
 }
 
 impl fmt::Display for TiffDecodeError {
     fn fmt(&self, formatter: &mut fmt::Formatter<'_>) -> fmt::Result {
         match &self.0 {
             TiffDecodeFailure::Tiff(error) => write!(formatter, "TIFF decoding failed: {error}"),
-            TiffDecodeFailure::NotFloatingPoint => {
-                write!(
-                    formatter,
-                    "TIFF is not a 32-bit floating-point elevation image"
-                )
-            }
+            TiffDecodeFailure::UnsupportedLunarElevationRepresentation => write!(
+                formatter,
+                "TIFF is not an unsigned 16-bit grayscale lunar elevation image"
+            ),
         }
     }
 }
@@ -197,29 +195,46 @@ impl Error for TiffDecodeError {
     fn source(&self) -> Option<&(dyn Error + 'static)> {
         match &self.0 {
             TiffDecodeFailure::Tiff(error) => Some(error),
-            TiffDecodeFailure::NotFloatingPoint => None,
+            TiffDecodeFailure::UnsupportedLunarElevationRepresentation => None,
         }
     }
 }
 
-pub fn decode_float_tiff(bytes: &[u8]) -> Result<ElevationImage, TiffDecodeError> {
+pub fn decode_lunar_elevation_tiff(bytes: &[u8]) -> Result<ElevationImage, TiffDecodeError> {
+    const SAMPLE_OFFSET: f32 = 20_000.0;
+    const HALF_METERS_PER_KILOMETER: f32 = 2_000.0;
+
     let mut decoder = tiff::decoder::Decoder::new(std::io::Cursor::new(bytes))
         .map_err(|error| TiffDecodeError(TiffDecodeFailure::Tiff(error)))?;
+    let color_type = decoder
+        .colortype()
+        .map_err(|error| TiffDecodeError(TiffDecodeFailure::Tiff(error)))?;
+    if color_type != tiff::ColorType::Gray(16) {
+        return Err(TiffDecodeError(
+            TiffDecodeFailure::UnsupportedLunarElevationRepresentation,
+        ));
+    }
     let (width, height) = decoder
         .dimensions()
         .map_err(|error| TiffDecodeError(TiffDecodeFailure::Tiff(error)))?;
-    let samples = match decoder
+    let unsigned_samples = match decoder
         .read_image()
         .map_err(|error| TiffDecodeError(TiffDecodeFailure::Tiff(error)))?
     {
-        tiff::decoder::DecodingResult::F32(samples) => samples,
+        tiff::decoder::DecodingResult::U16(samples) => samples,
         _ => {
-            return Err(TiffDecodeError(TiffDecodeFailure::NotFloatingPoint));
+            return Err(TiffDecodeError(
+                TiffDecodeFailure::UnsupportedLunarElevationRepresentation,
+            ));
         }
     };
+    let samples = unsigned_samples
+        .into_iter()
+        .map(|sample| (f32::from(sample) - SAMPLE_OFFSET) / HALF_METERS_PER_KILOMETER)
+        .collect();
 
     Ok(ElevationImage::new(width, height, samples)
-        .expect("decoded TIFF dimensions and sample storage should agree"))
+        .expect("decoded grayscale TIFF dimensions and sample storage should agree"))
 }
 
 #[cfg(test)]
@@ -264,6 +279,22 @@ mod tests {
         assert!(SrgbImage::new(1, 1, vec![0; 3]).is_ok());
     }
 
+    fn encode_tiff<C: tiff::encoder::colortype::ColorType>(
+        width: u32,
+        height: u32,
+        samples: &[C::Inner],
+    ) -> Vec<u8>
+    where
+        [C::Inner]: tiff::encoder::TiffValue,
+    {
+        let mut bytes = std::io::Cursor::new(Vec::new());
+        let mut encoder = tiff::encoder::TiffEncoder::new(&mut bytes).expect("TIFF encoder");
+        encoder
+            .write_image::<C>(width, height, samples)
+            .expect("synthetic TIFF should encode");
+        bytes.into_inner()
+    }
+
     const TWO_BY_ONE_FLOAT_TIFF: &[u8] = &[
         0x49, 0x49, 0x2a, 0x00, 0x08, 0x00, 0x00, 0x00, 0x0a, 0x00, 0x00, 0x01, 0x03, 0x00, 0x01,
         0x00, 0x00, 0x00, 0x02, 0x00, 0x00, 0x00, 0x01, 0x01, 0x03, 0x00, 0x01, 0x00, 0x00, 0x00,
@@ -277,20 +308,46 @@ mod tests {
         0x00, 0xc0, 0x3f, 0x00, 0x00, 0x80, 0xbe,
     ];
 
-    /// A 32-bit floating-point TIFF decodes to owned kilometer samples without changing units.
+    /// NASA unsigned half-meter samples decode to kilometers relative to the lunar reference radius.
     #[test]
-    fn decodes_float_tiff_bytes_into_owned_elevation_samples() {
-        let image = decode_float_tiff(TWO_BY_ONE_FLOAT_TIFF).expect("fixture TIFF should decode");
+    fn decodes_unsigned_lunar_elevation_tiff_into_kilometers() {
+        let bytes =
+            encode_tiff::<tiff::encoder::colortype::Gray16>(3, 1, &[22_000, 20_000, 19_000]);
 
-        assert_eq!((image.width(), image.height()), (2, 1));
-        assert_eq!(image.sample(0, 0), 1.5);
-        assert_eq!(image.sample(1, 0), -0.25);
+        let image = decode_lunar_elevation_tiff(&bytes).expect("fixture TIFF should decode");
+
+        assert_eq!((image.width(), image.height()), (3, 1));
+        assert_eq!(image.sample(0, 0), 1.0);
+        assert_eq!(image.sample(1, 0), 0.0);
+        assert_eq!(image.sample(2, 0), -0.5);
+    }
+
+    /// Floating-point TIFF samples are rejected instead of being treated as NASA unsigned samples.
+    #[test]
+    fn rejects_floating_point_lunar_elevation_tiff() {
+        let bytes = TWO_BY_ONE_FLOAT_TIFF;
+
+        let decoded = decode_lunar_elevation_tiff(bytes);
+
+        assert!(decoded.is_err());
     }
 
     /// Malformed bytes fail at the image-module TIFF seam rather than producing samples.
     #[test]
-    fn rejects_invalid_tiff_bytes() {
-        let decoded = decode_float_tiff(b"not a TIFF");
+    fn rejects_invalid_lunar_elevation_tiff_bytes() {
+        let bytes = b"not a TIFF";
+
+        let decoded = decode_lunar_elevation_tiff(bytes);
+
+        assert!(decoded.is_err());
+    }
+
+    /// Signed 16-bit TIFF samples are rejected instead of being treated as NASA unsigned samples.
+    #[test]
+    fn rejects_unsupported_lunar_elevation_tiff_samples() {
+        let bytes = encode_tiff::<tiff::encoder::colortype::GrayI16>(1, 1, &[0]);
+
+        let decoded = decode_lunar_elevation_tiff(&bytes);
 
         assert!(decoded.is_err());
     }

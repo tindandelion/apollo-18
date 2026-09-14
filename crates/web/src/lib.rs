@@ -1,6 +1,6 @@
 use apollo18_renderer::{
     SceneTime,
-    image::{decode_float_tiff, decode_jpeg},
+    image::{decode_jpeg, decode_lunar_elevation_tiff},
     lunar_globe::{
         EphemerisSpanAnimation, LunarColorMap, LunarElevationMap, LunarEphemeris,
         render_lunar_globe,
@@ -18,7 +18,7 @@ use web_sys::{CanvasRenderingContext2d, HtmlCanvasElement, ImageData, Window};
 const MAX_BACKING_DIMENSION: u32 = 1152;
 const CANVAS_ID: &str = "apollo18-canvas";
 const LUNAR_COLOR_MAP_JPEG: &[u8] = include_bytes!("../../../assets/nasa/lroc_color_2k.jpg");
-const LUNAR_ELEVATION_MAP_TIFF: &[u8] = include_bytes!("../../../assets/nasa/ldem_4.tif");
+const LUNAR_ELEVATION_MAP_TIFF: &[u8] = include_bytes!("../../../assets/nasa/ldem_4_uint.tif");
 const LUNAR_EPHEMERIS_JSON: &[u8] = include_bytes!("../../../assets/nasa/mooninfo_2026.json");
 
 #[wasm_bindgen(start)]
@@ -65,7 +65,7 @@ fn start_animation(
         decode_jpeg(LUNAR_COLOR_MAP_JPEG).map_err(|error| JsValue::from_str(&error.to_string()))?,
     );
     let elevation_map = LunarElevationMap::new(
-        decode_float_tiff(LUNAR_ELEVATION_MAP_TIFF)
+        decode_lunar_elevation_tiff(LUNAR_ELEVATION_MAP_TIFF)
             .map_err(|error| JsValue::from_str(&error.to_string()))?,
     );
     let ephemeris_override = js_sys::Reflect::get(

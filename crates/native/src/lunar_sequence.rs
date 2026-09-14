@@ -1,6 +1,6 @@
 use crate::run_frame_sequence;
 use apollo18_renderer::{
-    image::{decode_float_tiff, decode_jpeg},
+    image::{decode_jpeg, decode_lunar_elevation_tiff},
     lunar_globe::{
         LunarColorMap, LunarElevationMap, LunarEphemeris, SynodicMonthAnimation, render_lunar_globe,
     },
@@ -13,7 +13,7 @@ const DEFAULT_OUTPUT_DIRECTORY: &str = "target/apollo18/lunar-globe/frames";
 const CANONICAL_WIDTH: u32 = 800;
 const CANONICAL_HEIGHT: u32 = 800;
 const LUNAR_COLOR_MAP_JPEG: &[u8] = include_bytes!("../../../assets/nasa/lroc_color_2k.jpg");
-const LUNAR_ELEVATION_MAP_TIFF: &[u8] = include_bytes!("../../../assets/nasa/ldem_4.tif");
+const LUNAR_ELEVATION_MAP_TIFF: &[u8] = include_bytes!("../../../assets/nasa/ldem_4_uint.tif");
 
 pub fn run_lunar_globe_sequence<I, S>(
     arguments: I,
@@ -26,7 +26,8 @@ where
     let ephemeris = LunarEphemeris::from_nasa_json(ephemeris_json)?;
     let animation = SynodicMonthAnimation::new(ephemeris)?;
     let color_map = LunarColorMap::new(decode_jpeg(LUNAR_COLOR_MAP_JPEG)?);
-    let elevation_map = LunarElevationMap::new(decode_float_tiff(LUNAR_ELEVATION_MAP_TIFF)?);
+    let elevation_map =
+        LunarElevationMap::new(decode_lunar_elevation_tiff(LUNAR_ELEVATION_MAP_TIFF)?);
 
     run_frame_sequence(
         "lunar-globe",

@@ -177,7 +177,7 @@ mod lunar_globe {
     use std::sync::OnceLock;
 
     const COLOR_MAP_JPEG: &[u8] = include_bytes!("../../../assets/nasa/lroc_color_2k.jpg");
-    const ELEVATION_MAP_TIFF: &[u8] = include_bytes!("../../../assets/nasa/ldem_4.tif");
+    const ELEVATION_MAP_TIFF: &[u8] = include_bytes!("../../../assets/nasa/ldem_4_uint.tif");
     const EPHEMERIS_JSON: &[u8] = include_bytes!("../../../assets/nasa/mooninfo_2026.json");
     const EPOCH_ZERO_GOLDEN_PATH: &str = "tests/goldens/lunar_2026-01-01t00-00z_at_0_seconds.png";
     const NEAREST_SAMPLE_BOUNDARY_GOLDEN_PATH: &str =
@@ -432,7 +432,7 @@ mod lunar_globe {
                 .iter()
                 .map(|byte| format!("{byte:02x}"))
                 .collect::<String>(),
-            "d876c867612e8941d775a005b2bc1ebaef5c15f97e04a43022a71fc21f5c9d65"
+            "e6668bec27fc9b8fbb02d198c7ddfb08eedeeb790167b494f95e6b34201da05e"
         );
     }
 
@@ -448,7 +448,7 @@ mod lunar_globe {
     fn lunar_elevation_map() -> &'static LunarElevationMap {
         static ELEVATION_MAP: OnceLock<LunarElevationMap> = OnceLock::new();
         ELEVATION_MAP.get_or_init(|| {
-            let image = image::decode_float_tiff(ELEVATION_MAP_TIFF)
+            let image = image::decode_lunar_elevation_tiff(ELEVATION_MAP_TIFF)
                 .expect("canonical lunar elevation map TIFF should decode");
             LunarElevationMap::new(image)
         })

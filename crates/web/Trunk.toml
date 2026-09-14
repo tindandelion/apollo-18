@@ -15,7 +15,7 @@ watch = [
   "../../Cargo.toml",
   "../../Cargo.lock",
   "../../assets/nasa/lroc_color_2k.jpg",
-  "../../assets/nasa/ldem_4.tif",
+  "../../assets/nasa/ldem_4_uint.tif",
   "../../assets/nasa/mooninfo_2026.json",
 ]
 ignore = ["smoke-tests"]
