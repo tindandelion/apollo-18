@@ -15,7 +15,8 @@ use std::time::Duration;
 use wasm_bindgen::prelude::*;
 
 const EPHEMERIS_SPAN_PERIOD: Duration = Duration::from_secs(240);
-const MAX_BACKING_DIMENSION: u32 = 1152;
+const FRAME_RELATIVE_RADIUS: f32 = 0.5;
+const MAX_BACKING_DIMENSION: u32 = 1024;
 
 #[wasm_bindgen(start)]
 pub fn start() -> Result<(), JsValue> {
@@ -80,6 +81,7 @@ impl CanvasAnimation {
         let frame = render_lunar_globe(
             resolution.width,
             resolution.height,
+            FRAME_RELATIVE_RADIUS,
             appearance,
             &self.color_map,
             &self.elevation_map,
@@ -229,8 +231,8 @@ mod tests {
         assert_eq!(
             resolution,
             BackingResolution {
-                width: 1152,
-                height: 576
+                width: 1024,
+                height: 512
             }
         );
     }

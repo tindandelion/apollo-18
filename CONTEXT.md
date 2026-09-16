@@ -68,6 +68,10 @@ _Avoid_: Height texture, bump map, displacement map
 The 1,737.4 km spherical radius relative to which lunar elevation is measured.
 _Avoid_: Mean radius, sea level
 
+**Frame-relative radius**:
+The projected lunar globe radius expressed as a fraction of the framebuffer's shorter dimension. A value of 0.5 reaches both edges of that dimension.
+_Avoid_: Globe radius, sphere radius, lunar radius, lunar reference radius
+
 **Octasphere**:
 A spherical triangular mesh formed by repeatedly subdividing an octahedron and projecting the resulting vertices onto a sphere.
 _Avoid_: Icosphere, sphere mesh

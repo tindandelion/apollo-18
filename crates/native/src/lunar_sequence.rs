@@ -12,6 +12,7 @@ use std::path::Path;
 const DEFAULT_OUTPUT_DIRECTORY: &str = "target/apollo18/lunar-globe/frames";
 const CANONICAL_WIDTH: u32 = 800;
 const CANONICAL_HEIGHT: u32 = 800;
+const FRAME_RELATIVE_RADIUS: f32 = 0.45;
 const LUNAR_COLOR_MAP_JPEG: &[u8] = include_bytes!("../../../assets/nasa/lroc_color_2k.jpg");
 const LUNAR_ELEVATION_MAP_TIFF: &[u8] = include_bytes!("../../../assets/nasa/ldem_4_uint.tif");
 
@@ -37,6 +38,7 @@ where
             render_lunar_globe(
                 CANONICAL_WIDTH,
                 CANONICAL_HEIGHT,
+                FRAME_RELATIVE_RADIUS,
                 animation.lunar_appearance(scene_time),
                 &color_map,
                 &elevation_map,

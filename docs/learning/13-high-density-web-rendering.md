@@ -21,12 +21,12 @@ work ∝ width × height
 
 Doubling both dimensions therefore creates about four times as many fragments to process. Unrestricted DPR would make the workload depend heavily on display density.
 
-Apollo 18's 2048×1024 equirectangular lunar color map contains approximately 1024 source samples across a visible hemisphere. The globe occupies 90% of the shorter framebuffer dimension, so a maximum backing dimension of 1152 produces an approximately 1037-pixel globe. Rendering substantially beyond that cannot add comparable lunar-map detail.
+Apollo 18's 2048×1024 equirectangular lunar color map contains approximately 1024 source samples across a visible hemisphere. The web globe uses a frame-relative radius of 0.5, so its diameter spans the shorter framebuffer dimension. A maximum backing dimension of 1024 therefore produces an approximately 1024-pixel globe. Rendering substantially beyond that cannot add comparable lunar-map detail.
 
-The web host computes the desired floating-point dimensions, applies one uniform scale factor when either exceeds 1152, and then rounds both dimensions to integers:
+The web host computes the desired floating-point dimensions, applies one uniform scale factor when either exceeds 1024, and then rounds both dimensions to integers:
 
 ```text
-scale = min(1, 1152 / max(w_desired, h_desired))
+scale = min(1, 1024 / max(w_desired, h_desired))
 w_backing = round(w_desired × scale)
 h_backing = round(h_desired × scale)
 ```
@@ -41,4 +41,6 @@ The backing image is no longer presented with forced nearest-neighbor `pixelated
 
 ## Measured tradeoff
 
-In the reference release-browser workload, a 730.625×730.625 CSS-pixel canvas at DPR 2 requested more than the cap and selected a 1152×1152 backing resolution. The initial high-density implementation measured 15.42 FPS, establishing the cost of sharper output. Subsequent profiling and renderer optimization raised the same bounded workload above the project's 30 FPS target without reducing its backing resolution.
+The current release-browser workload uses a 730.625×730.625 CSS-pixel canvas at DPR 2, which requests more than the cap and selects a 1024×1024 backing resolution. The performance checks retain the project's 30 FPS target at that production maximum.
+
+Earlier optimization measurements used a 1152×1152 backing resolution because the globe then occupied 90% of the shorter framebuffer dimension. The initial high-density implementation measured 15.42 FPS, and subsequent profiling raised that historical workload above 30 FPS. Those measurements remain useful history but do not describe the current production cap.

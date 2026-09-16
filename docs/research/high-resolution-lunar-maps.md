@@ -10,9 +10,9 @@ NASA SVS's **4096×2048 color map** and **5760×2880 `ldem_16` elevation map** a
 
 Do not replace both bundled maps without changing the delivery and elevation-cache design:
 
-- With Apollo 18's current 1152×1152 backing-resolution cap, denser maps do not unlock more visible resolution. They only increase download, initialization, and cache costs.
-- At the current cap, the 4K color map alone reduced median measured throughput from 29.74 to 27.27 FPS (8.3%). The `ldem_16` elevation map alone reduced it to 22.83 FPS (23.2%). Together they reduced it to 22.25 FPS (25.2%).
-- Raising the backing cap is much more expensive than changing map density. At 2048×2048, the current maps measured 9.75 FPS; the denser pair measured 9.09 FPS. Most of the fall from the current roughly 30 FPS therefore comes from processing 3.16 times as many framebuffer pixels, not from the maps themselves.
+- At the 1152×1152 backing-resolution cap used for this research, denser maps did not unlock more visible resolution. They only increased download, initialization, and cache costs.
+- At that measured cap, the 4K color map alone reduced median measured throughput from 29.74 to 27.27 FPS (8.3%). The `ldem_16` elevation map alone reduced it to 22.83 FPS (23.2%). Together they reduced it to 22.25 FPS (25.2%).
+- Raising the backing cap is much more expensive than changing map density. At 2048×2048, the current maps measured 9.75 FPS; the denser pair measured 9.09 FPS. Most of the fall from the roughly 30 FPS measured at 1152×1152 therefore came from processing 3.16 times as many framebuffer pixels, not from the maps themselves.
 - The `ldem_16` terrain-normal cache would occupy 199.1 MB instead of 12.4 MB. The measured compressed Wasm payload estimate grew from 3.0 MB to 33.8 MB, and time from document start through the first completed frame grew from a 556 ms median to 1,618 ms.
 
 A staged path is safer: adopt a runtime-compressed derivative of the 4096×2048 color map only when the backing cap is raised, then investigate a multiresolution or tiled terrain-normal representation before adopting `ldem_16` globally.
@@ -102,7 +102,7 @@ Initialization measurements used five fresh pages per variant and include local 
 
 ## Decision guidance
 
-1. **Keep the current assets while the 1152 cap remains.** A denser map cannot add commensurate visible detail at that cap.
+1. **Keep the current assets at the production backing-resolution cap.** A denser map cannot add commensurate visible detail at the current 1024 cap; the research reached the same conclusion at 1152.
 2. **If targeting sharper 4K presentation, start with the 4096×2048 color source.** It is the right sampling scale and has a much smaller runtime cost than `ldem_16`.
 3. **Do not expect 30 FPS from the current scalar software renderer at a 2048 backing dimension.** The measured result was around 9–10 FPS even before denser maps.
 4. **Treat elevation as an architecture task, not an asset swap.** Preserve `ldem_16` as the likely source, but benchmark packed/multiresolution/tiled terrain normals and lower backing-resolution policies before bundling a 199 MB cache.

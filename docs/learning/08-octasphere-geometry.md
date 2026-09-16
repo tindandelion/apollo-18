@@ -45,16 +45,22 @@ The canonical level-5 globe contains 8,192 triangles and 4,098 shared vertices.
 
 ## Place the globe in the frame
 
-Mesh positions remain unit globe locations. The object transformation scales them to radius `0.5`, producing a unit-diameter globe centered at the world origin. The camera remains at `(0, 0, -3)` and looks along `+Z`.
+Mesh positions remain unit globe locations. Each host supplies a **frame-relative radius** `r`, and the object transformation scales the mesh by that value while keeping it centered at the world origin. Native output and rendering fixtures use `r = 0.45`, leaving 10% of the shorter framebuffer dimension as total padding. The web host uses `r = 0.5`, producing an edge-to-edge globe. The camera remains at `(0, 0, -3)` and looks along `+Z`.
 
-The orthographic bounds depend on framebuffer aspect ratio. If `s` is the shorter framebuffer dimension, radius `r = 0.5`, and occupancy `q = 0.9`, the projection half-extents are
+The orthographic view spans one world-space unit across the shorter framebuffer dimension. If `s` is that shorter dimension, its aspect-corrected half-extents are
 
 ```text
-half_width  = r × width  / (q × s)
-half_height = r × height / (q × s)
+half_width  = width  / (2 × s)
+half_height = height / (2 × s)
 ```
 
-Consequently, the projected diameter is `0.9 × s` pixels in both directions. The lunar globe occupies 90% of the shorter side while remaining circular in square, landscape, and portrait framebuffers.
+A globe with frame-relative radius `r` therefore has projected diameter
+
+```text
+diameter_pixels = 2 × r × s
+```
+
+The host can choose padding without changing the projection, and the globe remains circular in square, landscape, and portrait framebuffers.
 
 ## Rotate from scene time
 

@@ -179,6 +179,7 @@ mod lunar_globe {
     const COLOR_MAP_JPEG: &[u8] = include_bytes!("../../../assets/nasa/lroc_color_2k.jpg");
     const ELEVATION_MAP_TIFF: &[u8] = include_bytes!("../../../assets/nasa/ldem_4_uint.tif");
     const EPHEMERIS_JSON: &[u8] = include_bytes!("../../../assets/nasa/mooninfo_2026.json");
+    const FRAME_RELATIVE_RADIUS: f32 = 0.45;
     const EPOCH_ZERO_GOLDEN_PATH: &str = "tests/goldens/lunar_2026-01-01t00-00z_at_0_seconds.png";
     const NEAREST_SAMPLE_BOUNDARY_GOLDEN_PATH: &str =
         "tests/goldens/lunar_2026-01-02t16-00z_at_0-5573317_seconds.png";
@@ -248,8 +249,22 @@ mod lunar_globe {
         let elevation_map = lunar_elevation_map();
 
         let appearance = lunar_phase_animation().lunar_appearance(scene_time);
-        let empty_width = render_lunar_globe(0, 800, appearance, color_map, elevation_map);
-        let empty_height = render_lunar_globe(800, 0, appearance, color_map, elevation_map);
+        let empty_width = render_lunar_globe(
+            0,
+            800,
+            FRAME_RELATIVE_RADIUS,
+            appearance,
+            color_map,
+            elevation_map,
+        );
+        let empty_height = render_lunar_globe(
+            800,
+            0,
+            FRAME_RELATIVE_RADIUS,
+            appearance,
+            color_map,
+            elevation_map,
+        );
 
         assert_eq!(
             empty_width,
@@ -469,6 +484,7 @@ mod lunar_globe {
         render_lunar_globe(
             width,
             height,
+            FRAME_RELATIVE_RADIUS,
             appearance,
             lunar_color_map(),
             lunar_elevation_map(),

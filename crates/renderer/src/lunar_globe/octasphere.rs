@@ -46,8 +46,6 @@ impl FragmentShader for LunarShader<'_> {
 }
 
 const CANONICAL_SUBDIVISION_LEVEL: u32 = 5;
-const GLOBE_RADIUS: f32 = 0.5;
-const FRAME_OCCUPANCY: f32 = 0.9;
 const CAMERA_POSITION: Vec3 = Vec3::new(0.0, 0.0, -3.0);
 const LUNAR_NORTH: Vec3 = Vec3::Y;
 const ZERO_DEGREE_LONGITUDE: Vec3 = Vec3::NEG_Z;
@@ -55,23 +53,24 @@ const ZERO_DEGREE_LONGITUDE: Vec3 = Vec3::NEG_Z;
 pub(crate) fn render(
     width: u32,
     height: u32,
+    frame_relative_radius: f32,
     background: Srgb8,
     color_map: &LunarColorMap,
     elevation_map: &LunarElevationMap,
     appearance: LunarAppearance,
 ) -> Result<Framebuffer, RenderError> {
     let mut rasterizer = Rasterizer::new(width, height, background)?;
-    let object_rotation = appearance.object_to_world();
+    let globe_pose = appearance.globe_pose();
     let sun_direction = appearance.sun_direction();
     let object_to_ndc = projection_transform(width, height)
         * Mat4::from_translation(-CAMERA_POSITION)
-        * object_rotation
-        * Mat4::from_scale(Vec3::splat(GLOBE_RADIUS));
+        * globe_pose
+        * Mat4::from_scale(Vec3::splat(frame_relative_radius));
     let mesh = generate(CANONICAL_SUBDIVISION_LEVEL);
     let shader = LunarShader::new(
         color_map,
         elevation_map,
-        object_space_sun_direction(object_rotation, sun_direction),
+        object_space_sun_direction(globe_pose, sun_direction),
     );
 
     for triangle in mesh.triangles {
@@ -91,11 +90,11 @@ pub(crate) fn render(
 }
 
 fn object_space_sun_direction(
-    object_to_world: Mat4,
+    globe_pose: Mat4,
     world_space_sun_direction: SunDirection,
 ) -> SunDirection {
     SunDirection::new(
-        object_to_world
+        globe_pose
             .transpose()
             .transform_vector3(world_space_sun_direction.as_vec3()),
     )
@@ -104,8 +103,8 @@ fn object_space_sun_direction(
 
 fn projection_transform(width: u32, height: u32) -> Mat4 {
     let shortest_side = width.min(height) as f32;
-    let half_width = GLOBE_RADIUS * width as f32 / (FRAME_OCCUPANCY * shortest_side);
-    let half_height = GLOBE_RADIUS * height as f32 / (FRAME_OCCUPANCY * shortest_side);
+    let half_width = width as f32 / (2.0 * shortest_side);
+    let half_height = height as f32 / (2.0 * shortest_side);
 
     Mat4::orthographic_lh(-half_width, half_width, -half_height, half_height, 2.0, 4.0)
 }
@@ -312,13 +311,12 @@ mod tests {
     /// Rotating the Sun opposite the globe pose preserves their relative lighting direction.
     #[test]
     fn sun_direction_is_transformed_into_lunar_globe_object_space() {
-        let object_rotation = Mat4::from_rotation_y(90.0_f32.to_radians());
+        let globe_pose = Mat4::from_rotation_y(90.0_f32.to_radians());
         let object_space_normal = Vec3::new(1.0, 2.0, -3.0).normalize();
-        let world_space_sun =
-            SunDirection::new(object_rotation.transform_vector3(object_space_normal))
-                .expect("valid Sun direction");
+        let world_space_sun = SunDirection::new(globe_pose.transform_vector3(object_space_normal))
+            .expect("valid Sun direction");
 
-        let object_space_sun = object_space_sun_direction(object_rotation, world_space_sun);
+        let object_space_sun = object_space_sun_direction(globe_pose, world_space_sun);
 
         approx::assert_relative_eq!(
             object_space_sun.as_vec3(),
@@ -379,20 +377,24 @@ mod tests {
         assert!(mesh.positions.contains(&ZERO_DEGREE_LONGITUDE));
     }
 
+    /// One world-space unit spans the shorter framebuffer side at every aspect ratio.
     #[test]
-    fn projection_preserves_circle_and_uses_ninety_percent_of_short_side() {
-        for (width, height) in [(800, 800), (1200, 600), (600, 1200)] {
+    fn projection_maps_one_world_unit_to_shorter_framebuffer_side() {
+        let framebuffer_dimensions = [(800, 800), (1200, 600), (600, 1200)];
+        let half_unit = 0.5;
+
+        for (width, height) in framebuffer_dimensions {
             let projection = projection_transform(width, height);
-            let left = projection.transform_point3(Vec3::new(-GLOBE_RADIUS, 0.0, 3.0));
-            let right = projection.transform_point3(Vec3::new(GLOBE_RADIUS, 0.0, 3.0));
-            let top = projection.transform_point3(Vec3::new(0.0, GLOBE_RADIUS, 3.0));
-            let bottom = projection.transform_point3(Vec3::new(0.0, -GLOBE_RADIUS, 3.0));
+            let left = projection.transform_point3(Vec3::new(-half_unit, 0.0, 3.0));
+            let right = projection.transform_point3(Vec3::new(half_unit, 0.0, 3.0));
+            let top = projection.transform_point3(Vec3::new(0.0, half_unit, 3.0));
+            let bottom = projection.transform_point3(Vec3::new(0.0, -half_unit, 3.0));
             let pixel_width = (right.x - left.x) * width as f32 / 2.0;
             let pixel_height = (top.y - bottom.y) * height as f32 / 2.0;
-            let expected = width.min(height) as f32 * FRAME_OCCUPANCY;
+            let shorter_side = width.min(height) as f32;
 
-            approx::assert_relative_eq!(pixel_width, expected, epsilon = 1.0e-4);
-            approx::assert_relative_eq!(pixel_height, expected, epsilon = 1.0e-4);
+            approx::assert_relative_eq!(pixel_width, shorter_side, epsilon = 1.0e-4);
+            approx::assert_relative_eq!(pixel_height, shorter_side, epsilon = 1.0e-4);
         }
     }
 

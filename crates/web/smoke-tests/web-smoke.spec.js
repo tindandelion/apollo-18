@@ -1,7 +1,7 @@
 const { test, expect } = require("@playwright/test");
 
 const backgroundChannel = 0x18;
-const maximumBackingDimension = 1152;
+const maximumBackingDimension = 1024;
 
 test.use({ deviceScaleFactor: 2 });
 
@@ -30,8 +30,10 @@ test("release web host fits its square presentation within the viewport", async 
     const canvasBounds = document
       .querySelector("#apollo18-canvas")
       .getBoundingClientRect();
+    const bodyBounds = document.body.getBoundingClientRect();
 
     return {
+      bodyWidth: bodyBounds.width,
       canvasWidth: canvasBounds.width,
       canvasHeight: canvasBounds.height,
       viewportWidth: window.innerWidth,
@@ -42,6 +44,7 @@ test("release web host fits its square presentation within the viewport", async 
   });
   expect(layout.pageWidth).toBeLessThanOrEqual(layout.viewportWidth);
   expect(layout.pageHeight).toBeLessThanOrEqual(layout.viewportHeight);
+  expect(layout.bodyWidth).toBe(1200);
   expect(layout.canvasWidth).toBe(layout.canvasHeight);
 });
 
@@ -64,8 +67,8 @@ test("footer aligns credits across wide screens and stacks them on small screens
   );
 
   expect(wideFooter).toHaveLength(2);
-  expect(wideFooter[0].left).toBe(16);
-  expect(wideFooter[1].right).toBe(1264);
+  expect(wideFooter[0].left).toBe(56);
+  expect(wideFooter[1].right).toBe(1224);
   expect(wideFooter[0].bottom).toBe(wideFooter[1].bottom);
   expect(wideFooter[0].textAlign).toBe("left");
   expect(wideFooter[1].textAlign).toBe("right");

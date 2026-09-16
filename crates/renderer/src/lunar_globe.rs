@@ -20,6 +20,7 @@ use crate::rasterizer::{Framebuffer, RenderError};
 pub fn render_lunar_globe(
     width: u32,
     height: u32,
+    frame_relative_radius: f32,
     appearance: LunarAppearance,
     color_map: &LunarColorMap,
     elevation_map: &LunarElevationMap,
@@ -27,6 +28,7 @@ pub fn render_lunar_globe(
     octasphere::render(
         width,
         height,
+        frame_relative_radius,
         BACKGROUND,
         color_map,
         elevation_map,

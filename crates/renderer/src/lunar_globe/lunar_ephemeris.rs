@@ -118,7 +118,7 @@ struct EphemerisSample {
 }
 
 impl EphemerisSample {
-    fn object_to_world(self) -> Mat4 {
+    fn globe_pose(self) -> Mat4 {
         let center_longitude =
             Mat4::from_rotation_y(self.subearth_point.longitude_degrees.to_radians() as f32);
         let center_latitude =
@@ -130,12 +130,12 @@ impl EphemerisSample {
     }
 
     fn lunar_appearance(self) -> LunarAppearance {
-        let object_to_world = self.object_to_world();
-        let sun_direction = object_to_world.transform_vector3(self.subsolar_point.globe_location());
+        let globe_pose = self.globe_pose();
+        let sun_direction = globe_pose.transform_vector3(self.subsolar_point.globe_location());
         let sun_direction = SunDirection::new(sun_direction)
             .expect("validated ephemeris coordinates produce a valid Sun direction");
 
-        LunarAppearance::new(object_to_world, sun_direction)
+        LunarAppearance::new(globe_pose, sun_direction)
     }
 }
 
@@ -299,7 +299,7 @@ mod tests {
         };
 
         let centered = sample
-            .object_to_world()
+            .globe_pose()
             .transform_vector3(subearth_point.globe_location());
 
         assert!(centered.abs_diff_eq(Vec3::NEG_Z, 1.0e-6));
@@ -315,7 +315,7 @@ mod tests {
             position_angle: LunarPositionAngle::new(0.0).expect("position angle should be valid"),
         };
 
-        let lunar_north = sample.object_to_world().transform_vector3(Vec3::Y);
+        let lunar_north = sample.globe_pose().transform_vector3(Vec3::Y);
 
         assert!(lunar_north.x.abs() < 1.0e-6);
         assert!(lunar_north.y > 0.0);
@@ -330,7 +330,7 @@ mod tests {
             position_angle: LunarPositionAngle::new(90.0).expect("position angle should be valid"),
         };
 
-        let lunar_north = sample.object_to_world().transform_vector3(Vec3::Y);
+        let lunar_north = sample.globe_pose().transform_vector3(Vec3::Y);
 
         assert!(lunar_north.abs_diff_eq(Vec3::NEG_X, 1.0e-6));
     }

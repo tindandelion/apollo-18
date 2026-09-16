@@ -4,14 +4,14 @@ use std::fmt::{self, Display, Formatter};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct LunarAppearance {
-    object_to_world: Mat4,
+    globe_pose: Mat4,
     sun_direction: SunDirection,
 }
 
 impl LunarAppearance {
-    pub const fn new(object_to_world: Mat4, sun_direction: SunDirection) -> Self {
+    pub const fn new(globe_pose: Mat4, sun_direction: SunDirection) -> Self {
         Self {
-            object_to_world,
+            globe_pose,
             sun_direction,
         }
     }
@@ -20,8 +20,8 @@ impl LunarAppearance {
         self.sun_direction
     }
 
-    pub(crate) const fn object_to_world(self) -> Mat4 {
-        self.object_to_world
+    pub(crate) const fn globe_pose(self) -> Mat4 {
+        self.globe_pose
     }
 }
 
@@ -63,6 +63,8 @@ mod tests {
     use super::*;
     use crate::image::{ElevationImage, SrgbImage};
     use crate::lunar_globe::{LunarColorMap, LunarElevationMap, render_lunar_globe};
+
+    const TEST_FRAME_RELATIVE_RADIUS: f32 = 0.45;
 
     /// A Sun direction normalizes finite nonzero input.
     #[test]
@@ -145,10 +147,24 @@ mod tests {
             SunDirection::new(Vec3::NEG_Z).expect("Sun direction should be valid"),
         );
 
-        let first = render_lunar_globe(32, 24, appearance, &color_map, &elevation_map)
-            .expect("lunar globe should render");
-        let second = render_lunar_globe(32, 24, appearance, &color_map, &elevation_map)
-            .expect("lunar globe should render");
+        let first = render_lunar_globe(
+            32,
+            24,
+            TEST_FRAME_RELATIVE_RADIUS,
+            appearance,
+            &color_map,
+            &elevation_map,
+        )
+        .expect("lunar globe should render");
+        let second = render_lunar_globe(
+            32,
+            24,
+            TEST_FRAME_RELATIVE_RADIUS,
+            appearance,
+            &color_map,
+            &elevation_map,
+        )
+        .expect("lunar globe should render");
 
         assert_eq!(first, second);
     }
@@ -170,10 +186,24 @@ mod tests {
                 .expect("rotated Sun direction should be valid"),
         );
 
-        let identity = render_lunar_globe(33, 33, identity_appearance, &color_map, &elevation_map)
-            .expect("identity appearance should render");
-        let rotated = render_lunar_globe(33, 33, rotated_appearance, &color_map, &elevation_map)
-            .expect("rotated appearance should render");
+        let identity = render_lunar_globe(
+            33,
+            33,
+            TEST_FRAME_RELATIVE_RADIUS,
+            identity_appearance,
+            &color_map,
+            &elevation_map,
+        )
+        .expect("identity appearance should render");
+        let rotated = render_lunar_globe(
+            33,
+            33,
+            TEST_FRAME_RELATIVE_RADIUS,
+            rotated_appearance,
+            &color_map,
+            &elevation_map,
+        )
+        .expect("rotated appearance should render");
 
         assert_eq!(center_pixel(&identity), center_pixel(&rotated));
         assert!(center_pixel(&identity)[0] > 0);
@@ -189,8 +219,15 @@ mod tests {
             SunDirection::new(Vec3::X).expect("Sun direction should be valid"),
         );
 
-        let framebuffer = render_lunar_globe(33, 33, appearance, &color_map, &elevation_map)
-            .expect("lunar appearance should render");
+        let framebuffer = render_lunar_globe(
+            33,
+            33,
+            TEST_FRAME_RELATIVE_RADIUS,
+            appearance,
+            &color_map,
+            &elevation_map,
+        )
+        .expect("lunar appearance should render");
 
         assert_eq!(center_pixel(&framebuffer), [0, 0, 0, 255]);
     }
@@ -207,8 +244,15 @@ mod tests {
             SunDirection::new(Vec3::new(1.0, 0.0, -0.001)).expect("Sun direction should be valid"),
         );
 
-        let framebuffer = render_lunar_globe(33, 33, appearance, &color_map, &elevation_map)
-            .expect("lunar appearance should render");
+        let framebuffer = render_lunar_globe(
+            33,
+            33,
+            TEST_FRAME_RELATIVE_RADIUS,
+            appearance,
+            &color_map,
+            &elevation_map,
+        )
+        .expect("lunar appearance should render");
 
         assert_eq!(center_pixel(&framebuffer), [3, 3, 3, 255]);
     }
@@ -234,8 +278,15 @@ mod tests {
             SunDirection::new(Vec3::Z).expect("Sun direction should be valid"),
         );
 
-        let framebuffer = render_lunar_globe(65, 65, appearance, &color_map, &elevation_map)
-            .expect("new-Moon appearance should render");
+        let framebuffer = render_lunar_globe(
+            65,
+            65,
+            TEST_FRAME_RELATIVE_RADIUS,
+            appearance,
+            &color_map,
+            &elevation_map,
+        )
+        .expect("new-Moon appearance should render");
         let highlighted_pixel_count = framebuffer
             .pixels()
             .chunks_exact(4)
@@ -260,6 +311,7 @@ mod tests {
         let baseline = render_lunar_globe(
             32,
             24,
+            TEST_FRAME_RELATIVE_RADIUS,
             LunarAppearance::new(Mat4::IDENTITY, front_sun),
             &color_map,
             &elevation_map,
@@ -268,6 +320,7 @@ mod tests {
         let changed_sun = render_lunar_globe(
             32,
             24,
+            TEST_FRAME_RELATIVE_RADIUS,
             LunarAppearance::new(Mat4::IDENTITY, side_sun),
             &color_map,
             &elevation_map,

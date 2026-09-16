@@ -2,7 +2,7 @@ const { test, expect } = require("@playwright/test");
 
 const warmupMilliseconds = 2_000;
 const measurementMilliseconds = 8_000;
-const maximumBackingDimension = 1152;
+const maximumBackingDimension = 1024;
 const minimumFramesPerSecond = 30;
 
 test.use({

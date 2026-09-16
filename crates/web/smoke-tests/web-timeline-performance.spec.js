@@ -3,7 +3,7 @@ const { test, expect } = require("@playwright/test");
 
 const warmupMilliseconds = 2_000;
 const measurementMilliseconds = 8_000;
-const maximumBackingDimension = 1152;
+const maximumBackingDimension = 1024;
 const minimumMeasuredFrames = 60;
 const sceneTimeOffsetSetting = process.env.APOLLO18_SCENE_TIME_OFFSET_SECONDS;
 const sceneTimeOffsetSeconds =
@@ -216,7 +216,7 @@ test("records completed high-density rendering stage timings", async ({
   console.log(JSON.stringify(diagnostic, null, 2));
   expect(result.environment.viewport).toBe("1440x900 CSS pixels");
   expect(result.environment.devicePixelRatio).toBe(2);
-  expect(result.environment.backingResolution).toBe("1152x1152");
+  expect(result.environment.backingResolution).toBe("1024x1024");
   expect(result.incompleteFrames).toBe(0);
   expect(result.measurement.completedFrames).toBeGreaterThanOrEqual(
     minimumMeasuredFrames,

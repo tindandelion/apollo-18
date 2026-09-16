@@ -50,10 +50,10 @@ At `(0°, 0°)` this gives `-Z`, placing the direction on the viewer-facing meri
 
 ## Centering the sub-Earth point
 
-Let the sampled sub-Earth longitude and latitude be `λₑ` and `φₑ`. The same globe-location equation gives the object-space direction toward Earth. The object-to-world rotation is:
+Let the sampled sub-Earth longitude and latitude be `λₑ` and `φₑ`. The same globe-location equation gives the object-space direction toward Earth. The **lunar globe pose** is:
 
 ```text
-object_to_world = rotate_x(-φₑ) × rotate_y(λₑ)
+globe_pose = rotate_x(-φₑ) × rotate_y(λₑ)
 ```
 
 The rightmost longitude rotation acts first. It moves the sub-Earth point onto the central meridian; the latitude rotation then moves it to world `-Z`, toward the Earth-centered camera. Before roll, lunar north `(0, 1, 0)` becomes `(0, cos φₑ, -sin φₑ)`. Its framebuffer projection has no sideways component and points upward.
@@ -62,24 +62,24 @@ The rightmost longitude rotation acts first. It moves the sub-Earth point onto t
 
 The sub-Earth point fixes the disk center but leaves rotation around the viewing axis unspecified. NASA's lunar position angle `P` supplies that final rotational degree of freedom: it is the apparent counterclockwise angle from celestial north to the Moon's north-pole axis. Apollo 18 makes framebuffer up represent celestial north.
 
-The camera looks along world `+Z`, so the viewing axis is `Z`. The complete object-to-world rotation is:
+The camera looks along world `+Z`, so the viewing axis is `Z`. The complete **lunar globe pose** is:
 
 ```text
-object_to_world = rotate_z(P) × rotate_x(-φₑ) × rotate_y(λₑ)
+globe_pose = rotate_z(P) × rotate_x(-φₑ) × rotate_y(λₑ)
 ```
 
 The rightmost transform still acts first. Positive `rotate_z(P)` moves projected lunar north from up toward framebuffer left, which is counterclockwise despite framebuffer pixel rows increasing downward. Rolling after centering leaves the sub-Earth direction on world `-Z`, so the globe remains centered and keeps the same apparent size.
 
-The subsolar direction begins in the same object-space lunar coordinates and is rotated by the complete `object_to_world` rotation before becoming the world-space **Sun direction**. Geometry uses that rotation. Shading applies its inverse to the Sun direction once per frame and compares it with cached object-space terrain normals, which is equivalent to rotating every normal into world space. Lunar color-map and terrain-normal lookup continue to use the unrotated **globe location**, so geography moves with the posed globe rather than sliding across it.
+The subsolar direction begins in the same object-space lunar coordinates and is rotated by the complete `globe_pose` rotation before becoming the world-space **Sun direction**. Geometry uses that rotation. Shading applies its inverse to the Sun direction once per frame and compares it with cached object-space terrain normals, which is equivalent to rotating every normal into world space. Lunar color-map and terrain-normal lookup continue to use the unrotated **globe location**, so geography moves with the posed globe rather than sliding across it.
 
-The shared lunar-phase animation policies select one astronomical instant, then sample both points and the position angle and package the resulting pose and Sun direction into a **lunar appearance**. The ephemeris sample hides the source values and owns their conversion into the object-to-world rotation and matching world-space Sun direction. Lunar rasterization only consumes the explicit appearance.
+The shared lunar-phase animation policies select one astronomical instant, then sample both points and the position angle and package the resulting pose and Sun direction into a **lunar appearance**. The ephemeris sample hides the source values and owns their conversion into the **lunar globe pose** and matching world-space Sun direction. Lunar rasterization only consumes the explicit appearance.
 
 ## Terrain shading and scope
 
 Each fragment retains terrain-normal Lambertian shading:
 
 ```text
-sun_object = inverse(object_to_world) × sun_world
+sun_object = inverse(globe_pose) × sun_world
 diffuse = max(dot(terrain_normal_object, sun_object), 0)
 linear_output = linear_lunar_color × diffuse
 ```
